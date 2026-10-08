@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>2D k=2 Zig Zag Numberlink</title>
+
+  <link rel="icon" type="image/png" href="favicon.ico">
+  <script type='text/javascript' src='js/two.js'></script>
+  <script type='text/javascript' src='js/FileSaver.js'></script>
+  <script type='text/javascript' src='js/webui_r2k2zzn.js'></script>
+  <script type='text/javascript' src='js/web_zzn.js'></script>
+  <link rel='stylesheet' href='css/skeleton.css'>
+
+</head>
+
+<body>
+  <div class='container' id='ui_container'>
+
+    <div class="row" style='margin-top: 5%;'>
+      <div class="eight columns" >
+        <h4>2D k=2 Zig Zag Numberlink</h4>
+      </div>
+      <div class="four columns" style='text-align:right;'> &nbsp; </div>
+    </div>
+
+    <div class="row">
+      <div class="row">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="six columns" id='dd_c'>
+
+        <div class='row'>
+          <div class='one columns'>
+            <span style='float:right;'>preset:</span>
+          </div>
+
+          <div class='three columns'>
+            <span style='float:left;'>
+              <select class='u-full-width' id='ui_preset'>
+                <option value='a'>xxx</option>
+                <option value='b'>xxx</option>
+                <option value='c'>xxx</option>
+                <option value='d'>xxx</option>
+                <option value='e'>xxx</option>
+                <option value='f'>xxx</option>
+              </select>
+            </span>
+          </div>
+
+          <div class='two columns'>
+            <span style='float:left;'>
+              <input id='ui_btn_random' type='button' value='random' onclick='ui_input("ui_btn_random")'>
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="six columns" id='dd_c'>
+        &nbsp;
+      </div>
+
+    </div>
+
+    <div class="row">
+      <div class="six columns" id='ok'>
+
+        <div class='row'>
+          <div class='one columns'>
+            <span style='float:right;'>nx:</span>
+          </div>
+
+          <div class='two columns'>
+            <input type='text' id='ui_nx' name='nx' style='max-width:100%;'></input>
+          </div>
+
+          <div class='one columns'>
+            <span style='float:right;'>ny:</span>
+          </div>
+
+          <div class='two columns'>
+            <input type='text' id='ui_ny' name='ny' style='max-width:100%;'></input>
+          </div>
+
+          <div class='six columns'>
+            &nbsp;
+          </div>
+        </div>
+
+        <div class='row'>
+          <div class='one columns'>
+            <span style='float:right;'>s0:</span>
+          </div>
+
+          <div class='two columns'>
+            <input type='text' id='ui_s0' name='s0' style='max-width:100%;'></input>
+          </div>
+
+          <div class='one columns'>
+            <span style='float:right;'>t0:</span>
+          </div>
+
+          <div class='two columns'>
+            <input type='text' id='ui_t0' name='t0' style='max-width:100%;'></input>
+          </div>
+
+          <div class='one columns'>
+            <span style='float:right;'>s1:</span>
+          </div>
+
+          <div class='two columns'>
+            <input type='text' id='ui_s1' name='s1' style='max-width:100%;'></input>
+          </div>
+
+          <div class='one columns'>
+            <span style='float:right;'>t1:</span>
+          </div>
+
+          <div class='two columns'>
+            <input type='text' id='ui_t1' name='t1' style='max-width:100%;'></input>
+          </div>
+
+        </div>
+
+        <div class='row'>
+          <div class='twelve columns'>
+            <span>paths</span>
+          </div>
+        </div>
+
+        <div class='row'>
+          <div class='twelve columns'>
+            <textarea class='u-full-width' id='ui_path' style='max-width:100%; height:25em;'></textarea>
+          </div>
+        </div>
+
+        <div class='row'>
+          <div class='four columns'>
+            <input id='ui_btn_render' type='button' value='render' onclick='ui_input("ui_btn_render")'>
+          </div>
+
+          <div class='four columns'>
+            <input id='ui_btn_solve' type='button' value='solve' onclick='ui_input("ui_btn_solve")'>
+          </div>
+
+          <div class='four columns'>
+            <input id='ui_btn_dl' type='button' value='dl' onclick='ui_input("ui_btn_dl")'>
+          </div>
+        </div>
+
+
+      </div>
+
+      <div class="six columns" id='ui_gfx'>
+        <div id='twojs_canvas' style='width:800px;height:500px;'> </div>
+
+      </div>
+    </div>
+
+
+  </div>
+
+</body>
+
+<script>
+  web_init();
+</script>
+<html>
+
