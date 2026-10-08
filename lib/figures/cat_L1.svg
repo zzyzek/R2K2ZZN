@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="158" height="154" viewBox="0 0 158 154" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="white"/>
+<text x="14" y="26" font-size="13" font-weight="700" fill="#222">L1: isolated endpoint</text>
+<line x1="14" y1="36" x2="144" y2="36" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="62" x2="144" y2="62" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="88" x2="144" y2="88" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="114" x2="144" y2="114" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="140" x2="144" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="36" x2="14" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="40" y1="36" x2="40" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="66" y1="36" x2="66" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="92" y1="36" x2="92" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="118" y1="36" x2="118" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="144" y1="36" x2="144" y2="140" stroke="#c8c8c8" stroke-width="0.6"/>
+<rect x="14" y="36" width="130" height="104" fill="none" stroke="#333" stroke-width="1.4"/>
+<circle cx="27.0" cy="49.0" r="9.36" fill="#1D9E75"/>
+<text x="27.0" y="52.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">s0</text>
+<circle cx="105.0" cy="127.0" r="9.36" fill="#1D9E75"/>
+<text x="105.0" y="130.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">t0</text>
+<circle cx="53.0" cy="49.0" r="9.36" fill="#D85A30"/>
+<text x="53.0" y="52.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">s1</text>
+<circle cx="27.0" cy="75.0" r="9.36" fill="#D85A30"/>
+<text x="27.0" y="78.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">t1</text>
+</svg>

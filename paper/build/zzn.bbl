@@ -1,0 +1,69 @@
+\begin{thebibliography}{10}
+
+\bibitem{adcock15}
+Aaron~B. Adcock, Erik~D. Demaine, Martin~L. Demaine, Michael~P. O'Brien, Felix
+  Reidl, Fernando~S{\'a}nchez Villaamil, and Blair~D. Sullivan.
+\newblock Zig-zag {Numberlink} is {NP}-complete.
+\newblock {\em Journal of Information Processing}, 23(3):239--245, 2015.
+\newblock arXiv:1410.5845.
+
+\bibitem{chen08}
+Danqi Chen.
+\newblock Dynamic programming problems based on connectivity state compression.
+\newblock Paper of the Chinese National Olympiad in Informatics (NOI) national
+  training team, 2008.
+\newblock In Chinese.
+
+\bibitem{lean4}
+Leonardo de~Moura and Sebastian Ullrich.
+\newblock The {Lean} 4 theorem prover and programming language.
+\newblock In {\em Automated Deduction -- CADE 28}, volume 12699 of {\em Lecture
+  Notes in Computer Science}, pages 625--635, 2021.
+
+\bibitem{ips82}
+Alon Itai, Christos~H. Papadimitriou, and Jayme~Luiz Szwarcfiter.
+\newblock Hamilton paths in grid graphs.
+\newblock {\em SIAM Journal on Computing}, 11(4):676--686, 1982.
+
+\bibitem{jacobsen07}
+Jesper~Lykke Jacobsen.
+\newblock Exact enumeration of {Hamiltonian} circuits, walks and chains in two
+  and three dimensions.
+\newblock {\em Journal of Physics A: Mathematical and Theoretical},
+  40(49):14667--14678, 2007.
+
+\bibitem{kk24}
+Fatemeh Keshavarz-Kohjerdi.
+\newblock Paired many-to-many 2-disjoint path covers in meshes.
+\newblock {\em IEEE Transactions on Parallel and Distributed Systems},
+  35(10):1854--1866, 2024.
+
+\bibitem{lynch75}
+James~F. Lynch.
+\newblock The equivalence of theorem proving and the interconnection problem.
+\newblock {\em ACM SIGDA Newsletter}, 5(3):31--36, 1975.
+
+\bibitem{oiwiki}
+{OI Wiki contributors}.
+\newblock Plug {DP}.
+\newblock \url{https://oi-wiki.org/dp/plug/}, 2026.
+\newblock In Chinese; accessed October 2026.
+
+\bibitem{parkihm15}
+Jung-Heum Park and Insung Ihm.
+\newblock Many-to-many two-disjoint path covers in cylindrical and toroidal
+  grids.
+\newblock {\em Discrete Applied Mathematics}, 185:168--191, 2015.
+
+\bibitem{rs95}
+Neil Robertson and Paul~D. Seymour.
+\newblock Graph minors. {XIII}. the disjoint paths problem.
+\newblock {\em Journal of Combinatorial Theory, Series B}, 63(1):65--110, 1995.
+
+\bibitem{mathlib20}
+{The mathlib Community}.
+\newblock The {Lean} mathematical library.
+\newblock In {\em Proceedings of the 9th ACM SIGPLAN International Conference
+  on Certified Programs and Proofs (CPP)}, pages 367--381, 2020.
+
+\end{thebibliography}
