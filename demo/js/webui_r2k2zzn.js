@@ -879,12 +879,6 @@ function _rnd(a) {
   return Math.floor( Math.random() * a );
 }
 
-//function cb_preset() {
-//  console.log("...");
-//  let ele = document.getElementById("ui_preset");
-//  console.log(">>>", ele.value);
-//}
-
 function web_init() {
   let two = g_fig_ctx.two;
 
@@ -894,6 +888,7 @@ function web_init() {
   canvas_init();
   two.update();
 
-  //let ui_preset = document.getElementById("ui_preset");
-  //ui_preset.addEventListener("change", function(ev) { cb_preset(); });
+  // initial random input
+  //
+  ui_input("ui_btn_random");
 }
