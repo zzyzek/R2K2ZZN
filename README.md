@@ -2,7 +2,7 @@
 
 | |
 |---|
-| ![r2k2zzn 15x11](docs/figures/r2k2zzn_15x11.png) |
+| ![r2k2zzn 15x11](docs/figures/r2k2zzn_15x11.jpg) |
 
 Decide and solve two-colour Zig-Zag Numberlink (the paired 2-disjoint path cover problem) on
 rectangular grids: given an R × C grid and endpoints s0, t0 (colour 0) and s1, t1 (colour 1), find
