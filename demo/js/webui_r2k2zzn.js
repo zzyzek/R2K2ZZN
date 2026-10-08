@@ -592,7 +592,7 @@ function _get_ui_paths( ui_id ) {
     data = JSON.parse(txt);
   }
   catch (e) {
-    console.log("e:", e);
+    //console.log("e:", e);
   }
 
   return data;
@@ -635,6 +635,50 @@ function _get_v2valu( ui_id ) {
     }
   }
   return v2;
+}
+
+function _check_instance(opt) {
+  let nx = opt.nx;
+  let ny = opt.ny;
+  let stst = [ opt.S[0], opt.T[0], opt.S[1], opt.T[1] ];
+
+  for (let i=0; i<stst.length; i++) {
+    let v = stst[i];
+    if ((v[0] < 0) || (v[0] >= nx) ||
+        (v[1] < 0) || (v[1] >= ny)) { return -1; }
+
+    for (let j=(i+1); j<stst.length; j++) {
+      let u = stst[j];
+
+      if ((v[0] == u[0]) && (v[1] == u[1])) { return -2; }
+    }
+  }
+
+  return 0;
+}
+
+function _display_message(state, msg) {
+  state = ((typeof state === "undefined") ? 0 : state);
+  msg = ((typeof msg === "undefined") ? "" : msg);
+
+  let ele = document.getElementById("ui_btn_msg");
+  ele.value = msg;
+
+  if (state < 0) {
+    ele.style.display = 'block';
+    ele.style.backgroundColor = "rgb(250,50,20)";
+    ele.style.color = 'rgb(245,245,245)';
+  }
+  else if (state == 1) {
+    ele.style.display = 'block';
+    ele.style.backgroundColor = "rgb(230,230,10)";
+    ele.style.color = 'rgb(20,20,20)';
+  }
+
+  else {
+    ele.style.display = 'none';
+  }
+
 }
 
 function ui_input(btn_id) {
@@ -681,6 +725,13 @@ function ui_input(btn_id) {
     mk_paths(_opt);
     two.update();
 
+    if (_check_instance(_opt) < 0) {
+      _display_message(-1, "bad input");
+      return;
+    }
+    _display_message(0);
+
+
   }
 
   else if (btn_id == "ui_btn_solve") {
@@ -692,17 +743,11 @@ function ui_input(btn_id) {
     _opt.S[1] = _get_v2val("ui_s1");
     _opt.T[1] = _get_v2val("ui_t1");
 
-    //let _ctx = r2k2zzn.init(_opt.nx, _opt.ny,
-    //                        _opt.S[0], _opt.T[0],
-    //                        _opt.S[1], _opt.T[1] );
-    //let s = r2k2zzn.solve( _ctx );
-    //_opt.paths = _ctx.path;
-    //
-    //let path_txt = "[ " + JSON.stringify(_ctx.path[0]) + ",\n" +
-    //  "  " + JSON.stringify(_ctx.path[1]) + " ]\n";
-    //
-    //console.log(s);
-    //console.log(_ctx);
+    if (_check_instance(_opt) < 0) {
+      _display_message(-1, "bad input");
+      return;
+    }
+    _display_message(0);
 
     // solver expects in [row,column], so entries are flipped
     // from how we think about them in the viz.
@@ -717,6 +762,7 @@ function ui_input(btn_id) {
     };
     let s = zzn.solve(I);
     _opt.paths = [ [], [] ];
+
 
     let path_txt = "[ [], [] ]";
     if (s !== null) {
@@ -735,52 +781,83 @@ function ui_input(btn_id) {
       //  "  " + JSON.stringify(s[1]) + " ]\n";
       path_txt = "[ " + JSON.stringify(viz_path[0]) + ",\n" +
         "  " + JSON.stringify(viz_path[1]) + " ]\n";
+      _display_message(0);
     }
-
+    else {
+      _display_message(1, "no soln");
+    }
 
     let ele = document.getElementById("ui_path");
     ele.value = path_txt;
 
-
-
     two.clear();
-    mk_checkerboard_paths(_opt);
+
+    if (s !== null) { mk_checkerboard_paths(_opt); }
+    else            { mk_checkerboard_endpoints(_opt); }
+
     two.update();
-
   }
-
   else if (btn_id == "ui_btn_dl") {
     _dl();
   }
 
   else if (btn_id == "ui_btn_random") {
-    let nx = Math.floor( 2 + 10*Math.random() );
-    let ny = Math.floor( 2 + 10*Math.random() );
 
-    let s0 = [ _rnd(nx), _rnd(ny) ];
-    let t0 = [ _rnd(nx), _rnd(ny) ];
+    let _max_retry = 100;
+    for (let _retry = 0; _retry < _max_retry; _retry++) {
 
-    let s1 = [ _rnd(nx), _rnd(ny) ];
-    let t1 = [ _rnd(nx), _rnd(ny) ];
+      let nx = Math.floor( 2 + 10*Math.random() );
+      let ny = Math.floor( 2 + 10*Math.random() );
 
-    let ele = document.getElementById("ui_nx");
-    ele.value = nx.toString();
+      let s0 = [ _rnd(nx), _rnd(ny) ];
+      let t0 = [ _rnd(nx), _rnd(ny) ];
 
-    ele = document.getElementById("ui_ny");
-    ele.value = ny.toString();
+      let s1 = [ _rnd(nx), _rnd(ny) ];
+      let t1 = [ _rnd(nx), _rnd(ny) ];
 
-    ele = document.getElementById("ui_s0");
-    ele.value = s0[0].toString() + " " + s0[1].toString();
+      let _sgn = (p) => ((p[0] + p[1]) % 2 === 0 ? 1 : -1);
+      let _parityOk = (R, C, pts) => pts.reduce((a, q) => a + _sgn(q[0]), 0) === 2 * ((R * C) % 2);
 
-    ele = document.getElementById("ui_t0");
-    ele.value = t0[0].toString() + " " + t0[1].toString();
+      _opt.nx = nx;
+      _opt.ny = ny;
+      _opt.S[0] = s0;
+      _opt.T[0] = t0;
+      _opt.S[1] = s1;
+      _opt.T[1] = t1;
 
-    ele = document.getElementById("ui_s1");
-    ele.value = s1[0].toString() + " " + s1[1].toString();
+      if (_check_instance(_opt) < 0) { continue; }
+      if (!_parityOk(nx,ny, [[s0,0],[t0,0],[s1,1],[t1,1]])) { continue; }
 
-    ele = document.getElementById("ui_t1");
-    ele.value = t1[0].toString() + " " + t1[1].toString();
+      let ele = document.getElementById("ui_nx");
+      ele.value = nx.toString();
 
+      ele = document.getElementById("ui_ny");
+      ele.value = ny.toString();
+
+      ele = document.getElementById("ui_s0");
+      ele.value = s0[0].toString() + " " + s0[1].toString();
+
+      ele = document.getElementById("ui_t0");
+      ele.value = t0[0].toString() + " " + t0[1].toString();
+
+      ele = document.getElementById("ui_s1");
+      ele.value = s1[0].toString() + " " + s1[1].toString();
+
+      ele = document.getElementById("ui_t1");
+      ele.value = t1[0].toString() + " " + t1[1].toString();
+
+      break;
+    }
+
+    two.clear();
+    mk_checkerboard_endpoints(_opt);
+    two.update();
+
+    if (_check_instance(_opt) < 0) {
+      _display_message(-1, "bad input");
+      return;
+    }
+    _display_message(0);
   }
 
 }
