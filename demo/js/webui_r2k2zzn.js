@@ -318,10 +318,20 @@ function mk_checkerboard_paths(opt) {
 
   color = COLOR;
 
+  /*
   let fudge_parity = ((nx*ny)%2);
   if ("initial_parity" in opt) {
     fudge_parity = opt.initial_parity;
   }
+  */
+
+  let fudge_parity = ((nx*ny)%2);
+  fudge_parity = 0;
+  if ("initial_parity" in opt) {
+    fudge_parity = opt.initial_parity;
+  }
+
+
 
 
   for (let iy = 0; iy < ny; iy++) {
@@ -803,11 +813,14 @@ function ui_input(btn_id) {
 
   else if (btn_id == "ui_btn_random") {
 
+    let _min_s = 2,
+        _max_ds = 11;
+
     let _max_retry = 100;
     for (let _retry = 0; _retry < _max_retry; _retry++) {
 
-      let nx = Math.floor( 2 + 10*Math.random() );
-      let ny = Math.floor( 2 + 10*Math.random() );
+      let nx = Math.floor( _min_s + _max_ds*Math.random() );
+      let ny = Math.floor( _min_s + _max_ds*Math.random() );
 
       let s0 = [ _rnd(nx), _rnd(ny) ];
       let t0 = [ _rnd(nx), _rnd(ny) ];
@@ -866,12 +879,11 @@ function _rnd(a) {
   return Math.floor( Math.random() * a );
 }
 
-function cb_preset() {
-  console.log("...");
-
-  let ele = document.getElementById("ui_preset");
-  console.log(">>>", ele.value);
-}
+//function cb_preset() {
+//  console.log("...");
+//  let ele = document.getElementById("ui_preset");
+//  console.log(">>>", ele.value);
+//}
 
 function web_init() {
   let two = g_fig_ctx.two;
@@ -882,6 +894,6 @@ function web_init() {
   canvas_init();
   two.update();
 
-  let ui_preset = document.getElementById("ui_preset");
-  ui_preset.addEventListener("change", function(ev) { cb_preset(); });
+  //let ui_preset = document.getElementById("ui_preset");
+  //ui_preset.addEventListener("change", function(ev) { cb_preset(); });
 }

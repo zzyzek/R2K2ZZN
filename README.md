@@ -66,6 +66,11 @@ The results rest on the Lean development in [`lean/`](lean/). To check them:
 The `native_decide` axioms trust compiled code instead of the kernel; the paper (Section 9)
 explains why, and what checking them in the kernel would cost.
 
+## [Demo](https://zzyzek.github.io/R2K2ZZN/demo/)
+
+There is a rudimentary [web application](https://zzyzek.github.io/R2K2ZZN/demo/)
+demonstrating solutions on small instances.
+
 ## AI disclosure
 
 Nearly the entirety of the work for this project was done by Claude (Opus 5.5), including writing
