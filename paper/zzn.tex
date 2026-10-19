@@ -32,8 +32,7 @@ Polynomial-Time Algorithm, and a Lean Verification}
 \author{Z. Zzyzek\thanks{To the extent possible under law, the author has waived all copyright and
 related or neighboring rights to this paper and to the accompanying code, proofs and data, under
 CC0 1.0 Universal (\url{https://creativecommons.org/publicdomain/zero/1.0/}).}}
-\date{\today}
-%\date{Draft, October 2026}
+\date{Draft, October 2026}
 
 \begin{document}
 \maketitle
@@ -584,7 +583,8 @@ induction, and the pieces glue.
 
 \section{Implementations}\label{sec:impl}
 
-We provide libraries in Python (the reference), JavaScript and C, each with a command-line program.
+We provide libraries in Python (the reference), JavaScript and C, each with a command-line program,
+in the repository \url{https://github.com/zzyzek/R2K2ZZN}.
 All three implement Algorithms~\ref{alg:decide}--\ref{alg:band} and the plug DP with the same
 iteration orders, and produce byte-identical output, including the paths. They were tested as
 follows.
@@ -652,6 +652,11 @@ questions include three or more pairs on rectangles, where corner interactions m
 pairs on other regions such as solid grid graphs. The corner configurations of the catalogue
 (\ent{B}, \ent{C}, \ent{D}) were found by computer. A conceptual description of them would shorten
 the proof and might allow kernel-checked certificates.
+
+\paragraph{Code and proofs.}
+The Lean development, the libraries in Python, JavaScript and C, a prose account of the proof, and
+the source of this paper are available at \url{https://github.com/zzyzek/R2K2ZZN}. They are
+dedicated to the public domain under CC0 1.0 Universal.
 
 \bibliographystyle{plain}
 \bibliography{references}
