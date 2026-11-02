@@ -35,8 +35,8 @@ sources:
       reductions and band extension) and the algorithms.
 
 related_formalizations:
-  - title: "GridHam2D-Lean (Itai–Papadimitriou–Szwarcfiter)"
-    location: "https://github.com/zzyzek/GridHam2D-Lean"
+  - id: "https://github.com/zzyzek/GridHam2D-Lean"
+    relationship: builds-on
     note: >-
       The grid, path and adjacency definitions (GridHam.Basic) and lemmas used for one-path
       pieces are copied from it.
