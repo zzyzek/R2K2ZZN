@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.Constr.Band
 import ZZN.Skeleton
 import ZZN.Solve
@@ -24,18 +23,30 @@ open GridHam
 
 /-! ### Deciding a reduction -/
 
+def freeLineB (I : Inst) (k : ℕ) : Bool := I.ends.all (fun e => e.1 != k)
 
 theorem freeLineB_iff (I : Inst) (k : ℕ) : freeLineB I k = true ↔ I.FreeLine k := by
   simp [freeLineB, Inst.FreeLine]
 
+def endBelowB (I : Inst) (k : ℕ) : Bool := I.ends.any (fun e => decide (e.1 < k))
 
 theorem endBelowB_iff (I : Inst) (k : ℕ) : endBelowB I k = true ↔ EndBelow I k := by
   simp [endBelowB, EndBelow]
 
+def endAboveB (I : Inst) (k : ℕ) : Bool := I.ends.any (fun e => decide (k < e.1))
 
 theorem endAboveB_iff (I : Inst) (k : ℕ) : endAboveB I k = true ↔ EndAbove I k := by
   simp [endAboveB, EndAbove]
 
+/-- `RedX I d`, decided. -/
+def redB (I : Inst) (d : ℕ) : Bool :=
+  decide (13 ≤ I.w) &&
+  ((d == 0 && (List.range 4).all (freeLineB I)) ||
+   (d + 2 == I.w && (List.range I.w).all (fun k => !(decide (I.w ≤ k + 4)) || freeLineB I k)) ||
+   (List.range (d + 1)).any (fun lo => decide (d + 1 ≤ lo + 9) && decide (lo + 10 ≤ I.w) &&
+      (List.range 10).all (fun j => freeLineB I (lo + j)) && endBelowB I lo && endAboveB I (lo + 9)) ||
+   (decide (8 ≤ d) && decide (d + 10 ≤ I.w) && freeLineB I d && freeLineB I (d + 1) &&
+      ((decide (1 ≤ d) && freeLineB I (d - 1)) || freeLineB I (d + 2)) && endBelowB I d && endAboveB I (d + 1)))
 
 theorem redB_iff (I : Inst) (d : ℕ) : redB I d = true ↔ RedX I d := by
   unfold redB RedX
@@ -79,6 +90,7 @@ theorem RedX.lt {I : Inst} {d : ℕ} (h : RedX I d) : d < I.w := by
   obtain ⟨-, -, hthird⟩ := h.free
   rcases hthird with ⟨h, -⟩ | ⟨-, h, -⟩ <;> omega
 
+def findRed (I : Inst) : Option ℕ := (List.range I.w).find? (redB I)
 
 theorem findRed_some {I : Inst} {d : ℕ} (h : findRed I = some d) : RedX I d :=
   (redB_iff I d).1 (List.find?_some h)
@@ -90,6 +102,10 @@ theorem findRed_none {I : Inst} (h : findRed I = none) (d : ℕ) : ¬ RedX I d :
 
 /-! ### Lifting a solution through a reduction -/
 
+/-- Band extension after line `d` (when line `d + 2` is free) or after line `d - 1`. -/
+def liftE (I : Inst) (d : ℕ) (p q : List Coord) : List Coord × List Coord :=
+  if d + 3 ≤ I.w ∧ freeLineB I (d + 2) = true then bandExtE (I.deleteAt d) d p q
+  else bandExtE (I.deleteAt d) (d - 1) p q
 
 theorem liftE_sol {I : Inst} {d : ℕ} {p q : List Coord} (hr : RedX I d)
     (hs : IsSolution (I.deleteAt d) p q) : IsSolution I (liftE I d p q).1 (liftE I d p q).2 := by

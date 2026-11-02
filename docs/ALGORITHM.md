@@ -225,8 +225,8 @@ Run it: `python3 lib/python/zzn_cli.py 16 13 5 2 12 10 6 9 13 3 --grid --trace`.
 - **Thin:** the plug DP is exact (sound and complete).
 
 All three are proved in Lean 4 (`lean/README.md`): `passes_iff_solvable`, `thinBF_iff`,
-`solvableB_iff`. The finite checks (window certificates, and certificates for the 21 boxes of sides 11–16; sides
-17–22 have no irreducible instance) are checked by the Lean kernel; see `proof/`.
+`solvableB_iff`. The finite checks (window certificates, the 144 boxes of sides 11–22) are run by
+`native_decide`, which trusts Lean's compiler.
 
 ## 10. Where to look
 

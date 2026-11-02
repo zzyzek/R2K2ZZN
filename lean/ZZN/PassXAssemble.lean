@@ -40,7 +40,6 @@ theorem passX_comp {I : Inst} {d : ℕ} (hI : InDom I) (hw13 : 13 ≤ I.w) (h : 
   have hC := hI.2.1
   obtain ⟨-, -, b0, b1, b2, b3, -⟩ := id hI
   obtain ⟨f0, f1, -⟩ := compClause_free h'
-  have hc := compCore_of_compClause hI h'
   have av : ∀ q ∈ [(I.s0, 0), (I.t0, 0), (I.s1, 1), (I.t1, 1)], Av d' I.w (q : Pt).1 := by
     intro q hq
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
@@ -63,15 +62,15 @@ theorem passX_comp {I : Inst} {d : ℕ} (hI : InDom I) (hw13 : 13 ≤ I.w) (h : 
     rw [← parityOk_deleteAt (by omega) f0 f1]
     exact hp
   · left; left; left; left; left; right
-    exact t1_comp hI hc hw13 ht1
-  · rw [t2_comp hI hc] at ht2; exact absurd ht2 (by simp)
+    exact t1_comp hI h' hw13 ht1
+  · rw [t2_comp hI h'] at ht2; exact absurd ht2 (by simp)
   · left; left; left; right
     rw [l1Fires_iff] at hl1 ⊢
-    exact l1_comp hI hc hl1
+    exact l1_comp hI h' hl1
   · left; left; right
-    exact l6_comp hI hc hw13 hl6
+    exact l6_comp hI h' hw13 hl6
   · left; right
-    exact frames_any_of (by omega) (winRel_comp hI h') (by omega) (e1_comp hI hc) hfr
+    exact frames_any_of (by omega) (winRel_comp hI h') (by omega) (e1_comp hI h') hfr
   · right
     rw [hpts, effAlt3_comp hd5 hd7 (by omega) av] at hea
     exact hea

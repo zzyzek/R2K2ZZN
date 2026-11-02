@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Thin.Decide
 import ZZN.Timed.CatalogueCost
 import ZZN.Timed.ThinCost
@@ -17,7 +16,8 @@ counted: the catalogue test when both sides are at least 11, the plug DP otherwi
   the standard axioms. The constant `Cdec` comes from a crude count of plug DP states on a strip
   of width at most 10 (`ThinCount.lean`) and is astronomically large, but it is a constant.
 * `solvableBT_main`: for a well-formed instance, the answer is `true` exactly when the instance is
-  solvable, within that number of steps. Correctness rests on `solvableB_iff`.
+  solvable, within that number of steps. Correctness rests on `solvableB_iff`, so this theorem
+  also depends on the 154 `native_decide` axioms of the finite case analyses.
 
 What counts as a step is fixed by the cost table in `ZZN/Timed/TimeM.lean`. Arithmetic on
 numbers is charged as constant time.
@@ -27,6 +27,11 @@ namespace ZZN.T
 
 open ZZN ZZN.Thin
 
+def solvableBT (J : Inst) : TimeM Bool :=
+  if 11 ≤ J.w ∧ 11 ≤ J.h then do
+    let f ← fires3T J.w J.h J.s0 J.t0 J.s1 J.t1
+    pure !f
+  else thinBFT J
 
 @[simp] lemma solvableBT_ret (J : Inst) : (solvableBT J).ret = solvableB J := by
   unfold solvableBT solvableB
@@ -51,6 +56,8 @@ lemma Kst_mono {b b' : ℕ} (h : b ≤ b') : Kst b ≤ Kst b' := by
     Nat.mul_le_mul (Nat.mul_le_mul_left 2 hn) (by omega)
   omega
 
+/-- The constant of the time bound. -/
+def Cdec : ℕ := Kst 10 + Nst 10 + 300003
 
 /-- **The decision procedure takes polynomially many steps** (standard axioms only). -/
 theorem solvableBT_time (J : Inst) : (solvableBT J).time ≤ Cdec * (J.w * J.h + J.w + J.h + 1) := by
@@ -84,13 +91,5 @@ theorem solvableBT_main {J : Inst} (hwf : J.WellFormed) :
     ((solvableBT J).ret = true ↔ Solvable J) ∧
       (solvableBT J).time ≤ Cdec * (J.w * J.h + J.w + J.h + 1) :=
   ⟨by rw [solvableBT_ret]; exact solvableB_iff hwf, solvableBT_time J⟩
-
-/-- **The characterization, counted.** On rectangles with both sides at least 11, a well-formed
-instance is solvable exactly when the counted forbidden-pattern catalogue `fires3T` finds no
-pattern. -/
-theorem fires3T_iff_solvable {J : Inst} (hwf : J.WellFormed) (hw : 11 ≤ J.w) (hh : 11 ≤ J.h) :
-    (fires3T J.w J.h J.s0 J.t0 J.s1 J.t1).ret = false ↔ Solvable J := by
-  rw [← (solvableBT_main hwf).1]
-  simp [solvableBT, hw, hh, ret_bind, ret_pure]
 
 end ZZN.T

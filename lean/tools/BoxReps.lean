@@ -11,7 +11,7 @@ def main (args : List String) : IO Unit := do
       for c in List.range w do
         for d in List.range w do
           let x : Fin 4 → ℕ := ![a, b, c, d]
-          if axBB w [a, b, c, d] && G16.all (fun σ => decide (keyR x ≤ keyR (xS σ w x))) then
+          if axB w [a, b, c, d] && G16.all (fun σ => decide (keyR x ≤ keyR (xS σ w x))) then
             reps := reps.push x
   for x in reps do
     IO.println s!"{x 0},{x 1},{x 2},{x 3}"

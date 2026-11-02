@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Constr.Main
 import ZZN.Timed.Solve
 import ZZN.Timed.ThinWitCost
@@ -14,13 +13,15 @@ most `(w + h + 1) (1100 (M + 1)⁴ + (M² + 1)² Kw 22 + 10)` steps (`solveZZNT_
 of degree 5 in `M`. The constant `Kw 22` comes from the crude state count of the thin solver and
 is astronomically large.
 
-`solveZZN_complete` rests on `passes_iff_solvable`; `solveZZNT_time` and `solveZZN_sound` do not.
+`solveZZNT_time` and `solveZZN_sound` use only the standard axioms. `solveZZN_complete` uses the
+`native_decide` axioms of the finite case analyses.
 -/
 
 namespace ZZN.T
 
 open ZZN GridHam
 
+def solveZZNT (I : Inst) : TimeM Sol := solveZT thinSolveWT I
 
 theorem solveZZNT_ret (I : Inst) : (solveZZNT I).ret = solveZZN I :=
   solveZT_ret thinSolveWT_ret I
@@ -40,16 +41,5 @@ theorem solveZZNT_time (I : Inst) :
   have k : Kw (min J.w J.h) ≤ Kw 22 := Kw_mono (by omega)
   have s : (J.w * J.h + 1) ^ 2 ≤ (M * M + 1) ^ 2 := sq_mono (by have := Nat.mul_le_mul a b; omega)
   exact le_trans t (Nat.mul_le_mul s k)
-
-/-- **The construction, counted.** Every answer of `solveZZNT` is a solution, it returns one for
-every well-formed solvable instance, and it takes polynomially many steps. -/
-theorem solveZZNT_main (I : Inst) :
-    (∀ p q, (solveZZNT I).ret = some (p, q) → IsSolution I p q) ∧
-    (I.WellFormed → Solvable I → ∃ p q, (solveZZNT I).ret = some (p, q)) ∧
-    (solveZZNT I).time ≤ (I.w + I.h + 1) *
-      (1100 * ((max I.w I.h + 1) ^ 2) ^ 2 + (max I.w I.h * max I.w I.h + 1) ^ 2 * Kw 22 + 10) :=
-  ⟨fun _ _ h => solveZZN_sound (by rw [← solveZZNT_ret]; exact h),
-   fun hwf hS => by rw [solveZZNT_ret]; exact solveZZN_complete hwf hS,
-   solveZZNT_time I⟩
 
 end ZZN.T

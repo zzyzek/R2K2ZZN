@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.Thin.Fast
 import ZZN.Symmetry
 
@@ -30,31 +29,113 @@ open GridHam
 
 /-! ### The computation -/
 
+/-- Segments of the open pieces (keyed by piece code), and the completed paths of the colours. -/
+abbrev Wit := List (ℕ × List Coord) × (List Coord × List Coord)
 
+/-- The segment stored for piece `z` (`[]` if none). -/
+def lookD (l : List (ℕ × List Coord)) (z : ℕ) : List Coord :=
+  ((l.find? (fun q => q.1 == z)).map Prod.snd).getD []
 
 def dpOf (d : List Coord × List Coord) (col : ℕ) : List Coord := if col = 0 then d.1 else d.2
 
+def setDp (d : List Coord × List Coord) (col : ℕ) (P : List Coord) : List Coord × List Coord :=
+  if col = 0 then (P, d.2) else (d.1, P)
 
+/-- Orient the segment of piece `z` so that its end `e` comes last. -/
+def orientS (e z : ℕ) (L : List Coord) : List Coord := if lo z = e then L.reverse else L
 
+/-- Orient a segment with ends `x, y` so that the smaller code comes first. -/
+def orientN (x y : ℕ) (L : List Coord) : List Coord := if x ≤ y then L else L.reverse
 
+/-- Orient a completed path of colour `col` to start at its first endpoint. -/
+def orientP (J : Inst) (col : ℕ) (L : List Coord) : List Coord :=
+  if L.head? = some (ends2 J col).1 then L else L.reverse
 
+/-- The piece plugged into cell `(r, c)` from above. -/
+def puOf (s : St) (r c : ℕ) : Option ℕ := if r = 0 then none else s.1.find? (hasEnd c)
 
+/-- The piece plugged into cell `(r, c)` from the left. -/
+def plOf (b : ℕ) (s : St) (c : ℕ) : Option ℕ := if c = 0 then none else s.1.find? (hasEnd b)
 
+/-- The new segment through cell `(r, c)`: the piece from above (ending above the cell), the cell,
+then the piece from the left reversed; or the piece from the left followed by the cell. -/
+def segNew (b r c : ℕ) (sg : ℕ → List Coord) (pu pl : Option ℕ) : List Coord :=
+  if pu.isSome then (pu.map fun z => orientS c z (sg z)).getD [] ++ [(r, c)] ++
+    ((pl.map fun z => orientS b z (sg z)).getD []).reverse
+  else (pl.map fun z => orientS b z (sg z)).getD [] ++ [(r, c)]
 
+/-- Drop the segments of the attached pieces. -/
+def dropKeys (pu pl : Option ℕ) (l : List (ℕ × List Coord)) : List (ℕ × List Coord) :=
+  l.filter fun q => pu != some q.1 && pl != some q.1
 
+/-- The witness after closing a new segment `Ln` with end codes `x, y`. -/
+def closeWit (J : Inst) (a b x y : ℕ) (Ln : List Coord) (sgR : List (ℕ × List Coord))
+    (d : List Coord × List Coord) : Wit :=
+  if isTerm a b x && isTerm a b y then (sgR, setDp d (colE a b x) (orientP J (colE a b x) Ln))
+  else ((mkP x y, orientN x y Ln) :: sgR, d)
 
+def ninOf (pu pl : Option ℕ) : ℕ := (if pu.isSome then 1 else 0) + (if pl.isSome then 1 else 0)
 
+def degOf (e : Option ℕ) : ℕ := if e.isSome then 1 else 2
 
+/-- The end codes entering the current cell: from the attached pieces and an endpoint. -/
+def insOf (a b c : ℕ) (e pu pl : Option ℕ) : List ℕ :=
+  (pu.map (other c)).toList ++ (pl.map (other b)).toList ++ (e.map (termE a b)).toList
 
+/-- The choices of new plugs leaving the current cell. -/
+def optsOf (a b r c : ℕ) (e pu pl : Option ℕ) : List (List ℕ) :=
+  match degOf e - ninOf pu pl with
+  | 0 => [[]]
+  | 1 => [[if r + 1 < a then c else exitE b (a + (b - 1 - c))], [if c + 1 < b then b else exitE b r]]
+  | _ => [[if r + 1 < a then c else exitE b (a + (b - 1 - c)), if c + 1 < b then b else exitE b r]]
 
+/-- Close the new segment for each choice of plugs, reporting its end codes. -/
+def closeOuts (a b : ℕ) (ins rest : List ℕ) (dn : ℕ) (opts : List (List ℕ)) : List ((ℕ × ℕ) × St) :=
+  opts.filterMap fun outs =>
+    match ins ++ outs with
+    | [x, y] => (closeP a b x y rest dn).map fun s' => ((x, y), s')
+    | _ => none
 
+/-- `stepCell`, also reporting the two end codes of the new segment. -/
+def stepCellG (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) : List ((ℕ × ℕ) × St) :=
+  if degOf e < ninOf (puOf s r c) (plOf b s c) then [] else
+  if (puOf s r c).isSome && puOf s r c == plOf b s c then [] else
+  closeOuts a b (insOf a b c e (puOf s r c) (plOf b s c)) (restK s.1 (puOf s r c) (plOf b s c)) s.2
+    (optsOf a b r c e (puOf s r c) (plOf b s c))
 
+/-- **One cell of the witness-carrying DP.** -/
+def stepCellW (J : Inst) (a b : ℕ) (e : Option ℕ) (r c : ℕ) (sw : St × Wit) : List (St × Wit) :=
+  let pu := puOf sw.1 r c
+  let pl := plOf b sw.1 c
+  let Ln := segNew b r c (lookD sw.2.1) pu pl
+  let sgR := dropKeys pu pl sw.2.1
+  (stepCellG a b e r c sw.1).map fun g => (g.2, closeWit J a b g.1.1 g.1.2 Ln sgR sw.2.2)
 
+/-- Keep the first entry of each state not in `seen`. -/
+def dedupKeyAux : List St → List (St × Wit) → List (St × Wit)
+  | _, [] => []
+  | seen, x :: l => if x.1 ∈ seen then dedupKeyAux seen l else x :: dedupKeyAux (x.1 :: seen) l
 
+/-- Keep the first entry of each state. -/
+def dedupKey (l : List (St × Wit)) : List (St × Wit) := dedupKeyAux [] l
 
+def stageW (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (S : List (St × Wit)) (i : ℕ) :
+    List (St × Wit) :=
+  dedupKey ((S.flatMap (stepCellW J a b (termAt tm (cell b i)) (cell b i).1 (cell b i).2)).filter
+    fun sw => noExit a b sw.1)
 
+def insideW (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) : List (St × Wit) :=
+  (List.range (a * b)).foldl (stageW J a b tm) [(([], 0), ([], ([], [])))]
 
+/-- The accepting entry's paths, rows along `J.w`. -/
+def solveDP (J : Inst) : Option (List Coord × List Coord) :=
+  ((insideW J J.w J.h (tmOf J)).find? fun sw => sw.1 == (([], 3) : St)).map fun sw => sw.2.2
 
+/-- **The solver**: a solution of a well-formed instance, if there is one. Rows along the longer
+side, as in `thinBF`. -/
+def thinSolveW (J : Inst) : Option (List Coord × List Coord) :=
+  if J.h ≤ J.w then solveDP J
+  else (solveDP J.transpose).map fun pq => (pq.1.map Prod.swap, pq.2.map Prod.swap)
 
 /-! ### Bookkeeping lemmas -/
 
@@ -77,7 +158,7 @@ theorem stepCellG_snd (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) :
   · rw [List.map_filterMap]
     congr 1
     funext outs
-    split <;> simp_all
+    split <;> simp
 
 theorem mem_closeOuts {a b : ℕ} {ins rest : List ℕ} {dn : ℕ} {opts : List (List ℕ)} {x y : ℕ} {s' : St}
     (h : ((x, y), s') ∈ closeOuts a b ins rest dn opts) : closeP a b x y rest dn = some s' := by

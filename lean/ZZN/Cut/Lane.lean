@@ -51,7 +51,7 @@ theorem val_hd_tl (l : List ℕ) (j : ℕ) : val l j = bt (hd l) j + 2 * val (tl
   cases l <;> simp [val, hd, tl, bt]
 
 theorem len_tl {l : List ℕ} {f : ℕ} (h : l.length ≤ f + 1) : (tl l).length ≤ f := by
-  cases l <;> simp [tl] at h ⊢; omega
+  cases l <;> simp [tl] at h ⊢ <;> omega
 
 theorem nil_of_len {l : List ℕ} (h : l.length ≤ 0) : l = [] := List.eq_nil_of_length_eq_zero (by omega)
 
@@ -115,32 +115,6 @@ def lt (N : ℕ) (a b : List ℕ) : ℕ := borrow N a b 0
 theorem testBit_lt {N j : ℕ} (hj : j < N) (a b : List ℕ) :
     (lt N a b).testBit j = decide (val a j < val b j) := by
   simp [lt, borrow_spec hj, bt]
-
-/-! ### Equality: plane by plane -/
-
-/-- Lanes where `a = b`, within the mask `m`. -/
-def eqmF (N : ℕ) : ℕ → List ℕ → List ℕ → ℕ → ℕ
-  | 0, _, _, m => m
-  | f + 1, a, b, m => eqmF N f (tl a) (tl b) (m &&& nt N (hd a ^^^ hd b))
-
-def eqm (N : ℕ) (a b : List ℕ) : ℕ := eqmF N (max a.length b.length) a b (ones N)
-
-theorem eqmF_spec {N j : ℕ} (hj : j < N) : ∀ (f : ℕ) (a b : List ℕ) (m : ℕ),
-    a.length ≤ f → b.length ≤ f →
-    (eqmF N f a b m).testBit j = (m.testBit j && decide (val a j = val b j))
-  | 0, a, b, m, ha, hb => by
-    rw [nil_of_len ha, nil_of_len hb]; simp [eqmF, val]
-  | f + 1, a, b, m, ha, hb => by
-    simp only [eqmF]
-    rw [eqmF_spec hj f _ _ _ (len_tl ha) (len_tl hb), val_hd_tl a j, val_hd_tl b j]
-    simp only [Nat.testBit_and, Nat.testBit_xor, testBit_nt hj, bt]
-    rcases Bool.eq_false_or_eq_true ((hd a).testBit j) with hp | hp <;>
-      rcases Bool.eq_false_or_eq_true ((hd b).testBit j) with hq | hq <;>
-      rcases Bool.eq_false_or_eq_true (m.testBit j) with hm | hm <;> simp [hp, hq, hm] <;> omega
-
-theorem testBit_eqm {N j : ℕ} (hj : j < N) (a b : List ℕ) :
-    (eqm N a b).testBit j = decide (val a j = val b j) := by
-  simp [eqm, eqmF_spec hj _ a b _ (le_max_left _ _) (le_max_right _ _), testBit_ones hj]
 
 /-! ### Truncated subtraction -/
 

@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Timed.ThinCount
 
 /-!
@@ -168,8 +167,6 @@ lemma closeOptT_time (a b : ℕ) (ins outs rest : List ℕ) (dn : ℕ) :
     · rename_i x y _ _
       simp only [time_bind, time_pure]; have := insSortedT_time (mkP x y) rest; omega
   · simp only [time_pure]; omega
-  · simp only [time_pure]; omega
-  · simp only [time_pure]; omega
 
 lemma stepCellT_time (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) :
     (stepCellT a b e r c s).time ≤ 6 * s.1.length + 16 := by
@@ -204,6 +201,7 @@ lemma stepCellT_time (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) :
 
 /-! ### One stage -/
 
+def Kst (b : ℕ) : ℕ := 5 + Nst b * (6 * Q b + 19) + 4 * Nst b ^ 2 + 1 + 2 * Nst b * (Q b + 2)
 
 lemma stageT_time (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (htm : tm.length = 4) (S : List St)
     (hS : S.length ≤ Nst b) (hg : ∀ s ∈ S, s.1.length ≤ Q b) (i : ℕ) :

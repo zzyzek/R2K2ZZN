@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Timed.ThinWit
 import ZZN.Timed.ThinCost
 
@@ -138,8 +137,6 @@ lemma closeOptGT_time (a b : ℕ) (ins outs rest : List ℕ) (dn : ℕ) :
     · simp only [time_pure]; omega
     · rename_i x y _ _
       simp only [time_bind, time_pure]; have := insSortedT_time (mkP x y) rest; omega
-  · simp only [time_pure]; omega
-  · simp only [time_pure]; omega
   · simp only [time_pure]; omega
 
 lemma stepTailGT_time (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) (pu pl : Option ℕ) :
@@ -320,6 +317,9 @@ end Entries
 
 /-! ### One stage -/
 
+/-- The per-cell constant: a stage costs at most `(a b + 1) Ks b` steps. -/
+def Ks (b : ℕ) : ℕ :=
+  4 + Nst b * (9 * Q b + 31) + 2 * Nst b * (Q b + 2) + 2 * Nst b * (2 * Nst b * (Q b + 2) + 1) + 9 * Nst b
 
 lemma stageWT_time (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (htm : tm.length = 4)
     (S : List (St × Wit)) (hS : S.length ≤ Nst b) (hE : ∀ sw ∈ S, EntryOK a b sw) (i : ℕ) :
@@ -426,6 +426,8 @@ lemma solveDPT_time (J : Inst) :
 
 /-! ### The solver -/
 
+/-- The constant of the time bound, a function of the short side only. -/
+def Kw (b : ℕ) : ℕ := Ks b + Nst b + 4
 
 lemma Q_mono {b b' : ℕ} (h : b ≤ b') : Q b ≤ Q b' := by
   unfold Q; exact Nat.pow_le_pow_left (by omega) 2

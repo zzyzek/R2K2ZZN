@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.Constr.Solve
 import ZZN.Constr.ThinWit
 
@@ -12,7 +11,7 @@ import ZZN.Constr.ThinWit
 
 * `solveZZN_sound`: every answer is a solution (standard axioms only).
 * `solveZZN_complete`: for a well-formed solvable instance, it returns an answer. This rests on
-  `passes_iff_solvable` (Theorem A and Theorem B).
+  `passes_iff_solvable`, so it also depends on the 154 `native_decide` axioms.
 -/
 
 namespace ZZN
@@ -24,6 +23,8 @@ theorem thinOK : ThinOK Thin.thinSolveW := by
   obtain ⟨⟨p, q⟩, h⟩ := Option.isSome_iff_exists.1 (Thin.thinSolveW_complete hwf hS)
   exact ⟨p, q, h, Thin.thinSolveW_sound h⟩
 
+/-- The construction for every rectangle. -/
+def solveZZN (I : Inst) : Option (List Coord × List Coord) := solveZ Thin.thinSolveW I
 
 theorem solveZZN_sound {I : Inst} {p q : List Coord} (h : solveZZN I = some (p, q)) :
     IsSolution I p q := solveZ_sound _ h

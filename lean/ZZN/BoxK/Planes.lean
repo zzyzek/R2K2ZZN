@@ -26,7 +26,7 @@ theorem testBit_rep {x L : ℕ} (hx : x < 2 ^ L) : ∀ (n j : ℕ),
     simp only [rep, Nat.testBit_or, Nat.testBit_shiftLeft]
     by_cases hj : j < L
     · have h1 : j % L = j := Nat.mod_eq_of_lt hj
-      simp [h1, show ¬ L ≤ j by omega, show j < (n + 1) * L by nlinarith]
+      simp [hj, h1, show ¬ L ≤ j by omega, show j < (n + 1) * L by nlinarith]
     · obtain ⟨t, rfl⟩ : ∃ t, j = L + t := ⟨j - L, by omega⟩
       have hx0 : x.testBit (L + t) = false :=
         Nat.testBit_lt_two_pow (lt_of_lt_of_le hx (Nat.pow_le_pow_right (by norm_num) (by omega)))
@@ -57,9 +57,8 @@ theorem testBit_blk {st k : ℕ} (hst : 0 < st) : ∀ (n m : ℕ),
         · simp [h1, h2, hq, hb, Nat.testBit_shiftLeft, Nat.testBit_two_pow_sub_one]
           omega
         · simp [h1, h2, hq, hb]
-      · split_ifs <;> simp [h1, h2, Nat.testBit_shiftLeft, Nat.testBit_two_pow_sub_one]
-        intro _
-        omega
+      · split_ifs <;> simp [h1, h2, Nat.testBit_shiftLeft, Nat.testBit_two_pow_sub_one] <;>
+          intro _ <;> omega
 
 theorem blk_lt {st k : ℕ} (hst : 0 < st) (n : ℕ) : blk st k n < 2 ^ (n * st) := by
   apply Nat.lt_pow_two_of_testBit

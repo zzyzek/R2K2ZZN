@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Constr.ThinWit
 import ZZN.Timed.Thin
 
@@ -25,29 +24,139 @@ open ZZN ZZN.Thin GridHam
 
 /-! ### Comparisons and duplicate removal -/
 
+/-- Equality of two lists of numbers, one step per matching entry. -/
+def lbeqT : List ℕ → List ℕ → TimeM Bool
+  | [], [] => pure true
+  | x :: l, y :: m => if x = y then do
+      let r ← lbeqT l m
+      ⟨r, 1⟩
+    else pure false
+  | _, _ => pure false
 
+/-- Equality of two states. -/
+def stEqT (s t : St) : TimeM Bool := do
+  let r ← lbeqT s.1 t.1
+  pure (r && decide (s.2 = t.2))
 
+/-- Keep the first entry of each state not among `seen`. -/
+def dedupKeyAuxT : List St → List (St × Wit) → TimeM (List (St × Wit))
+  | _, [] => pure []
+  | seen, x :: l => do
+      let m ← lanyT (fun t => stEqT t x.1) seen
+      if m then dedupKeyAuxT seen l else do
+        let r ← dedupKeyAuxT (x.1 :: seen) l
+        pure (x :: r)
 
+def dedupKeyT (l : List (St × Wit)) : TimeM (List (St × Wit)) := dedupKeyAuxT [] l
 
 /-! ### Segments -/
 
+/-- The stored segment of piece `z` (`[]` if none). -/
+def lookDT (l : List (ℕ × List Coord)) (z : ℕ) : TimeM (List Coord) := do
+  let o ← lfindT (fun q => pure (q.1 == z)) l
+  pure (match o with | some q => q.2 | none => [])
 
+def orientST (e z : ℕ) (L : List Coord) : TimeM (List Coord) :=
+  if lo z = e then lreverseT L else pure L
 
+def orientNT (x y : ℕ) (L : List Coord) : TimeM (List Coord) :=
+  if x ≤ y then pure L else lreverseT L
 
+def orientPT (J : Inst) (col : ℕ) (L : List Coord) : TimeM (List Coord) :=
+  if L.head? = some (ends2 J col).1 then pure L else lreverseT L
 
+/-- The new segment through cell `(r, c)`. -/
+def segNewT (b r c : ℕ) (w : List (ℕ × List Coord)) (pu pl : Option ℕ) : TimeM (List Coord) :=
+  match pu, pl with
+  | some zu, some zl => do
+    let Lu0 ← lookDT w zu
+    let Lu ← orientST c zu Lu0
+    let Ll0 ← lookDT w zl
+    let Ll ← orientST b zl Ll0
+    let t ← lappendT Lu [(r, c)]
+    let rl ← lreverseT Ll
+    lappendT t rl
+  | some zu, none => do
+    let Lu0 ← lookDT w zu
+    let Lu ← orientST c zu Lu0
+    lappendT Lu [(r, c)]
+  | none, some zl => do
+    let Ll0 ← lookDT w zl
+    let Ll ← orientST b zl Ll0
+    lappendT Ll [(r, c)]
+  | none, none => pure [(r, c)]
 
+def closeWitT (J : Inst) (a b x y : ℕ) (Ln : List Coord) (sgR : List (ℕ × List Coord))
+    (d : List Coord × List Coord) : TimeM Wit :=
+  if isTerm a b x && isTerm a b y then do
+    let P ← orientPT J (colE a b x) Ln
+    pure (sgR, setDp d (colE a b x) P)
+  else do
+    let L ← orientNT x y Ln
+    pure ((mkP x y, L) :: sgR, d)
 
 /-! ### One cell -/
 
+def closeOptGT (a b : ℕ) (ins outs rest : List ℕ) (dn : ℕ) : TimeM (Option ((ℕ × ℕ) × St)) := do
+  let l ← lappendT ins outs
+  match l with
+  | [x, y] => do
+    let o ← closePT a b x y rest dn
+    pure (match o with | some s' => some ((x, y), s') | none => none)
+  | _ => pure none
 
+/-- `stepCellG` after the two lookups. -/
+def stepTailGT (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) (pu pl : Option ℕ) :
+    TimeM (List ((ℕ × ℕ) × St)) :=
+  if degOf e < ninOf pu pl then pure [] else
+  if pu.isSome && pu == pl then pure [] else do
+  let rest ← restT s.1 pu pl
+  lfilterMapT (fun outs => closeOptGT a b (endsL a b c e pu pl) outs rest s.2) (optsOf a b r c e pu pl)
 
+def stepCellWT (J : Inst) (a b : ℕ) (e : Option ℕ) (r c : ℕ) (sw : St × Wit) :
+    TimeM (List (St × Wit)) := do
+  let pu ← lookT (r == 0) c sw.1.1
+  let pl ← lookT (c == 0) b sw.1.1
+  let Ln ← segNewT b r c sw.2.1 pu pl
+  let sgR ← lfilterT (fun q => pure (pu != some q.1 && pl != some q.1)) sw.2.1
+  let G ← stepTailGT a b e r c sw.1 pu pl
+  lmapT (fun g => do
+    let w ← closeWitT J a b g.1.1 g.1.2 Ln sgR sw.2.2
+    pure (g.2, w)) G
 
 /-! ### The DP and the solver -/
 
+def stageWT (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (S : List (St × Wit)) (i : ℕ) :
+    TimeM (List (St × Wit)) := do
+  let o ← lfindT (fun q => pure (q.1 == cell b i)) tm
+  let e := optSnd o
+  let l ← lflatMapT (stepCellWT J a b e (cell b i).1 (cell b i).2) S
+  let f ← lfilterT (fun sw => noExitT a b sw.1) l
+  dedupKeyT f
 
+def insideWT (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) : TimeM (List (St × Wit)) := do
+  let is ← rangeT (a * b)
+  lfoldlT (stageWT J a b tm) [(([], 0), ([], ([], [])))] is
 
+def solveDPT (J : Inst) : TimeM (Option (List Coord × List Coord)) := do
+  let S ← insideWT J J.w J.h (tmOf J)
+  let o ← lfindT (fun sw => stEqT sw.1 ([], 3)) S
+  pure (match o with | some sw => some sw.2.2 | none => none)
 
+def swapPairT (pq : List Coord × List Coord) : TimeM (List Coord × List Coord) := do
+  let p ← lmapT (fun x => pure x.swap) pq.1
+  let q ← lmapT (fun x => pure x.swap) pq.2
+  pure (p, q)
 
+/-- **The counted solver.** -/
+def thinSolveWT (J : Inst) : TimeM (Option (List Coord × List Coord)) :=
+  if J.h ≤ J.w then solveDPT J else do
+    let o ← solveDPT J.transpose
+    match o with
+    | some pq => do
+      let r ← swapPairT pq
+      pure (some r)
+    | none => pure none
 
 /-! ### Same answer -/
 
@@ -113,12 +222,9 @@ lemma closeOptGT_ret (a b : ℕ) (ins outs rest : List ℕ) (dn : ℕ) :
         | _ => none) := by
   simp only [closeOptGT, ret_bind, lappendT]
   split
-  · next _ x y h =>
-    rw [h]
-    simp only [ret_bind, closePT_ret, ret_pure]
-  · next _ h => simp [h, ret_pure]
-  · next _ _ h => simp [h, ret_pure]
-  · next _ _ _ _ _ h => simp [h, ret_pure]
+  · simp only [ret_bind, closePT_ret, ret_pure]
+    cases closeP a b _ _ rest dn <;> rfl
+  · rfl
 
 lemma stepTailGT_ret (a b : ℕ) (e : Option ℕ) (r c : ℕ) (s : St) :
     (stepTailGT a b e r c s (puOf s r c) (plOf b s c)).ret = stepCellG a b e r c s := by

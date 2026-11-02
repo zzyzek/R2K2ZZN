@@ -59,36 +59,29 @@ theorem frame_to_eq (R C : ℕ) (f : Frame) (p : ℕ × ℕ) :
       else (xf R f p, (if f.fc then C - 1 - p.2 else p.2)) := by
   unfold Frame.to xf; rfl
 
-/-- The endpoint keeps its corner distance, or is at distance ≥ k in both instances. -/
-def GoodInK (k R R' : ℕ) (f : Frame) (p p' : ℕ × ℕ) : Prop :=
-  p'.2 = p.2 ∧ (xf R' f p' = xf R f p ∨ (k ≤ xf R' f p' ∧ k ≤ xf R f p))
+/-- The endpoint keeps its corner distance, or is at distance ≥ 8 in both instances. -/
+def GoodIn (R R' : ℕ) (f : Frame) (p p' : ℕ × ℕ) : Prop :=
+  p'.2 = p.2 ∧ (xf R' f p' = xf R f p ∨ (8 ≤ xf R' f p' ∧ 8 ≤ xf R f p))
 
-abbrev GoodIn := GoodInK 8
-
-theorem to_eq_iffK {k R R' C : ℕ} {f : Frame} {p p' : ℕ × ℕ} (hg : GoodInK k R R' f p p')
-    {r c : ℕ} (hr : r < k) (hc : c < k) :
+theorem to_eq_iff {R R' C : ℕ} {f : Frame} {p p' : ℕ × ℕ} (hg : GoodIn R R' f p p')
+    {r c : ℕ} (hr : r ≤ 7) (hc : c ≤ 7) :
     (f.to R' C p' = (r, c)) ↔ (f.to R C p = (r, c)) := by
   obtain ⟨h2, h | ⟨h1, h1'⟩⟩ := hg
   · rw [frame_to_eq, frame_to_eq, h2, h]
   · rw [frame_to_eq, frame_to_eq, h2]
     split_ifs <;> simp only [Prod.mk.injEq] <;> omega
 
-theorem to_eq_iff {R R' C : ℕ} {f : Frame} {p p' : ℕ × ℕ} (hg : GoodIn R R' f p p')
-    {r c : ℕ} (hr : r ≤ 7) (hc : c ≤ 7) :
-    (f.to R' C p' = (r, c)) ↔ (f.to R C p = (r, c)) :=
-  to_eq_iffK hg (by omega) (by omega)
-
 /-- Corner windows agree. -/
-theorem view_at_eqK {k R R' C : ℕ} {f : Frame} {r c : ℕ} (hr : r < k) (hc : c < k)
+theorem view_at_eq {R R' C : ℕ} {f : Frame} {r c : ℕ} (hr : r ≤ 7) (hc : c ≤ 7)
     {pts pts' : List Pt}
-    (h : List.Forall₂ (fun q q' => GoodInK k R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts') :
+    (h : List.Forall₂ (fun q q' => GoodIn R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts') :
     (makeView R' C f pts').at r c = (makeView R C f pts).at r c := by
   induction h with
   | nil => rfl
   | @cons q q' qs qs' hq hrest ih =>
     obtain ⟨hg, hcol⟩ := hq
     simp only [makeView, View.at, List.map_cons, List.find?_cons] at ih ⊢
-    have key := to_eq_iffK (C := C) hg hr hc
+    have key := to_eq_iff (C := C) hg hr hc
     by_cases h : f.to R C q.1 = (r, c)
     · have h' : f.to R' C q'.1 = (r, c) := key.mpr h
       simp [h, h', hcol]
@@ -100,8 +93,8 @@ theorem view_at_eqK {k R R' C : ℕ} {f : Frame} {r c : ℕ} (hr : r < k) (hc : 
 
 /-! ### The corner tests carry over -/
 
-/-- Two views agreeing on the 6 × 6 corner window. -/
-def SameCorner (v v' : View) : Prop := ∀ r c, r ≤ 4 → c ≤ 4 → v'.at r c = v.at r c
+/-- Two views agreeing on the 8 × 8 corner window. -/
+def SameCorner (v v' : View) : Prop := ∀ r c, r ≤ 7 → c ≤ 7 → v'.at r c = v.at r c
 
 theorem testL2_of {v v' : View} (hs : SameCorner v v') (h : testL2 v' = true) :
     testL2 v = true := by
@@ -146,15 +139,10 @@ theorem testL5_of {v v' : View} (hs : SameCorner v v') (h : testL5 v' = true) :
 
 /-- An endpoint is far from the corners across the deletion: below it, at least 11 lines from the
 far edge; above it, at least at line 10. -/
-def FarK (k d R : ℕ) (p : ℕ × ℕ) : Prop := (p.1 < d → p.1 + k + 3 ≤ R) ∧ (d + 2 ≤ p.1 → k + 2 ≤ p.1)
+def Far (d R : ℕ) (p : ℕ × ℕ) : Prop := (p.1 < d → p.1 + 11 ≤ R) ∧ (d + 2 ≤ p.1 → 10 ≤ p.1)
 
-abbrev Far := FarK 8
-
-theorem far5_of_far {d R : ℕ} {p : ℕ × ℕ} (h : Far d R p) : FarK 5 d R p :=
-  ⟨fun a => by have := h.1 a; omega, fun a => by have := h.2 a; omega⟩
-
-theorem goodIn_delAt {k d R : ℕ} {p : ℕ × ℕ} (f : Frame) (hR : p.1 < R) (h0 : p.1 ≠ d)
-    (h1 : p.1 ≠ d + 1) (hfar : FarK k d R p) : GoodInK k R (R - 2) f p (delAt d p) := by
+theorem goodIn_delAt {d R : ℕ} {p : ℕ × ℕ} (f : Frame) (hR : p.1 < R) (h0 : p.1 ≠ d)
+    (h1 : p.1 ≠ d + 1) (hfar : Far d R p) : GoodIn R (R - 2) f p (delAt d p) := by
   obtain ⟨x, y⟩ := p
   simp only at hR h0 h1
   obtain ⟨fa, fb⟩ := hfar
@@ -252,88 +240,6 @@ theorem corner4_of {R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
   · exact Or.inl ⟨sameSet_of w1 r0 a, sameSet_of w2 r1 b⟩
   · exact Or.inr ⟨sameSet_of w1 r1 a, sameSet_of w2 r0 b⟩
 
-/-! ### C and D in the 6 × 6 window -/
-
-theorem sameSet_ofP {P : ℕ × ℕ → Prop} {A L L' : List (ℕ × ℕ)} (hA : ∀ x ∈ A, P x)
-    (h : List.Forall₂ (fun x x' => P x' → x = x') L L')
-    (hs : sameSet A L' = true) : sameSet A L = true := by
-  unfold sameSet at *
-  simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true, List.contains_iff_mem] at hs ⊢
-  refine ⟨hs.1.trans h.length_eq.symm, fun a ha => ?_⟩
-  have hin := hs.2 a ha
-  have hw := hA a ha
-  clear hs
-  induction h with
-  | nil => simp at hin
-  | @cons x x' l l' hx _ ih =>
-    rcases List.mem_cons.mp hin with rfl | hin'
-    · exact List.mem_cons.mpr (Or.inl (hx hw).symm)
-    · exact List.mem_cons_of_mem _ (ih hin')
-
-theorem frameList_relK {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
-    (h : List.Forall₂ (fun q q' => GoodInK k R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts') (col : ℕ) :
-    List.Forall₂ (fun x x' => (x'.1 < k ∧ x'.2 < k) → x = x')
-      ((pts.filter (·.2 == col)).map (fun q => f.to R C q.1))
-      ((pts'.filter (·.2 == col)).map (fun q => f.to R' C q.1)) := by
-  induction h with
-  | nil => exact List.Forall₂.nil
-  | @cons q q' qs qs' hq _ ih =>
-    obtain ⟨hg, hc⟩ := hq
-    by_cases hcol : q.2 = col
-    · have hcol' : q'.2 = col := hc.trans hcol
-      simp only [List.filter_cons, hcol, hcol', beq_self_eq_true, ↓reduceIte, List.map_cons]
-      refine List.Forall₂.cons (fun hw => ?_) ih
-      exact (to_eq_iffK (C := C) hg hw.1 hw.2).mp rfl
-    · have hcol' : ¬ q'.2 = col := fun e => hcol (hc ▸ e)
-      have e1 : (q.2 == col) = false := by simpa using hcol
-      have e2 : (q'.2 == col) = false := by simpa using hcol'
-      simp only [List.filter_cons, e1, e2]
-      exact ih
-
-/-- The entry lies in the 6 × 6 window. -/
-def small6 (e : List (ℕ × ℕ) × List (ℕ × ℕ)) : Bool :=
-  (e.1 ++ e.2).all fun x => decide (x.1 < 6) && decide (x.2 < 6)
-
-theorem corner4_odd_small : ∀ e ∈ CORNER4_ODD, small6 e = true := by
-  decide
-
-/-- An even-area C entry outside the 6 × 6 window matches in frame `f`. -/
-def BigHit (R C : ℕ) (f : Frame) (pts : List Pt) : Prop :=
-  (R * C) % 2 = 0 ∧ ∃ e ∈ CORNER4, small6 e = false ∧
-    ((sameSet e.1 ((pts.filter (·.2 == 0)).map (fun q => f.to R C q.1)) &&
-      sameSet e.2 ((pts.filter (·.2 == 1)).map (fun q => f.to R C q.1))) ||
-     (sameSet e.1 ((pts.filter (·.2 == 1)).map (fun q => f.to R C q.1)) &&
-      sameSet e.2 ((pts.filter (·.2 == 0)).map (fun q => f.to R C q.1)))) = true
-
-/-- With band 6, a C/D match carries over unless it is a big (window-8) C entry. -/
-theorem corner4_of6 {R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
-    (h : List.Forall₂ (fun q q' => GoodInK 6 R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts')
-    (hpar : (R' * C) % 2 = (R * C) % 2) (hb : ¬ BigHit R' C f pts')
-    (hc : corner4 R' C f pts' = true) : corner4 R C f pts = true := by
-  unfold corner4 at *
-  have r0 := frameList_relK (C := C) h 0
-  have r1 := frameList_relK (C := C) h 1
-  simp only [List.any_eq_true] at hc ⊢
-  obtain ⟨e, he, hm⟩ := hc
-  have hsm : small6 e = true := by
-    by_contra hs
-    apply hb
-    split_ifs at he with hp
-    · exact ⟨by simpa using hp, e, he, by simpa using hs, hm⟩
-    · exact (hs (corner4_odd_small e he)).elim
-  rw [hpar] at he
-  refine ⟨e, he, ?_⟩
-  have hw : ∀ x ∈ e.1 ++ e.2, x.1 < 6 ∧ x.2 < 6 := by
-    intro x hx
-    have := List.all_eq_true.mp hsm x hx
-    simpa using this
-  have w1 : ∀ x ∈ e.1, x.1 < 6 ∧ x.2 < 6 := fun x hx => hw x (List.mem_append_left _ hx)
-  have w2 : ∀ x ∈ e.2, x.1 < 6 ∧ x.2 < 6 := fun x hx => hw x (List.mem_append_right _ hx)
-  simp only [Bool.or_eq_true, Bool.and_eq_true] at hm ⊢
-  rcases hm with ⟨a, b⟩ | ⟨a, b⟩
-  · exact Or.inl ⟨sameSet_ofP w1 r0 a, sameSet_ofP w2 r1 b⟩
-  · exact Or.inr ⟨sameSet_ofP w1 r1 a, sameSet_ofP w2 r0 b⟩
-
 /-! ### B (boundary-only corner patterns) -/
 
 /-- `find?` on related lists, with predicates that agree on related elements. -/
@@ -370,11 +276,9 @@ theorem onPerim_frame {R C : ℕ} (f : Frame) {p : ℕ × ℕ} (hp : p.1 < R) (h
   cases f.fr <;> cases f.fc <;> cases f.tr <;> simp <;> omega
 
 /-- The relation between an endpoint of `I` and its image in `I.deleteAt d`, seen in frame `f`. -/
-def WinRelK (k R R' C : ℕ) (f : Frame) (q q' : Pt) : Prop :=
-  q'.2 = q.2 ∧ GoodInK k R R' f q.1 q'.1 ∧ (OnPerim R' C q'.1 → OnPerim R C q.1) ∧
+def WinRel (R R' C : ℕ) (f : Frame) (q q' : Pt) : Prop :=
+  q'.2 = q.2 ∧ GoodIn R R' f q.1 q'.1 ∧ (OnPerim R' C q'.1 → OnPerim R C q.1) ∧
     q.1.1 < R ∧ q.1.2 < C ∧ q'.1.1 < R' ∧ q'.1.2 < C ∧ f.H R' C ≤ f.H R C ∧ f.W R' C ≤ f.W R C
-
-abbrev WinRel := WinRelK 8
 
 theorem boundary_lists_inWin :
     (∀ e ∈ BOUNDARY3_EVEN, e.1.1 ≤ 5 ∧ e.1.2 ≤ 5 ∧ e.2.1.1 ≤ 5 ∧ e.2.1.2 ≤ 5 ∧ e.2.2.1 ≤ 5 ∧
@@ -383,17 +287,17 @@ theorem boundary_lists_inWin :
       e.2.2.2 ≤ 5) := by
   decide
 
-theorem frame_map_rel {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
-    (h : List.Forall₂ (WinRelK k R R' C f) pts pts') :
+theorem frame_map_rel {R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
+    (h : List.Forall₂ (WinRel R R' C f) pts pts') :
     List.Forall₂ (fun (u : (ℕ × ℕ) × ℕ) (u' : (ℕ × ℕ) × ℕ) =>
-      ∃ q q', WinRelK k R R' C f q q' ∧ u = (f.to R C q.1, q.2) ∧ u' = (f.to R' C q'.1, q'.2))
+      ∃ q q', WinRel R R' C f q q' ∧ u = (f.to R C q.1, q.2) ∧ u' = (f.to R' C q'.1, q'.2))
       (pts.map fun q => (f.to R C q.1, q.2)) (pts'.map fun q => (f.to R' C q.1, q.2)) := by
   induction h with
   | nil => exact List.Forall₂.nil
   | @cons q q' _ _ hq _ ih => exact List.Forall₂.cons ⟨q, q', hq, rfl, rfl⟩ ih
 
-theorem boundaryOnly_of {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt} (hk : 6 ≤ k)
-    (h : List.Forall₂ (WinRelK k R R' C f) pts pts') (hpar : R' % 2 = R % 2)
+theorem boundaryOnly_of {R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
+    (h : List.Forall₂ (WinRel R R' C f) pts pts') (hpar : R' % 2 = R % 2)
     (hb : boundaryOnly R' C f pts' = true) : boundaryOnly R C f pts = true := by
   unfold boundaryOnly at *
   rw [hpar] at hb
@@ -408,17 +312,17 @@ theorem boundaryOnly_of {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt} (hk : 
     · exact boundary_lists_inWin.1 _ he
   obtain ⟨w1, w2, w3, w4, w5, w6⟩ := hw
   -- frame coordinates in the window agree
-  have key : ∀ q q', WinRelK k R R' C f q q' → ∀ x : ℕ × ℕ, x.1 ≤ 5 → x.2 ≤ 5 →
+  have key : ∀ q q', WinRel R R' C f q q' → ∀ x : ℕ × ℕ, x.1 ≤ 7 → x.2 ≤ 7 →
       ((f.to R' C q'.1 == x) = (f.to R C q.1 == x)) := by
     intro q q' hr x h1 h2
-    have := to_eq_iffK (C := C) hr.2.1 (by omega : x.1 < k) (by omega : x.2 < k)
+    have := to_eq_iff (C := C) hr.2.1 h1 h2
     obtain ⟨x1, x2⟩ := x
     by_cases hq : f.to R C q.1 = (x1, x2)
     · simp [hq, this.mpr hq]
     · have : ¬ f.to R' C q'.1 = (x1, x2) := fun e => hq (this.mp e)
       simp [hq, this]
   have hmap := frame_map_rel h
-  have isA_eq : ∀ x : ℕ × ℕ, x.1 ≤ 5 → x.2 ≤ 5 →
+  have isA_eq : ∀ x : ℕ × ℕ, x.1 ≤ 7 → x.2 ≤ 7 →
       ((pts'.map fun q => (f.to R' C q.1, q.2)).any fun u => u.2 == A && u.1 == x) =
       ((pts.map fun q => (f.to R C q.1, q.2)).any fun u => u.2 == A && u.1 == x) := by
     intro x h1 h2
@@ -459,8 +363,8 @@ theorem boundaryOnly_of {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt} (hk : 
 
 /-- In a frame along the deleted axis (not transposed), rows `≤ 7` of the view agree in every
 column. -/
-theorem to_eq_iff_rows {k R R' C : ℕ} {f : Frame} (htr : f.tr = false) {p p' : ℕ × ℕ}
-    (hg : GoodInK k R R' f p p') {r c : ℕ} (hr : r < k) :
+theorem to_eq_iff_rows {R R' C : ℕ} {f : Frame} (htr : f.tr = false) {p p' : ℕ × ℕ}
+    (hg : GoodIn R R' f p p') {r c : ℕ} (hr : r ≤ 7) :
     (f.to R' C p' = (r, c)) ↔ (f.to R C p = (r, c)) := by
   obtain ⟨h2, h | ⟨h1, h1'⟩⟩ := hg
   · rw [frame_to_eq, frame_to_eq, h2, h]
@@ -468,9 +372,9 @@ theorem to_eq_iff_rows {k R R' C : ℕ} {f : Frame} (htr : f.tr = false) {p p' :
     simp only [Bool.false_eq_true, ↓reduceIte, Prod.mk.injEq]
     omega
 
-theorem view_at_eq_rows {k R R' C : ℕ} {f : Frame} (htr : f.tr = false) {r : ℕ} (hr : r < k)
+theorem view_at_eq_rows {R R' C : ℕ} {f : Frame} (htr : f.tr = false) {r : ℕ} (hr : r ≤ 7)
     (c : ℕ) {pts pts' : List Pt}
-    (h : List.Forall₂ (fun q q' => GoodInK k R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts') :
+    (h : List.Forall₂ (fun q q' => GoodIn R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts') :
     (makeView R' C f pts').at r c = (makeView R C f pts).at r c := by
   induction h with
   | nil => rfl
@@ -488,17 +392,16 @@ theorem view_at_eq_rows {k R R' C : ℕ} {f : Frame} (htr : f.tr = false) {r : �
       exact ih
 
 /-- E1 in a frame along the deleted axis carries over (it only reads frame rows 0 and 1). -/
-theorem edgeClosure_of_rows {k R R' C : ℕ} {f : Frame} (hk : 2 ≤ k) (htr : f.tr = false)
-    {pts pts' : List Pt}
-    (h : List.Forall₂ (fun q q' => GoodInK k R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts')
+theorem edgeClosure_of_rows {R R' C : ℕ} {f : Frame} (htr : f.tr = false) {pts pts' : List Pt}
+    (h : List.Forall₂ (fun q q' => GoodIn R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts')
     (he : edgeClosure (makeView R' C f pts') = true) :
     edgeClosure (makeView R C f pts) = true := by
   have hW : (makeView R' C f pts').W = (makeView R C f pts).W := by
     simp [makeView, Frame.W, htr]
   unfold edgeClosure at *
   rw [hW] at he
-  simp only [view_at_eq_rows htr (by omega : (0 : ℕ) < k) _ h,
-    view_at_eq_rows htr (by omega : (1 : ℕ) < k) _ h] at he
+  simp only [view_at_eq_rows htr (by omega : (0 : ℕ) ≤ 7) _ h,
+    view_at_eq_rows htr (by omega : (1 : ℕ) ≤ 7) _ h] at he
   exact he
 
 /-- The view of four endpoints: what `at` can return. -/
@@ -599,15 +502,15 @@ theorem edgeClosure_tr_false {R C : ℕ} {f : Frame} (htr : f.tr = true) {a b c 
 
 /-! ### All frame-based entries -/
 
-theorem goodIn_of_winRel {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
-    (h : List.Forall₂ (WinRelK k R R' C f) pts pts') :
-    List.Forall₂ (fun q q' => GoodInK k R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts' :=
+theorem goodIn_of_winRel {R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
+    (h : List.Forall₂ (WinRel R R' C f) pts pts') :
+    List.Forall₂ (fun q q' => GoodIn R R' f q.1 q'.1 ∧ q'.2 = q.2) pts pts' :=
   h.imp (fun {_ _} hr => ⟨hr.2.1, hr.1⟩)
 
-theorem sameCorner_of_winRel {k R R' C : ℕ} {f : Frame} {pts pts' : List Pt} (hk : 5 ≤ k)
-    (h : List.Forall₂ (WinRelK k R R' C f) pts pts') :
+theorem sameCorner_of_winRel {R R' C : ℕ} {f : Frame} {pts pts' : List Pt}
+    (h : List.Forall₂ (WinRel R R' C f) pts pts') :
     SameCorner (makeView R C f pts) (makeView R' C f pts') :=
-  fun _ _ hr hc => view_at_eqK (by omega) (by omega) (goodIn_of_winRel h)
+  fun _ _ hr hc => view_at_eq hr hc (goodIn_of_winRel h)
 
 /-- Every frame-based entry that fires on the smaller instance fires on the larger one, provided
 the endpoints are related in every frame (`WinRel`) and E1 cannot fire in transposed frames. -/
@@ -619,7 +522,7 @@ theorem frames_any_of {R R' C : ℕ} {pts pts' : List Pt} (hR : R' ≤ R)
   simp only [List.any_eq_true] at h ⊢
   obtain ⟨f, hf, hfire⟩ := h
   refine ⟨f, hf, ?_⟩
-  have hs := sameCorner_of_winRel (by norm_num) (hrel f)
+  have hs := sameCorner_of_winRel (hrel f)
   have hH : (makeView R' C f pts').H ≤ (makeView R C f pts).H := by
     simp only [makeView, Frame.H]; split_ifs <;> omega
   have hpar2 : (R' * C) % 2 = (R * C) % 2 := by
@@ -632,42 +535,10 @@ theorem frames_any_of {R R' C : ℕ} {pts pts' : List Pt} (hR : R' ≤ R)
   · exact Or.inl (Or.inl (Or.inl (Or.inl (Or.inr (testL4_of hs hH h4)))))
   · exact Or.inl (Or.inl (Or.inl (Or.inr (testL5_of hs h5))))
   · cases htr : f.tr
-    · exact Or.inl (Or.inl (Or.inr (edgeClosure_of_rows (by norm_num) htr (goodIn_of_winRel (hrel f)) hE)))
+    · exact Or.inl (Or.inl (Or.inr (edgeClosure_of_rows htr (goodIn_of_winRel (hrel f)) hE)))
     · rw [hE1 f htr] at hE; exact absurd hE (by simp)
-  · exact Or.inl (Or.inr (boundaryOnly_of (by norm_num) (hrel f) hpar hB))
+  · exact Or.inl (Or.inr (boundaryOnly_of (hrel f) hpar hB))
   · exact Or.inr ⟨⟨by omega, h10'⟩, corner4_of (goodIn_of_winRel (hrel f)) hpar2 hC⟩
-
-/-- **Band 6**: every frame-based entry carries over, except a big C entry, which is reported. -/
-theorem frames_any_of6 {R R' C : ℕ} {pts pts' : List Pt} (hR : R' ≤ R)
-    (hrel : ∀ f, List.Forall₂ (WinRelK 6 R R' C f) pts pts')
-    (hpar : R' % 2 = R % 2)
-    (hE1 : ∀ f : Frame, f.tr = true → edgeClosure (makeView R' C f pts') = false)
-    (h : frames.any (frameFires R' C pts') = true) :
-    frames.any (frameFires R C pts) = true ∨ ∃ f, BigHit R' C f pts' := by
-  simp only [List.any_eq_true] at h
-  obtain ⟨f, hf, hfire⟩ := h
-  by_cases hbig : BigHit R' C f pts'
-  · exact Or.inr ⟨f, hbig⟩
-  left
-  simp only [List.any_eq_true]
-  refine ⟨f, hf, ?_⟩
-  have hs := sameCorner_of_winRel (by norm_num) (hrel f)
-  have hH : (makeView R' C f pts').H ≤ (makeView R C f pts).H := by
-    simp only [makeView, Frame.H]; split_ifs <;> omega
-  have hpar2 : (R' * C) % 2 = (R * C) % 2 := by
-    rw [Nat.mul_mod, hpar, ← Nat.mul_mod]
-  unfold frameFires at hfire ⊢
-  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hfire ⊢
-  rcases hfire with (((((h2 | h3) | h4) | h5) | hE) | hB) | ⟨⟨h10, h10'⟩, hC⟩
-  · exact Or.inl (Or.inl (Or.inl (Or.inl (Or.inl (Or.inl (testL2_of hs h2))))))
-  · exact Or.inl (Or.inl (Or.inl (Or.inl (Or.inl (Or.inr (testL3_of hs h3))))))
-  · exact Or.inl (Or.inl (Or.inl (Or.inl (Or.inr (testL4_of hs hH h4)))))
-  · exact Or.inl (Or.inl (Or.inl (Or.inr (testL5_of hs h5))))
-  · cases htr : f.tr
-    · exact Or.inl (Or.inl (Or.inr (edgeClosure_of_rows (by norm_num) htr (goodIn_of_winRel (hrel f)) hE)))
-    · rw [hE1 f htr] at hE; exact absurd hE (by simp)
-  · exact Or.inl (Or.inr (boundaryOnly_of (le_refl 6) (hrel f) hpar hB))
-  · exact Or.inr ⟨⟨by omega, h10'⟩, corner4_of6 (goodIn_of_winRel (hrel f)) hpar2 hbig hC⟩
 
 /-! ### Compressions: the setup -/
 
@@ -677,26 +548,6 @@ def CompClause (I : Inst) (d : ℕ) : Prop :=
       EndBelow I lo ∧ EndAbove I (lo + 9)) ∨
   (8 ≤ d ∧ d + 10 ≤ I.w ∧ I.FreeLine d ∧ I.FreeLine (d + 1) ∧
       ((1 ≤ d ∧ I.FreeLine (d - 1)) ∨ I.FreeLine (d + 2)) ∧ EndBelow I d ∧ EndAbove I (d + 1))
-
-/-- What the compression proofs use: `d, d+1` free with a free neighbour, endpoints on both sides,
-every endpoint at band distance ≥ 6 across the deletion. -/
-def CompCore (I : Inst) (d : ℕ) : Prop :=
-  I.FreeLine d ∧ I.FreeLine (d + 1) ∧ d + 2 ≤ I.w ∧
-  ((1 ≤ d ∧ I.FreeLine (d - 1)) ∨ I.FreeLine (d + 2)) ∧
-  EndBelow I d ∧ EndAbove I (d + 1) ∧ ∀ e ∈ I.ends, FarK 5 d I.w e
-
-theorem compCore_free {I : Inst} {d : ℕ} (h : CompCore I d) :
-    I.FreeLine d ∧ I.FreeLine (d + 1) ∧ d + 2 ≤ I.w :=
-  ⟨h.1, h.2.1, h.2.2.1⟩
-
-theorem compCore_line {I : Inst} {d : ℕ} (h : CompCore I d) :
-    ∃ k, I.FreeLine k ∧ k ≠ d ∧ k ≠ d + 1 ∧
-      (∃ e ∈ I.ends, e.1 < k ∧ e.1 < d) ∧ (∃ e ∈ I.ends, k < e.1 ∧ d + 1 < e.1) := by
-  obtain ⟨f0, f1, hw, (⟨hd, fm⟩ | fp), ⟨e1, he1, h1⟩, ⟨e2, he2, h2⟩, -⟩ := h
-  · have : e1.1 ≠ d - 1 := fm e1 he1
-    exact ⟨d - 1, fm, by omega, by omega, ⟨e1, he1, by omega, h1⟩, ⟨e2, he2, by omega, h2⟩⟩
-  · have : e2.1 ≠ d + 2 := fp e2 he2
-    exact ⟨d + 2, fp, by omega, by omega, ⟨e1, he1, by omega, h1⟩, ⟨e2, he2, by omega, by omega⟩⟩
 
 theorem compClause_free {I : Inst} {d : ℕ} (h : CompClause I d) :
     I.FreeLine d ∧ I.FreeLine (d + 1) ∧ d + 2 ≤ I.w := by
@@ -727,35 +578,8 @@ theorem far_of_compClause {I : Inst} {d : ℕ} (hb : ∀ e ∈ I.ends, e.1 < I.w
   · exact Or.inl ⟨lo, hl, hh, hw, hf, hb1, ha1⟩
   · exact Or.inr ⟨h8, hw⟩
 
-/-- A compression clause gives the core. -/
-theorem compCore_of_compClause {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) :
-    CompCore I d := by
-  obtain ⟨-, -, b0, b1, b2, b3, -⟩ := hI
-  have hb : ∀ e ∈ I.ends, e.1 < I.w := by
-    intro e he
-    simp only [Inst.ends, List.mem_cons, List.not_mem_nil, or_false] at he
-    rcases he with rfl | rfl | rfl | rfl
-    · exact b0.1
-    · exact b1.1
-    · exact b2.1
-    · exact b3.1
-  have far := far_of_compClause hb h
-  obtain ⟨f0, f1, hw⟩ := compClause_free h
-  refine ⟨f0, f1, hw, ?_, ?_, ?_, fun e he => far5_of_far (far e he)⟩
-  · rcases h with ⟨lo, hl, hh, -, hf, -, -⟩ | ⟨-, -, -, -, hn, -, -⟩
-    · by_cases hd : lo < d
-      · exact Or.inl ⟨by omega, hf (d - 1) (by omega) (by omega)⟩
-      · exact Or.inr (hf (d + 2) (by omega) (by omega))
-    · exact hn
-  · rcases h with ⟨lo, hl, -, -, -, ⟨e, he, h1⟩, -⟩ | ⟨-, -, -, -, -, hb1, -⟩
-    · exact ⟨e, he, by omega⟩
-    · exact hb1
-  · rcases h with ⟨lo, -, hh, -, -, -, ⟨e, he, h2⟩⟩ | ⟨-, -, -, -, -, -, ha1⟩
-    · exact ⟨e, he, by omega⟩
-    · exact ha1
-
 theorem onPerim_delAt {d R C : ℕ} {p : ℕ × ℕ} (h0 : p.1 ≠ d) (h1 : p.1 ≠ d + 1)
-    (hfar : FarK 5 d R p) (h : OnPerim (R - 2) C (delAt d p)) : OnPerim R C p := by
+    (hfar : Far d R p) (h : OnPerim (R - 2) C (delAt d p)) : OnPerim R C p := by
   obtain ⟨x, y⟩ := p
   obtain ⟨fa, fb⟩ := hfar
   simp only at h0 h1 fa fb
@@ -785,37 +609,6 @@ theorem winRel_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) (f 
     have he0 := f0 e he
     have he1 := f1 e he
     obtain ⟨hx, hy⟩ := hb e he
-    refine ⟨rfl, goodIn_delAt f hx he0 he1 (far e he), onPerim_delAt he0 he1 (far5_of_far (far e he)), hx, hy,
-      ?_, ?_, ?_, ?_⟩
-    · unfold delAt; split_ifs <;> simp <;> omega
-    · unfold delAt; split_ifs <;> simpa using hy
-    · simp only [Frame.H]; split_ifs <;> omega
-    · simp only [Frame.W]; split_ifs <;> omega
-  exact List.Forall₂.cons (one _ (by simp [Inst.ends]) 0) (List.Forall₂.cons
-    (one _ (by simp [Inst.ends]) 0) (List.Forall₂.cons (one _ (by simp [Inst.ends]) 1)
-    (List.Forall₂.cons (one _ (by simp [Inst.ends]) 1) List.Forall₂.nil)))
-
-/-- The endpoint relation in every frame at band 6, for a compression core. -/
-theorem winRel_core {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (f : Frame) :
-    List.Forall₂ (WinRelK 5 I.w (I.w - 2) I.h f)
-      [(I.s0, 0), (I.t0, 0), (I.s1, 1), (I.t1, 1)]
-      [(delAt d I.s0, 0), (delAt d I.t0, 0), (delAt d I.s1, 1), (delAt d I.t1, 1)] := by
-  obtain ⟨-, -, b0, b1, b2, b3, -⟩ := hI
-  have hb : ∀ e ∈ I.ends, e.1 < I.w ∧ e.2 < I.h := by
-    intro e he
-    simp only [Inst.ends, List.mem_cons, List.not_mem_nil, or_false] at he
-    rcases he with rfl | rfl | rfl | rfl
-    · exact b0
-    · exact b1
-    · exact b2
-    · exact b3
-  obtain ⟨f0, f1, hdw⟩ := compCore_free h
-  have far := h.2.2.2.2.2.2
-  have one : ∀ e ∈ I.ends, ∀ col, WinRelK 5 I.w (I.w - 2) I.h f (e, col) (delAt d e, col) := by
-    intro e he col
-    have he0 := f0 e he
-    have he1 := f1 e he
-    obtain ⟨hx, hy⟩ := hb e he
     refine ⟨rfl, goodIn_delAt f hx he0 he1 (far e he), onPerim_delAt he0 he1 (far e he), hx, hy,
       ?_, ?_, ?_, ?_⟩
     · unfold delAt; split_ifs <;> simp <;> omega
@@ -827,11 +620,11 @@ theorem winRel_core {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (f : 
     (List.Forall₂.cons (one _ (by simp [Inst.ends]) 1) List.Forall₂.nil)))
 
 /-- After a compression, the deleted instance has a free line with endpoints on both sides. -/
-theorem comp_line_after {I : Inst} {d : ℕ} (_hI : InDom I) (h : CompCore I d) :
+theorem comp_line_after {I : Inst} {d : ℕ} (_hI : InDom I) (h : CompClause I d) :
     ∃ L, (∀ e ∈ I.ends, (delAt d e).1 ≠ L) ∧ (∃ e ∈ I.ends, (delAt d e).1 < L) ∧
       (∃ e ∈ I.ends, L < (delAt d e).1) := by
-  obtain ⟨k, hk, hkd, hkd1, ⟨e1, he1, a1, a2⟩, ⟨e2, he2, b1, b2⟩⟩ := compCore_line h
-  obtain ⟨f0, f1, -⟩ := compCore_free h
+  obtain ⟨k, hk, hkd, hkd1, ⟨e1, he1, a1, a2⟩, ⟨e2, he2, b1, b2⟩⟩ := compClause_line h
+  obtain ⟨f0, f1, -⟩ := compClause_free h
   refine ⟨if k < d then k else k - 2, ?_, ⟨e1, he1, ?_⟩, ⟨e2, he2, ?_⟩⟩
   · intro e he
     have := hk e he; have := f0 e he; have := f1 e he
@@ -839,13 +632,13 @@ theorem comp_line_after {I : Inst} {d : ℕ} (_hI : InDom I) (h : CompCore I d) 
   · unfold delAt; split_ifs <;> omega
   · unfold delAt; split_ifs <;> (try simp only) <;> omega
 
-theorem e1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (f : Frame)
+theorem e1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) (f : Frame)
     (htr : f.tr = true) :
     edgeClosure (makeView (I.w - 2) I.h f
       [(delAt d I.s0, 0), (delAt d I.t0, 0), (delAt d I.s1, 1), (delAt d I.t1, 1)]) = false := by
   obtain ⟨L, hfree, ⟨e1, he1, hl⟩, ⟨e2, he2, hh⟩⟩ := comp_line_after hI h
   obtain ⟨-, -, b0, b1, b2, b3, -⟩ := hI
-  obtain ⟨f0, f1, hdw⟩ := compCore_free h
+  obtain ⟨f0, f1, hdw⟩ := compClause_free h
   have inb : ∀ e ∈ I.ends, e.1 < I.w → (delAt d e).1 < I.w - 2 := by
     intro e he hx
     have := f0 e he; have := f1 e he
@@ -886,7 +679,7 @@ theorem t2Fires_close {a b c e : ℕ × ℕ} (h : t2Fires [a, b, c, e] = true) :
   rintro x (rfl | rfl | rfl | rfl) y (rfl | rfl | rfl | rfl) <;> omega
 
 /-- After a compression, T2 cannot fire. -/
-theorem t2_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) :
+theorem t2_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) :
     t2Fires [delAt d I.s0, delAt d I.t0, delAt d I.s1, delAt d I.t1] = false := by
   obtain ⟨L, hfree, ⟨e1, he1, hl⟩, ⟨e2, he2, hh⟩⟩ := comp_line_after hI h
   by_contra hc
@@ -928,7 +721,7 @@ theorem l6Closures_eq {R C : ℕ} (hR : 2 ≤ R) (hC : 2 ≤ C) (pts : List Pt) 
   rfl
 
 /-- Per-endpoint behaviour near the two edges across the deleted axis. -/
-theorem delAt_near_low {d R : ℕ} {q n : ℕ × ℕ} (h0 : q.1 ≠ d) (h1 : q.1 ≠ d + 1) (hfar : FarK 5 d R q)
+theorem delAt_near_low {d R : ℕ} {q n : ℕ × ℕ} (h0 : q.1 ≠ d) (h1 : q.1 ≠ d + 1) (hfar : Far d R q)
     (hn : n.1 ≤ 1) : (delAt d q = n) ↔ (q = n) := by
   obtain ⟨x, y⟩ := q
   obtain ⟨a, b⟩ := n
@@ -940,7 +733,7 @@ theorem delAt_near_low {d R : ℕ} {q n : ℕ × ℕ} (h0 : q.1 ≠ d) (h1 : q.1
   omega
 
 theorem delAt_near_high {d R : ℕ} {q n : ℕ × ℕ} (h0 : q.1 ≠ d) (h1 : q.1 ≠ d + 1)
-    (hfar : FarK 5 d R q) (hq : q.1 < R) (hn : R ≤ n.1 + 2) (hn' : n.1 < R) (hR : 13 ≤ R) :
+    (hfar : Far d R q) (hq : q.1 < R) (hn : R ≤ n.1 + 2) (hn' : n.1 < R) (hR : 13 ≤ R) :
     (delAt d q = (n.1 - 2, n.2)) ↔ (q = n) := by
   obtain ⟨x, y⟩ := q
   obtain ⟨a, b⟩ := n
@@ -971,13 +764,19 @@ theorem closureAt_rel {pts pts' : List Pt} {n1 n2 cor n1' n2' cor' : ℕ × ℕ}
   · rw [e1, e1', e2, e2']; simp only [ha.1, hb.1]
 
 /-- After a compression, the corner closures are the same, so L6 carries over. -/
-theorem l6_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (hR : 13 ≤ I.w)
+theorem l6_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) (hR : 13 ≤ I.w)
     (hf : l6Fires (I.w - 2) I.h
       [(delAt d I.s0, 0), (delAt d I.t0, 0), (delAt d I.s1, 1), (delAt d I.t1, 1)] = true) :
     l6Fires I.w I.h [(I.s0, 0), (I.t0, 0), (I.s1, 1), (I.t1, 1)] = true := by
   obtain ⟨hw, hh, b0, b1, b2, b3, -⟩ := hI
-  obtain ⟨f0, f1, -⟩ := compCore_free h
-  have far := h.2.2.2.2.2.2
+  obtain ⟨f0, f1, -⟩ := compClause_free h
+  have far := far_of_compClause (fun e he => by
+    simp only [Inst.ends, List.mem_cons, List.not_mem_nil, or_false] at he
+    rcases he with rfl | rfl | rfl | rfl
+    · exact b0.1
+    · exact b1.1
+    · exact b2.1
+    · exact b3.1) h
   have rel : ∀ (n1 n2 cor : ℕ × ℕ), (n1.1 ≤ 1 ∨ (I.w ≤ n1.1 + 2 ∧ n1.1 < I.w)) →
       (n2.1 ≤ 1 ∨ (I.w ≤ n2.1 + 2 ∧ n2.1 < I.w)) → (cor.1 ≤ 1 ∨ (I.w ≤ cor.1 + 2 ∧ cor.1 < I.w)) →
       let g := fun n : ℕ × ℕ => if n.1 ≤ 1 then n else (n.1 - 2, n.2)
@@ -1091,9 +890,12 @@ theorem l1Fires_iff (R C : ℕ) (pts : List Pt) : l1Fires R C pts = true ↔ L1P
     exact ⟨e, he, h3, h4⟩
 
 /-- Next to the seam, the line across is free. -/
-theorem seam_free {I : Inst} {d : ℕ} (h : CompCore I d) {e : Coord} (he : e ∈ I.ends) :
+theorem seam_free {I : Inst} {d : ℕ} (h : CompClause I d) {e : Coord} (he : e ∈ I.ends) :
     (e.1 + 1 = d → I.FreeLine (d + 2)) ∧ (e.1 = d + 2 → 1 ≤ d ∧ I.FreeLine (d - 1)) := by
-  obtain ⟨f0, f1, hw, (⟨hd, fm⟩ | fp), -, -, -⟩ := h
+  rcases h with ⟨lo, hl, hh, hw, hf, -, -⟩ | ⟨h8, hw, f0, f1, (⟨hd, fm⟩ | fp), -, -⟩
+  · have nin : ¬ (lo ≤ e.1 ∧ e.1 ≤ lo + 9) := fun ⟨a, b⟩ => hf e.1 a b e he rfl
+    exact ⟨fun h1 => hf (d + 2) (by omega) (by omega),
+      fun h2 => ⟨by omega, hf (d - 1) (by omega) (by omega)⟩⟩
   · exact ⟨fun h1 => (fm e he (by omega)).elim, fun h2 => ⟨hd, fm⟩⟩
   · exact ⟨fun _ => fp, fun h2 => (fp e he (by omega)).elim⟩
 
@@ -1108,12 +910,12 @@ theorem delAt_adj {d : ℕ} {u v : Coord} (hu : u.1 ≠ d) (hu1 : u.1 ≠ d + 1)
   split_ifs <;> simp only <;> omega
 
 /-- After a compression, L1 carries over. -/
-theorem l1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d)
+theorem l1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d)
     (hf : L1Prop (I.w - 2) I.h
       [(delAt d I.s0, 0), (delAt d I.t0, 0), (delAt d I.s1, 1), (delAt d I.t1, 1)]) :
     L1Prop I.w I.h [(I.s0, 0), (I.t0, 0), (I.s1, 1), (I.t1, 1)] := by
   obtain ⟨-, -, b0, b1, b2, b3, -⟩ := hI
-  obtain ⟨f0, f1, hdw⟩ := compCore_free h
+  obtain ⟨f0, f1, hdw⟩ := compClause_free h
   have hb : ∀ e ∈ I.ends, e.1 < I.w ∧ e.2 < I.h := by
     intro e he
     simp only [Inst.ends, List.mem_cons, List.not_mem_nil, or_false] at he
@@ -1149,7 +951,7 @@ theorem l1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d)
   have heb := hb _ he
   simp only at heb
   have hd3 : d + 3 ≤ I.w := by
-    obtain ⟨k, -, -, -, -, ⟨e3, he3, h3a, h3b⟩⟩ := compCore_line h
+    obtain ⟨k, -, -, -, -, ⟨e3, he3, h3a, h3b⟩⟩ := compClause_line h
     have := (hb e3 he3).1
     omega
   -- the neighbor is on a deleted line: impossible
@@ -1269,8 +1071,8 @@ theorem perimIndex_isSome {R C : ℕ} {p : ℕ × ℕ} (hx : p.1 < R) (hy : p.2 
 set_option maxHeartbeats 4000000 in
 /-- Deleting two lines keeps the perimeter order of endpoints that stay on the perimeter. -/
 theorem perim_order {R C d : ℕ} (hR : 13 ≤ R) (hC : 2 ≤ C) {e f : ℕ × ℕ}
-    (he : e.1 < R ∧ e.2 < C ∧ e.1 ≠ d ∧ e.1 ≠ d + 1 ∧ FarK 5 d R e ∧ OnPerim R C e)
-    (hf : f.1 < R ∧ f.2 < C ∧ f.1 ≠ d ∧ f.1 ≠ d + 1 ∧ FarK 5 d R f ∧ OnPerim R C f) :
+    (he : e.1 < R ∧ e.2 < C ∧ e.1 ≠ d ∧ e.1 ≠ d + 1 ∧ Far d R e ∧ OnPerim R C e)
+    (hf : f.1 < R ∧ f.2 < C ∧ f.1 ≠ d ∧ f.1 ≠ d + 1 ∧ Far d R f ∧ OnPerim R C f) :
     (perimIndex R C e).getD 0 < (perimIndex R C f).getD 0 ↔
       (perimIndex (R - 2) C (delAt d e)).getD 0 < (perimIndex (R - 2) C (delAt d f)).getD 0 := by
   obtain ⟨ex, ey⟩ := e
@@ -1296,12 +1098,12 @@ theorem perim_order {R C d : ℕ} (hR : 13 ≤ R) (hC : 2 ≤ C) {e f : ℕ × �
     split_ifs <;> simp only [Option.getD_some, Option.getD_none] <;> omega
 
 /-- After a compression, T1 carries over. -/
-theorem t1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (hR : 13 ≤ I.w)
+theorem t1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) (hR : 13 ≤ I.w)
     (hf : t1Fires (I.w - 2) I.h
       [(delAt d I.s0, 0), (delAt d I.t0, 0), (delAt d I.s1, 1), (delAt d I.t1, 1)] = true) :
     t1Fires I.w I.h [(I.s0, 0), (I.t0, 0), (I.s1, 1), (I.t1, 1)] = true := by
   obtain ⟨hw, hh, b0, b1, b2, b3, -⟩ := hI
-  obtain ⟨f0, f1, hdw⟩ := compCore_free h
+  obtain ⟨f0, f1, hdw⟩ := compClause_free h
   have hb : ∀ e ∈ I.ends, e.1 < I.w ∧ e.2 < I.h := by
     intro e he
     simp only [Inst.ends, List.mem_cons, List.not_mem_nil, or_false] at he
@@ -1310,7 +1112,7 @@ theorem t1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (hR : 13 
     · exact b1
     · exact b2
     · exact b3
-  have far := h.2.2.2.2.2.2
+  have far := far_of_compClause (fun e he => (hb e he).1) h
   have inb' : ∀ e ∈ I.ends, (delAt d e).1 < I.w - 2 ∧ (delAt d e).2 < I.h := by
     intro e he
     have := f0 e he; have := f1 e he; have := hb e he
@@ -1340,7 +1142,7 @@ theorem t1_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (hR : 13 
       s _ (by simp [Inst.ends]) q2, s _ (by simp [Inst.ends]) q3⟩
   -- the sorted color sequences agree
   have full : ∀ e ∈ I.ends, OnPerim I.w I.h e →
-      e.1 < I.w ∧ e.2 < I.h ∧ e.1 ≠ d ∧ e.1 ≠ d + 1 ∧ FarK 5 d I.w e ∧ OnPerim I.w I.h e :=
+      e.1 < I.w ∧ e.2 < I.h ∧ e.1 ≠ d ∧ e.1 ≠ d + 1 ∧ Far d I.w e ∧ OnPerim I.w I.h e :=
     fun e he hp => ⟨(hb e he).1, (hb e he).2, f0 e he, f1 e he, far e he, hp⟩
   let items : List (ℕ × ℕ × ℕ) :=
     [((perimIndex I.w I.h I.s0).getD 0, (perimIndex (I.w - 2) I.h (delAt d I.s0)).getD 0, 0),

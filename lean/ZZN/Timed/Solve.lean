@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Timed.Lift
 
 /-!
@@ -18,6 +17,7 @@ namespace ZZN.T
 
 open ZZN GridHam
 
+abbrev Sol := Option (List Coord × List Coord)
 
 lemma sq_mono {a b : ℕ} (h : a ≤ b) : a ^ 2 ≤ b ^ 2 := Nat.pow_le_pow_left h 2
 
@@ -32,6 +32,7 @@ lemma checkET_time (I : Inst) (o : Sol) (L : ℕ)
     simp only [checkET, time_bind, time_pure]
     omega
 
+def swapT (l : List Coord) : TimeM (List Coord) := lmapT (fun x => pure x.swap) l
 
 lemma swapT_ret (l : List Coord) : (swapT l).ret = l.map Prod.swap := by
   simp [swapT, lmapT]
@@ -40,9 +41,37 @@ lemma swapT_time (l : List Coord) : (swapT l).time ≤ l.length := by
   have := lmapT_time_le (fun x : Coord => (pure x.swap : TimeM Coord)) l 0 (fun _ _ => by simp)
   simpa [swapT] using this
 
+/-- Lift a solution of `I.deleteAt d` and check it. -/
+def stepT (I : Inst) (d : ℕ) : Sol → TimeM Sol
+  | some pq => do
+    let l ← liftET I d pq.1 pq.2
+    checkET I (some l)
+  | none => pure none
 
+/-- Lift a solution of `I.transpose.deleteAt d`, transpose it back and check it. -/
+def stepTT (I : Inst) (d : ℕ) : Sol → TimeM Sol
+  | some pq => do
+    let l ← liftET I.transpose d pq.1 pq.2
+    let a ← swapT l.1
+    let b ← swapT l.2
+    checkET I (some (a, b))
+  | none => pure none
 
+def solveRecT (thinT : Inst → TimeM Sol) : ℕ → Inst → TimeM Sol
+  | 0, _ => pure none
+  | n + 1, I =>
+    if I.w ≤ 10 ∨ I.h ≤ 10 then thinT I >>= checkET I else do
+    let f ← findRedT I
+    match f with
+    | some d => solveRecT thinT n (I.deleteAt d) >>= stepT I d
+    | none => do
+      let g ← findRedT I.transpose
+      match g with
+      | some d => solveRecT thinT n (I.transpose.deleteAt d) >>= stepTT I d
+      | none => thinT I >>= checkET I
 
+def solveZT (thinT : Inst → TimeM Sol) (I : Inst) : TimeM Sol :=
+  solveRecT thinT (I.w + I.h) I >>= checkET I
 
 section
 

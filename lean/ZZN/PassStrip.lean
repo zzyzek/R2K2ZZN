@@ -271,7 +271,7 @@ theorem frames_any_strip {R R' C : ℕ} {pts pts' : List Pt} (hR : R' ≤ R) (ne
       frameFires R C pts f = true := by
     intro f hf hfire
     obtain ⟨hrel, hsame⟩ := hfar f hf
-    have hs := sameCorner_of_winRel (by norm_num) hrel
+    have hs := sameCorner_of_winRel hrel
     have hH : (makeView R' C f pts').H ≤ (makeView R C f pts).H := by
       simp only [makeView, Frame.H]; split_ifs <;> omega
     unfold frameFires at hfire ⊢
@@ -290,7 +290,7 @@ theorem frames_any_strip {R R' C : ℕ} {pts pts' : List Pt} (hR : R' ≤ R) (ne
       refine ⟨k, by omega, by omega, ?_⟩
       simp only [view_at_same hsame] at hm
       exact hm
-    · exact Or.inl (Or.inr (boundaryOnly_of (by norm_num) hrel hpar hB))
+    · exact Or.inl (Or.inr (boundaryOnly_of hrel hpar hB))
     · exact Or.inr ⟨⟨by omega, h10'⟩, corner4_of (goodIn_of_winRel hrel) hpar2 hC⟩
   simp only [List.any_eq_true] at h ⊢
   obtain ⟨f, hf, hfire⟩ := h

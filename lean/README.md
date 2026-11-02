@@ -1,13 +1,7 @@
 # Lean development: two-colour Zig-Zag Numberlink on rectangles
 
-This is the development tree. The released proof is [`../proof/`](../proof/), exported from here by
-`tools/make_proof.py`: there `passes_iff_solvable` comes from kernel-checked certificates
-(`passes_iff_solvable_K`, generated into `gen/` by [`../certgen/regen.sh`](../certgen/regen.sh)),
-so every result below holds with the standard axioms only. In this tree `ZZN/Main.lean` still
-proves it from the 154 `native_decide` checks described below.
-
-The definitions of the statements are in `ZZN/Statement.lean` (instances, paths, solutions, the
-catalogue, the plug DP, `solvableB`, `solveZZN`). Everything else is checked by Lean against them.
+The statement is in `ZZN/Defs.lean` (instances, paths, solutions; about 60 lines). Everything else
+is checked by Lean against it.
 
 ## Main results
 

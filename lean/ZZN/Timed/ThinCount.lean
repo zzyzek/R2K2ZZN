@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import ZZN.Timed.Thin
 import Mathlib.Data.Finset.Card
 import Mathlib.Data.Finset.Range
@@ -27,7 +26,9 @@ def GoodEnd (a b e : ℕ) : Prop := e ≤ b ∨ e = termE a b 0 ∨ e = termE a 
 def Good (a b : ℕ) (s : St) : Prop :=
   s.1.Nodup ∧ s.2 < 4 ∧ ∀ z ∈ s.1, GoodEnd a b (lo z) ∧ GoodEnd a b (hi z)
 
+def Q (b : ℕ) : ℕ := (b + 3) ^ 2
 
+def Nst (b : ℕ) : ℕ := 4 * (Q b + 1) ^ Q b
 
 /-- Compressed end code. -/
 def cmpE (a b e : ℕ) : ℕ := if e ≤ b then e else b + 1 + colE a b e

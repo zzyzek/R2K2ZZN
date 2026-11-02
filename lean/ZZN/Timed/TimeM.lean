@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.TimedStatement
 import Mathlib.Data.List.Basic
 import Mathlib.Data.List.Dedup
 import Mathlib.Algebra.BigOperators.Group.List.Basic
@@ -38,7 +37,13 @@ quadratic charge for removing duplicates.
 
 namespace ZZN.T
 
+structure TimeM (α : Type) where
+  ret : α
+  time : ℕ
 
+instance : Monad TimeM where
+  pure a := ⟨a, 0⟩
+  bind m f := let r := f m.ret; ⟨r.ret, m.time + r.time⟩
 
 variable {α β : Type}
 
@@ -52,33 +57,72 @@ variable {α β : Type}
 
 def tick (n : ℕ) : TimeM Unit := ⟨(), n⟩
 
+def lmapT (f : α → TimeM β) (l : List α) : TimeM (List β) :=
+  ⟨l.map (fun x => (f x).ret), (l.map (fun x => (f x).time + 1)).sum⟩
 
+def lfilterT (p : α → TimeM Bool) (l : List α) : TimeM (List α) :=
+  ⟨l.filter (fun x => (p x).ret), (l.map (fun x => (p x).time + 1)).sum⟩
 
+def lallT (p : α → TimeM Bool) (l : List α) : TimeM Bool :=
+  ⟨l.all (fun x => (p x).ret), (l.map (fun x => (p x).time + 1)).sum⟩
 
+def lanyT (p : α → TimeM Bool) (l : List α) : TimeM Bool :=
+  ⟨l.any (fun x => (p x).ret), (l.map (fun x => (p x).time + 1)).sum⟩
 
+def lfindT (p : α → TimeM Bool) (l : List α) : TimeM (Option α) :=
+  ⟨l.find? (fun x => (p x).ret), (l.map (fun x => (p x).time + 1)).sum⟩
 
+def lfilterMapT (f : α → TimeM (Option β)) (l : List α) : TimeM (List β) :=
+  ⟨l.filterMap (fun x => (f x).ret), (l.map (fun x => (f x).time + 1)).sum⟩
 
+def lflatMapT (f : α → TimeM (List β)) (l : List α) : TimeM (List β) :=
+  ⟨l.flatMap (fun x => (f x).ret), (l.map (fun x => let r := f x; r.time + r.ret.length + 1)).sum⟩
 
+def lfoldlT (f : β → α → TimeM β) : β → List α → TimeM β
+  | b, [] => ⟨b, 0⟩
+  | b, x :: l => let r := f b x; let s := lfoldlT f r.ret l; ⟨s.ret, r.time + 1 + s.time⟩
 
+def lengthT (l : List α) : TimeM ℕ := ⟨l.length, l.length + 1⟩
 
+def lcontainsT [BEq α] (l : List α) (x : α) : TimeM Bool := ⟨l.contains x, l.length + 1⟩
 
+def leraseT [BEq α] (l : List α) (x : α) : TimeM (List α) := ⟨l.erase x, l.length + 1⟩
 
+def lappendT (l m : List α) : TimeM (List α) := ⟨l ++ m, l.length + 1⟩
 
+def lreverseT (l : List α) : TimeM (List α) := ⟨l.reverse, l.length + 1⟩
 
+def lsumT (l : List ℤ) : TimeM ℤ := ⟨l.sum, l.length + 1⟩
 
+def lzipIdxT (l : List α) : TimeM (List (α × ℕ)) := ⟨l.zipIdx, l.length + 1⟩
 
+def lzipT (l : List α) (m : List β) : TimeM (List (α × β)) := ⟨l.zip m, l.length + 1⟩
 
+def lfindIdxT (p : α → Bool) (l : List α) : TimeM (Option ℕ) := ⟨l.findIdx? p, l.length + 1⟩
 
+def lmodifyT (l : List α) (i : ℕ) (f : α → α) : TimeM (List α) := ⟨l.modify i f, l.length + 1⟩
 
+def lgetT [Inhabited α] (l : List α) (i : ℕ) : TimeM α := ⟨l[i]!, l.length + 1⟩
 
+def rangeT (n : ℕ) : TimeM (List ℕ) := ⟨List.range n, n + 1⟩
 
+def ldedupT [DecidableEq α] (l : List α) : TimeM (List α) := ⟨l.dedup, l.length ^ 2 + 1⟩
 
+def lnodupT [DecidableEq α] (l : List α) : TimeM Bool := ⟨decide l.Nodup, l.length ^ 2 + 1⟩
 
+def infix2T [DecidableEq α] (a b : α) (l : List α) : TimeM Bool :=
+  ⟨decide ([a, b] <:+: l), l.length + 1⟩
 
+def lgetLastT (l : List α) : TimeM (Option α) := ⟨l.getLast?, l.length + 1⟩
 
+def fmemT (x : ℕ) (s : Finset ℕ) : TimeM Bool := ⟨decide (x ∈ s), s.card + 1⟩
 
+def feraseT (s : Finset ℕ) (x : ℕ) : TimeM (Finset ℕ) := ⟨s.erase x, s.card + 1⟩
 
+def ffilterT (p : ℕ → Bool) (s : Finset ℕ) : TimeM (Finset ℕ) := ⟨s.filter (fun x => p x = true), s.card + 1⟩
 
+def frangeFilterT (n : ℕ) (p : ℕ → TimeM Bool) : TimeM (Finset ℕ) :=
+  ⟨(Finset.range n).filter (fun y => (p y).ret = true), ((List.range n).map (fun y => (p y).time + 1)).sum⟩
 
 /-! ## Simp lemmas -/
 

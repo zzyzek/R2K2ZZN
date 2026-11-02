@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.Defs
 import Std.Data.HashMap
 
@@ -22,7 +21,13 @@ open GridHam
 
 /-! ### The checked test -/
 
+instance (w h : ℕ) (s t : Coord) (p : List Coord) : Decidable (IsPath w h s t p) := by
+  unfold IsPath InBounds; infer_instance
 
+/-- `p, q` solve `I`; coverage is checked by counting. -/
+def solB (I : Inst) (p q : List Coord) : Bool :=
+  decide (IsPath I.w I.h I.s0 I.t0 p) && decide (IsPath I.w I.h I.s1 I.t1 q) &&
+    decide ((p ++ q).Nodup) && (p.length + q.length == I.w * I.h)
 
 /-- A duplicate-free list of `w * h` cells of the grid contains every cell. -/
 theorem cover_of_card {w h : ℕ} {l : List Coord} (hn : l.Nodup) (hb : ∀ v ∈ l, InBounds w h v)

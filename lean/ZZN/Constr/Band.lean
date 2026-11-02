@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.BandExtension
 
 /-!
@@ -30,6 +29,10 @@ theorem ite_f {α : Type} {c : Prop} [Decidable c] {a b : α} (h : ¬ c) : (if c
 
 /-! ### Splicing into an edge -/
 
+/-- Insert `X` between the first consecutive pair `a, b`. -/
+def insB (a b : Coord) (X : List Coord) : List Coord → List Coord
+  | x :: y :: l => if x = a ∧ y = b then x :: (X ++ y :: l) else x :: insB a b X (y :: l)
+  | l => l
 
 theorem insB_eq (a b : Coord) (X l₂ : List Coord) :
     ∀ l₁ : List Coord, (l₁ ++ a :: b :: l₂).Nodup →
@@ -59,6 +62,9 @@ theorem splice_edgeC {w h : ℕ} {s t : Coord} {L X : List Coord} {a b : Coord}
   exact ⟨hL.splice hX hXn hXb hfresh, fun v => mem_splice _ _ _ _ _ _,
     fun u v huv hne => infix_splice_of_ne huv hne, infix_splice_self _ _ _ _ _⟩
 
+/-- Splice `X` into the edge `a – b` of whichever path holds it (as `a, b`). -/
+def spliceE (P Q : List Coord) (a b : Coord) (X : List Coord) : List Coord × List Coord :=
+  if [a, b] <:+: P then (insB a b X P, Q) else (P, insB a b X Q)
 
 theorem PState.spliceC {W h r : ℕ} {s0 t0 s1 t1 : Coord} {U U' : Finset ℕ} {P Q X : List Coord}
     {a b : Coord} (st : PState W h r s0 t0 s1 t1 U P Q)
@@ -147,6 +153,11 @@ theorem PState.absorb_coreC {W h r : ℕ} {s0 t0 s1 t1 : Coord} {U : Finset ℕ}
   have h2 : ¬((r + 1, z) = b ∧ (r + 2, z) = a) := fun ⟨h, _⟩ => hz (by rw [← hb, ← h])
   exact hkeep _ _ h1 h2 hm
 
+/-- Cover column `y` by a detour of the middle edge of column `y'`. -/
+def absorbE (r y y' : ℕ) (P Q : List Coord) : List Coord × List Coord :=
+  if [(r + 1, y'), (r + 2, y')] <:+: P ∨ [(r + 1, y'), (r + 2, y')] <:+: Q then
+    spliceE P Q (r + 1, y') (r + 2, y') [(r + 1, y), (r + 2, y)]
+  else spliceE P Q (r + 2, y') (r + 1, y') [(r + 2, y), (r + 1, y)]
 
 theorem PState.absorbC {W h r : ℕ} {s0 t0 s1 t1 : Coord} {U : Finset ℕ} {P Q : List Coord}
     {y y' : ℕ} (st : PState W h r s0 t0 s1 t1 U P Q) (hy : y ∈ U)
@@ -204,6 +215,11 @@ theorem PState.flip_coreC {W h r : ℕ} {s0 t0 s1 t1 : Coord} {U : Finset ℕ} {
     have := congrArg Prod.fst h; simp at this; omega
   exact hkeep _ _ h1 h2 hm
 
+/-- Cover columns `y, y + 1` by a detour of the row-`r` edge between them. -/
+def flipE (r y : ℕ) (P Q : List Coord) : List Coord × List Coord :=
+  if [(r, y), (r, y + 1)] <:+: P ∨ [(r, y), (r, y + 1)] <:+: Q then
+    spliceE P Q (r, y) (r, y + 1) [(r + 1, y), (r + 2, y), (r + 2, y + 1), (r + 1, y + 1)]
+  else spliceE P Q (r, y + 1) (r, y) [(r + 1, y + 1), (r + 2, y + 1), (r + 2, y), (r + 1, y)]
 
 theorem PState.flipC {W h r : ℕ} {s0 t0 s1 t1 : Coord} {U : Finset ℕ} {P Q : List Coord}
     {y : ℕ} (st : PState W h r s0 t0 s1 t1 U P Q) (hy : y ∈ U) (hy1 : y + 1 ∈ U)
@@ -240,6 +256,12 @@ theorem PState.flipC {W h r : ℕ} {s0 t0 s1 t1 : Coord} {U : Finset ℕ} {P Q :
 
 /-! ### Sweeps -/
 
+/-- Cover the uncovered columns below `L`, from the middle edge of column `L` down. -/
+def sweepLeftE (r : ℕ) : ℕ → Finset ℕ → List Coord → List Coord → List Coord × List Coord
+  | 0, _, P, Q => (P, Q)
+  | L + 1, U, P, Q =>
+    if L ∈ U then sweepLeftE r L (U.erase L) (absorbE r L (L + 1) P Q).1 (absorbE r L (L + 1) P Q).2
+    else sweepLeftE r L U P Q
 
 theorem PState.sweepLeftC {W h r : ℕ} {s0 t0 s1 t1 : Coord} :
     ∀ (L : ℕ) (U : Finset ℕ) (P Q : List Coord), PState W h r s0 t0 s1 t1 U P Q →
@@ -287,6 +309,14 @@ theorem PState.sweepLeftC {W h r : ℕ} {s0 t0 s1 t1 : Coord} :
       · rintro ⟨hz, hlt⟩
         exact ⟨hz, by omega⟩
 
+/-- Cover the uncovered columns above `R`, from the middle edge of column `R` up. -/
+def sweepRightE (r h : ℕ) : ℕ → ℕ → Finset ℕ → List Coord → List Coord → List Coord × List Coord
+  | 0, _, _, P, Q => (P, Q)
+  | n + 1, R, U, P, Q =>
+    if R + 1 ∈ U then
+      sweepRightE r h n (R + 1) (U.erase (R + 1)) (absorbE r (R + 1) R P Q).1 (absorbE r (R + 1) R P Q).2
+    else if R + 1 < h then sweepRightE r h n (R + 1) U P Q
+    else (P, Q)
 
 theorem PState.sweepRightC {W h r : ℕ} {s0 t0 s1 t1 : Coord} :
     ∀ (n R : ℕ) (U : Finset ℕ) (P Q : List Coord), h - R = n →
@@ -351,9 +381,39 @@ theorem PState.sweepRightC {W h r : ℕ} {s0 t0 s1 t1 : Coord} :
 
 /-! ### The seed and the whole construction -/
 
+instance (p q : List Coord) (r y : ℕ) : Decidable (Cross p q r y) := by
+  unfold Cross Used; infer_instance
 
+/-- The condition of `seed_or_flip` at position `R`. -/
+def SeedAt (h : ℕ) (p q : List Coord) (r R : ℕ) : Prop :=
+  ((R = 0 ∨ Cross p q r (R - 1)) ∧ (R = h ∨ Cross p q r R)) ∨
+    (1 ≤ R ∧ R < h ∧ ¬ Cross p q r (R - 1) ∧ ¬ Cross p q r R ∧
+      (Used p (r, R - 1) (r, R) ∨ Used q (r, R - 1) (r, R)))
 
+instance (h : ℕ) (p q : List Coord) (r R : ℕ) : Decidable (SeedAt h p q r R) := by
+  unfold SeedAt Used; infer_instance
 
+/-- The construction of `band_extension`, as a function. -/
+def bandExtE (I : Inst) (r : ℕ) (p q : List Coord) : List Coord × List Coord :=
+  let U0 := (Finset.range I.h).filter (fun y => ¬ Cross p q r y)
+  let P0 := stretch r p
+  let Q0 := stretch r q
+  match (List.range (I.h + 1)).find? (fun R => decide (SeedAt I.h p q r R)) with
+  | none => (P0, Q0)
+  | some R =>
+    if (R = 0 ∨ Cross p q r (R - 1)) ∧ (R = I.h ∨ Cross p q r R) then
+      if R = 0 then sweepRightE r I.h (I.h - 0) 0 U0 P0 Q0
+      else if R = I.h then sweepLeftE r (R - 1) U0 P0 Q0
+      else
+        sweepRightE r I.h (I.h - R) R (U0.filter (R - 1 < ·)) (sweepLeftE r (R - 1) U0 P0 Q0).1
+          (sweepLeftE r (R - 1) U0 P0 Q0).2
+    else
+      sweepRightE r I.h (I.h - (R - 1 + 1)) (R - 1 + 1)
+        (((U0.erase (R - 1)).erase (R - 1 + 1)).filter (R - 1 < ·))
+        (sweepLeftE r (R - 1) ((U0.erase (R - 1)).erase (R - 1 + 1)) (flipE r (R - 1) P0 Q0).1
+          (flipE r (R - 1) P0 Q0).2).1
+        (sweepLeftE r (R - 1) ((U0.erase (R - 1)).erase (R - 1 + 1)) (flipE r (R - 1) P0 Q0).1
+          (flipE r (R - 1) P0 Q0).2).2
 
 /-- **Band extension, computed.** -/
 theorem bandExtE_sol {I : Inst} {p q : List Coord} {r : ℕ} (hsol : IsSolution I p q) (hr : r < I.w)

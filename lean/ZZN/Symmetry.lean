@@ -1,7 +1,6 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.Reductions
 
 /-!
@@ -14,6 +13,13 @@ namespace ZZN
 
 open GridHam
 
+def Inst.transpose (I : Inst) : Inst where
+  w  := I.h
+  h  := I.w
+  s0 := I.s0.swap
+  t0 := I.t0.swap
+  s1 := I.s1.swap
+  t1 := I.t1.swap
 
 theorem Inst.transpose_transpose (I : Inst) : I.transpose.transpose = I := by
   cases I; simp [Inst.transpose]

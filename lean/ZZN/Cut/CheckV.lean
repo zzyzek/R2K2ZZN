@@ -2,7 +2,7 @@
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
 import ZZN.Cut.Tree
-import ZZN.Cut.AccS
+import ZZN.Cut.LaneV
 
 /-!
 # The cut-tree checker on lanes
@@ -77,7 +77,7 @@ def leafV (N : ℕ) (P : PieceV) : LB :=
     LB.ite N (eqVC N a b)
       (LB.and (LB.and (LV.eq N P.pw (LV.k 1)) (LV.eq N P.ph (LV.k 1))) (eqVC N a (P.ox, P.oy)))
       (LB.and (LB.and (regionV N P a) (regionV N P b))
-        (accV2 N P.pw P.ph (LV.sub N a.1 P.ox, LV.sub N a.2 P.oy) (LV.sub N b.1 P.ox, LV.sub N b.2 P.oy)))
+        (accV N P.pw P.ph (LV.sub N a.1 P.ox, LV.sub N a.2 P.oy) (LV.sub N b.1 P.ox, LV.sub N b.2 P.oy)))
   | _ => LB.b false
 
 def checkV (N : ℕ) : CTree LV → PieceV → LB
@@ -106,7 +106,6 @@ theorem cutcV_get2 (vert : Bool) (pos : LV) (s : Bool) (y : LV) :
     (cutcV N vert pos s y).2.get j = (cutc vert (pos.get j) s (y.get j)).2 :=
   congrArg Prod.snd (cutcV_get hj vert pos s y)
 
-omit hj in
 theorem putV_get (s : Bool) (e : VC × VC) (LR : List (VC × VC) × List (VC × VC)) :
     ((putV s e LR).1.map (segGet j), (putV s e LR).2.map (segGet j)) =
       put s (segGet j e) (LR.1.map (segGet j), LR.2.map (segGet j)) := by
@@ -122,14 +121,14 @@ theorem splitV_get (vert : Bool) (pos : LV) : ∀ (ks : List (Kind LV)) (ss : Li
   | k :: ks, [], acc => by cases k <;> simp [splitV, split, Kind.map]
   | Kind.stay s :: ks, (a, b) :: ss, acc => by
     simp only [splitV, split, List.map_cons, Kind.map]
-    rw [splitV_get vert pos ks ss, putV_get]
+    rw [splitV_get vert pos ks ss, putV_get hj]
   | Kind.cross s y :: ks, (a, b) :: ss, acc => by
     simp only [splitV, split, List.map_cons, Kind.map]
-    rw [splitV_get vert pos ks ss, putV_get, putV_get]
+    rw [splitV_get vert pos ks ss, putV_get hj, putV_get hj]
     simp only [segGet, cutcV_get hj]
   | Kind.exc s y z :: ks, (a, b) :: ss, acc => by
     simp only [splitV, split, List.map_cons, Kind.map]
-    rw [splitV_get vert pos ks ss, putV_get, putV_get, putV_get]
+    rw [splitV_get vert pos ks ss, putV_get hj, putV_get hj, putV_get hj]
     simp only [segGet, cutcV_get hj]
 
 theorem lo_get (P : PieceV) (vert : Bool) (pos : LV) (L : List (VC × VC)) :
@@ -161,7 +160,7 @@ theorem leafV_get (P : PieceV) : (leafV N P).get j = leafOK (P.get j) := by
   | [] => rfl
   | [(a, b)] =>
     simp only [leafV, leafOK, PieceV.get, List.map_cons, List.map_nil, segGet, LB.at_ite hj,
-      eqVC_get hj, LB.at_and, LV.at_eq hj, LV.get_k, regionV_get hj, accV2_get hj, LV.at_sub hj]
+      eqVC_get hj, LB.at_and, LV.at_eq hj, LV.get_k, regionV_get hj, accV_get hj, LV.at_sub hj]
     rfl
   | _ :: _ :: _ => rfl
 

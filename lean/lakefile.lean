@@ -11,11 +11,11 @@ require mathlib from git
 
 -- A copy of the IPS proof (GridHam2D-Lean), used for one-path pieces.
 lean_lib «GridHam» where
-  precompileModules := false
+  precompileModules := true
 
 @[default_target]
 lean_lib «ZZN» where
-  precompileModules := false
+  precompileModules := true
 
 lean_exe catcheck where
   root := `CatCheck.Main

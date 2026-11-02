@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Cut.Swar
+import ZZN.Cut.Lane
 import GridHam.Forbidden
 
 /-!
@@ -21,106 +21,38 @@ namespace ZZN.Lane
 inductive LV where
   | k (n : ℕ)
   | v (ps : List ℕ)
-  | s (a : ℕ)
-  | t (N a : ℕ) (h : chkS N a = true)
 
 inductive LB where
   | b (x : Bool)
   | m (n : ℕ)
-  | g (n : ℕ)
 
 namespace LV
 
 def get : LV → ℕ → ℕ
   | k n, _ => n
   | v ps, j => val ps j
-  | s a, j => fld a j
-  | t _ a _, j => fld a j
 
 def pl (N : ℕ) : LV → List ℕ
   | k n => cst N n
   | v ps => ps
-  | s a => toPl N a
-  | t _ a _ => toPl N a
 
 theorem val_pl {N j : ℕ} (hj : j < N) : ∀ x : LV, val (x.pl N) j = x.get j
   | k n => val_cst hj n
   | v _ => rfl
-  | s a => val_toPl hj a
-  | t _ a _ => val_toPl hj a
-
-/-- The 8-bit lane form, when every lane is below 128. -/
-def toS (N : ℕ) : LV → Option ℕ
-  | k n => if n < 128 then some (n * oneS N) else none
-  | v _ => none
-  | s a => if chkS N a then some a else none
-  | t M a _ => if M = N then some a else if chkS N a then some a else none
-
-theorem toS_spec {N : ℕ} {x : LV} {a : ℕ} (h : toS N x = some a) :
-    (a < Bs ^ N ∧ ∀ i, fld a i < 128) ∧ ∀ j, j < N → fld a j = x.get j := by
-  cases x with
-  | k n =>
-    simp only [toS] at h
-    split_ifs at h with hn
-    cases h
-    have hf : ∀ i, fld (n * oneS N) i = if i < N then n else 0 := by
-      intro i
-      rw [mul_comm, fld_mulc i _ _ fun k => by rw [fld_oneS]; split_ifs <;> simp [Bs]; omega, fld_oneS]
-      split_ifs <;> simp
-    refine ⟨⟨?_, fun i => by rw [hf]; split_ifs <;> omega⟩, fun j hj => by rw [hf, ite_eq_left hj]; rfl⟩
-    rw [oneS_eq, mul_comm, ofFun_mulc]
-    exact ofFun_lt N _ fun _ => by simp [Bs]; omega
-  | v _ => simp [toS] at h
-  | s b =>
-    simp only [toS] at h
-    split_ifs at h with hc
-    cases h
-    exact ⟨small_of_chk hc, fun j _ => rfl⟩
-  | t M b hb =>
-    simp only [toS] at h
-    split_ifs at h with hm hc
-    · cases h; subst hm; exact ⟨small_of_chk hb, fun j _ => rfl⟩
-    · cases h; exact ⟨small_of_chk hc, fun j _ => rfl⟩
 
 def add (N : ℕ) : LV → LV → LV
   | k a, k b => k (a + b)
-  | x, y => match toS N x, toS N y with
-    | some a, some b => s (a + b)
-    | _, _ => v (addc (x.pl N) (y.pl N) 0)
+  | x, y => v (addc (x.pl N) (y.pl N) 0)
 
 theorem at_add {N j : ℕ} (hj : j < N) (x y : LV) : (add N x y).get j = x.get j + y.get j := by
-  have slow : (v (addc (x.pl N) (y.pl N) 0)).get j = x.get j + y.get j := by
-    simp [get, val_addc, val_pl hj, bt]
-  unfold add
-  split
-  · rfl
-  · split
-    · next a b ha hb =>
-      obtain ⟨sa, ea⟩ := toS_spec ha
-      obtain ⟨sb, eb⟩ := toS_spec hb
-      show fld (a + b) j = _
-      rw [fld_add j _ _ fun i => by have := sa.2 i; have := sb.2 i; simp [Bs]; omega, ea j hj, eb j hj]
-    · exact slow
+  cases x <;> cases y <;> simp [add, get, val_addc, val_pl hj, bt]
 
 def sub (N : ℕ) : LV → LV → LV
   | k a, k b => k (a - b)
-  | x, y => match hx : toS N x, hy : toS N y with
-    | some a, some b => t N (subS N a b) (chkS_subS (toS_spec hx).1 (toS_spec hy).1)
-    | _, _ => v (Lane.sub N (x.pl N) (y.pl N))
+  | x, y => v (Lane.sub N (x.pl N) (y.pl N))
 
 theorem at_sub {N j : ℕ} (hj : j < N) (x y : LV) : (sub N x y).get j = x.get j - y.get j := by
-  have slow : (v (Lane.sub N (x.pl N) (y.pl N))).get j = x.get j - y.get j := by
-    simp [get, val_sub hj, val_pl hj]
-  unfold sub
-  split
-  · rfl
-  · split
-    · rename_i a b ha hb
-      obtain ⟨sa, ea⟩ := toS_spec ha
-      obtain ⟨sb, eb⟩ := toS_spec hb
-      show fld (subS N a b) j = _
-      rw [fld_subS sa sb, ea j hj, eb j hj]
-    · exact slow
+  cases x <;> cases y <;> simp [sub, get, val_sub hj, val_pl hj]
 
 end LV
 
@@ -129,63 +61,26 @@ namespace LB
 def get : LB → ℕ → Bool
   | b x, _ => x
   | m n, j => n.testBit j
-  | g n, j => n.testBit (8 * j)
 
 def mk (N : ℕ) : LB → ℕ
   | b true => ones N
   | b false => 0
   | m n => n
-  | g n => gath n 0 N
 
 theorem testBit_mk {N j : ℕ} (hj : j < N) (x : LB) : (x.mk N).testBit j = x.get j := by
   cases x with
   | b x => cases x <;> simp [mk, get, testBit_ones hj]
   | m n => rfl
-  | g n => simp [mk, get, testBit_gath, hj]
 
-/-- The lane Booleans at bits `8 j` (the 8-bit lane form). -/
-def mkG (N : ℕ) : LB → ℕ
-  | b true => oneS N
-  | b false => 0
-  | m n => spread n &&& oneS N
-  | g n => n &&& oneS N
-
-theorem testBit_mkG {N j : ℕ} (hj : j < N) (x : LB) : (x.mkG N).testBit (8 * j) = x.get j := by
-  cases x with
-  | b x => cases x <;> simp [mkG, get, testBit_oneS, hj]
-  | m n => simp [mkG, get, Nat.testBit_and, testBit_spread, testBit_oneS, hj]
-  | g n => simp [mkG, get, Nat.testBit_and, testBit_oneS, hj]
-
-/-- `and` with a field-form first argument; the second is looked at only when needed. -/
-def andG (x : ℕ) : LB → LB
-  | b false => b false
-  | b true => g x
-  | m y => g (x &&& spread y)
-  | g y => g (x &&& y)
-
-def andM (x : ℕ) : LB → LB
-  | b false => b false
-  | b true => m x
-  | m y => m (x &&& y)
-  | g y => g (spread x &&& y)
-
-/-- Lane-wise `and`. When the first argument is false in every lane, the second is not
-evaluated. -/
 def and : LB → LB → LB
   | b false, _ => b false
+  | _, b false => b false
   | b true, y => y
-  | g x, y => if x = 0 then b false else andG x y
-  | m x, y => andM x y
+  | x, b true => x
+  | m x, m y => m (x &&& y)
 
 theorem at_and (x y : LB) (j : ℕ) : (and x y).get j = (x.get j && y.get j) := by
-  rcases x with ⟨_ | _⟩ | x | x
-  · rfl
-  · simp [and, get]
-  · rcases y with ⟨_ | _⟩ | y | y <;> simp [and, andM, get, Nat.testBit_and, testBit_spread]
-  · simp only [and]
-    split_ifs with hx
-    · subst hx; simp [get]
-    · rcases y with ⟨_ | _⟩ | y | y <;> simp [andG, get, Nat.testBit_and, testBit_spread]
+  rcases x with ⟨_ | _⟩ | x <;> rcases y with ⟨_ | _⟩ | y <;> simp [and, get, Nat.testBit_and]
 
 def or : LB → LB → LB
   | b true, _ => b true
@@ -193,21 +88,16 @@ def or : LB → LB → LB
   | b false, y => y
   | x, b false => x
   | m x, m y => m (x ||| y)
-  | g x, g y => g (x ||| y)
-  | g x, m y => g (x ||| spread y)
-  | m x, g y => g (spread x ||| y)
 
 theorem at_or (x y : LB) (j : ℕ) : (or x y).get j = (x.get j || y.get j) := by
-  rcases x with ⟨_ | _⟩ | x | x <;> rcases y with ⟨_ | _⟩ | y | y <;>
-    simp [or, get, Nat.testBit_or, testBit_spread]
+  rcases x with ⟨_ | _⟩ | x <;> rcases y with ⟨_ | _⟩ | y <;> simp [or, get, Nat.testBit_or]
 
 def not (N : ℕ) : LB → LB
   | b x => b (!x)
   | m n => m (nt N n)
-  | g n => g (n ^^^ oneS N)
 
 theorem at_not {N j : ℕ} (hj : j < N) (x : LB) : (not N x).get j = !x.get j := by
-  cases x <;> simp [not, get, testBit_nt hj, Nat.testBit_xor, testBit_oneS, hj]
+  cases x <;> simp [not, get, testBit_nt hj]
 
 /-- Lane-wise `if c then x else y` on Booleans. -/
 def ite (N : ℕ) (c x y : LB) : LB := or (and c x) (and (not N c) y)
@@ -222,103 +112,45 @@ namespace LV
 
 def lt (N : ℕ) : LV → LV → LB
   | k a, k b => LB.b (decide (a < b))
-  | x, y => match toS N x, toS N y with
-    | some a, some b => LB.g (ltB N a b)
-    | _, _ => LB.m (Lane.lt N (x.pl N) (y.pl N))
+  | x, y => LB.m (Lane.lt N (x.pl N) (y.pl N))
 
 theorem at_lt {N j : ℕ} (hj : j < N) (x y : LV) : (lt N x y).get j = decide (x.get j < y.get j) := by
-  have slow : (LB.m (Lane.lt N (x.pl N) (y.pl N))).get j = decide (x.get j < y.get j) := by
-    simp [LB.get, testBit_lt hj, val_pl hj]
-  unfold lt
-  split
-  · rfl
-  · split
-    · next a b ha hb =>
-      obtain ⟨sa, ea⟩ := toS_spec ha
-      obtain ⟨sb, eb⟩ := toS_spec hb
-      show (ltB N a b).testBit (8 * j) = _
-      rw [testBit_ltB sa sb hj, ea j hj, eb j hj]
-    · exact slow
+  cases x <;> cases y <;> simp [lt, LB.get, get, testBit_lt hj, val_pl hj] <;> congr
 
 def le (N : ℕ) (x y : LV) : LB := LB.not N (lt N y x)
 
 theorem at_le {N j : ℕ} (hj : j < N) (x y : LV) : (le N x y).get j = decide (x.get j ≤ y.get j) := by
   simp only [le, LB.at_not hj, at_lt hj]
-  by_cases h : x.get j ≤ y.get j <;> simp [h]; omega
+  by_cases h : x.get j ≤ y.get j <;> simp [h] <;> omega
 
-def eq (N : ℕ) : LV → LV → LB
-  | k a, k b => LB.b (decide (a = b))
-  | x, y => match toS N x, toS N y with
-    | some a, some b => LB.g (eqB N a b)
-    | _, _ => LB.m (Lane.eqm N (x.pl N) (y.pl N))
+def eq (N : ℕ) (x y : LV) : LB := LB.and (le N x y) (le N y x)
 
 theorem at_eq {N j : ℕ} (hj : j < N) (x y : LV) : (eq N x y).get j = decide (x.get j = y.get j) := by
-  have slow : (LB.m (Lane.eqm N (x.pl N) (y.pl N))).get j = decide (x.get j = y.get j) := by
-    simp [LB.get, testBit_eqm hj, val_pl hj]
-  unfold eq
-  split
-  · rfl
-  · split
-    · next a b ha hb =>
-      obtain ⟨sa, ea⟩ := toS_spec ha
-      obtain ⟨sb, eb⟩ := toS_spec hb
-      show (eqB N a b).testBit (8 * j) = _
-      rw [testBit_eqB sa sb hj, ea j hj, eb j hj]
-    · exact slow
+  simp only [eq, LB.at_and, at_le hj]
+  by_cases h : x.get j = y.get j <;> simp [h] <;> omega
 
 /-- Lane-wise `if c then x else y` on numbers. -/
 def ite (N : ℕ) : LB → LV → LV → LV
   | LB.b true, x, _ => x
   | LB.b false, _, y => y
   | LB.m c, x, y => v (sel N c (x.pl N) (y.pl N))
-  | LB.g c, x, y => if c = 0 then y else match hx : toS N x, hy : toS N y with
-    | some a, some b => t N (iteS N c a b) (chkS_iteS (toS_spec hx).1 (toS_spec hy).1)
-    | _, _ => v (sel N (gath c 0 N) (x.pl N) (y.pl N))
 
 theorem at_ite {N j : ℕ} (hj : j < N) (c : LB) (x y : LV) :
     (ite N c x y).get j = if c.get j then x.get j else y.get j := by
-  rcases c with ⟨_ | _⟩ | c | c
-  · rfl
-  · rfl
-  · simp [ite, LB.get, get, val_sel hj, val_pl hj]; congr
-  · simp only [ite]
-    by_cases hc0 : c = 0
-    · subst hc0; simp [LB.get]
-    rw [ite_eq_right hc0]
-    split
-    · rename_i a b ha hb
-      obtain ⟨sa, ea⟩ := toS_spec ha
-      obtain ⟨sb, eb⟩ := toS_spec hb
-      show fld (iteS N c a b) j = _
-      rw [fld_iteS sa.2 sb.2 hj, ea j hj, eb j hj]; rfl
-    · show val (sel N (gath c 0 N) (x.pl N) (y.pl N)) j = _
-      rw [val_sel hj, val_pl hj, val_pl hj, testBit_gath]
-      simp only [hj, decide_true, Bool.true_and, LB.get]
-      rfl
+  rcases c with ⟨_ | _⟩ | c <;> simp [ite, LB.get, get, val_sel hj, val_pl hj] <;> congr
 
 /-- Lanes holding an odd number. -/
 def odd : LV → LB
   | k n => LB.b (decide (n % 2 = 1))
   | v [] => LB.b false
   | v (p :: _) => LB.m p
-  | s a => LB.g a
-  | t _ a _ => LB.g a
 
 theorem at_odd (x : LV) (j : ℕ) : (odd x).get j = decide (x.get j % 2 = 1) := by
-  cases x with
-  | k n => rfl
-  | v ps =>
-    cases ps with
-    | nil => simp [odd, get, val, LB.get]
-    | cons p ps =>
-      simp only [odd, LB.get, get, val, bt]
-      rcases Bool.eq_false_or_eq_true (p.testBit j) with hp | hp <;> simp [hp]
-  | s a =>
-    simp only [odd, LB.get, get, testBit_fld0, Nat.testBit_zero]
-    rfl
-  | t _ a _ =>
-    simp only [odd, LB.get, get, testBit_fld0, Nat.testBit_zero]
-    rfl
+  rcases x with n | _ | ⟨p, ps⟩
+  · rfl
+  · simp [odd, get, val, LB.get]
+  · simp only [odd, LB.get, get, val, bt]
+    rcases Bool.eq_false_or_eq_true (p.testBit j) with hp | hp <;> simp [hp]
 
 end LV
 
@@ -375,7 +207,7 @@ theorem accB_eq (w h : ℕ) (s t : Coord) : accB w h s t = decide (IsAcceptable 
   by_cases hw1 : w = 1 <;> by_cases hh1 : h = 1 <;> by_cases hw2 : w = 2 <;> by_cases hh2 : h = 2 <;>
     by_cases hw3 : w = 3 <;> by_cases hh3 : h = 3 <;> simp only [hw1, hh1, hw2, hh2, hw3, hh3] <;>
     simp (config := { decide := true }) <;>
-    (rw [Bool.eq_iff_iff]; simp; (try split_ifs) <;> omega)
+    (rw [Bool.eq_iff_iff]; simp [Prod.mk.injEq] <;> (try split_ifs) <;> omega)
 
 @[simp] theorem LV.get_k (n j : ℕ) : (LV.k n).get j = n := rfl
 @[simp] theorem LB.get_b (x : Bool) (j : ℕ) : (LB.b x).get j = x := rfl

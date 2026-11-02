@@ -1,11 +1,9 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
-import ZZN.Statement
 import ZZN.Constr.Lift
 import ZZN.Main
 import ZZN.TheoremA
-import ZZN.PassB
 
 /-!
 # The construction for every rectangle
@@ -18,12 +16,28 @@ answer it returns is a solution (`solveZ_sound`). If `thin` solves every solvabl
 a side at most 10 or both sides at most 22, then `solveZ thin` solves every solvable instance
 (`solveZ_complete`).
 
-Completeness uses Theorem B through `passes_iff_solvable`; soundness does not.
+Completeness uses Theorem B through `passes_iff_solvable`, so it depends on the `native_decide`
+axioms of the finite case analyses; soundness does not.
 -/
 
 namespace ZZN
 
 open GridHam
+
+/-- Reductions keep an instance passing (the `passX` field of `Facts`, from its proofs). -/
+theorem passX_all {I : Inst} {d : ℕ} (hI : InDom I) (hr : RedX I d) (hP : Passes I) :
+    Passes (I.deleteAt d) := by
+  obtain ⟨hw, h⟩ := hr
+  rcases h with h | h | h | h
+  · exact passStrip hI hw (Or.inl h) hP
+  · exact passStrip hI hw (Or.inr h) hP
+  · exact passX_comp hI hw (Or.inl h) hP
+  · exact passX_comp hI hw (Or.inr h) hP
+
+/-- Keep a candidate only if the verified checker accepts it. -/
+def checkE (I : Inst) : Option (List Coord × List Coord) → Option (List Coord × List Coord)
+  | some pq => if solB I pq.1 pq.2 then some pq else none
+  | none => none
 
 theorem checkE_some {I : Inst} {o : Option (List Coord × List Coord)} {p q : List Coord}
     (h : checkE I o = some (p, q)) : IsSolution I p q := by
@@ -38,6 +52,26 @@ theorem checkE_of_sol {I : Inst} {p q : List Coord} (h : IsSolution I p q) :
     checkE I (some (p, q)) = some (p, q) := by
   simp [checkE, solB_complete h]
 
+/-- The recursive construction, with fuel. Every candidate is checked by `solB`, so the lists passed
+up the recursion always have `w h` cells. -/
+def solveRec (thin : Inst → Option (List Coord × List Coord)) :
+    ℕ → Inst → Option (List Coord × List Coord)
+  | 0, _ => none
+  | n + 1, I =>
+    if I.w ≤ 10 ∨ I.h ≤ 10 then checkE I (thin I) else
+    match findRed I with
+    | some d =>
+      match solveRec thin n (I.deleteAt d) with
+      | some pq => checkE I (some (liftE I d pq.1 pq.2))
+      | none => none
+    | none =>
+      match findRed I.transpose with
+      | some d =>
+        match solveRec thin n (I.transpose.deleteAt d) with
+        | some pq => checkE I (some ((liftE I.transpose d pq.1 pq.2).1.map Prod.swap,
+            (liftE I.transpose d pq.1 pq.2).2.map Prod.swap))
+        | none => none
+      | none => checkE I (thin I)
 
 /-- What the thin solver must do. -/
 def ThinOK (thin : Inst → Option (List Coord × List Coord)) : Prop :=
@@ -105,6 +139,12 @@ theorem solveRec_complete {thin : Inst → Option (List Coord × List Coord)} (h
           rw [hpq, checkE_of_sol hsol]
           exact ⟨p, q, rfl, hsol⟩
 
+/-- **The construction**, checked. -/
+def solveZ (thin : Inst → Option (List Coord × List Coord)) (I : Inst) :
+    Option (List Coord × List Coord) :=
+  match solveRec thin (I.w + I.h) I with
+  | some pq => if solB I pq.1 pq.2 then some pq else none
+  | none => none
 
 theorem solveZ_sound (thin : Inst → Option (List Coord × List Coord)) {I : Inst}
     {p q : List Coord} (h : solveZ thin I = some (p, q)) : IsSolution I p q := by
