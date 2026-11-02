@@ -29,16 +29,22 @@ def tmB (e : (ℕ × ℕ) × (ℕ × ℕ) × (ℕ × ℕ)) (A : ℕ) : List ((�
 def fsB (e : (ℕ × ℕ) × (ℕ × ℕ) × (ℕ × ℕ)) (odd : ℕ) : Int :=
   2 * (odd : Int) - (sgn e.1 + sgn e.2.1 + sgn e.2.2)
 
-/-- **The window certificates** for every B, C and D entry, both colourings, every F case. -/
+/-- **The window certificates**: the C entries of window 6 and the D entries in the colouring as
+listed, the B entries with colour 0 at the pair, every F case. The other colouring follows by
+swapping the colours (`Inst.swapColors`); the window-8 C entries are caught by R (`C8R.lean`). -/
 structure CertFacts : Prop where
-  c_even : ∀ AB ∈ CORNER4, ∀ c : Bool, certify (winC AB) (winC AB) (tmC AB c) 0 none = true
-  c_odd : ∀ AB ∈ CORNER4_ODD, ∀ c : Bool, certify (winC AB) (winC AB) (tmC AB c) 1 none = true
-  b_even : ∀ e ∈ BOUNDARY3_EVEN, ∀ A, A ≤ 1 → ∀ fsl ∈ [none, some 0, some 11],
+  c_even : ∀ AB ∈ CORNER4, winC AB = 6 → certify (winC AB) (winC AB) (tmC AB false) 0 none = true
+  c_odd : ∀ AB ∈ CORNER4_ODD, certify (winC AB) (winC AB) (tmC AB false) 1 none = true
+  b_even : ∀ e ∈ BOUNDARY3_EVEN, ∀ fsl ∈ [none, some 0, some 11],
     (fsB e 0 = 1 ∨ fsB e 0 = -1) → (fsl ≠ none → fsB e 0 = 1) →
-      certify 6 6 (tmB e A) 0 (some (1 - A, fsB e 0, fsl)) = true
-  b_odd : ∀ e ∈ BOUNDARY3_ODD, ∀ A, A ≤ 1 → ∀ fsl ∈ [none, some 0, some 11],
+      certify 6 6 (tmB e 0) 0 (some (1, fsB e 0, fsl)) = true
+  b_odd : ∀ e ∈ BOUNDARY3_ODD, ∀ fsl ∈ [none, some 0, some 11],
     (fsB e 1 = 1 ∨ fsB e 1 = -1) → (fsl ≠ none → fsB e 1 = 1) →
-      certify 6 6 (tmB e A) 1 (some (1 - A, fsB e 1, fsl)) = true
+      certify 6 6 (tmB e 0) 1 (some (1, fsB e 1, fsl)) = true
+
+theorem solvable_swap {I : Inst} (h : Solvable I) : Solvable I.swapColors := by
+  obtain ⟨p, q, hp, hq, hd, hc⟩ := h
+  exact ⟨q, p, hq, hp, fun v hv hv' => hd v hv' hv, fun v hv => (hc v hv).symm⟩
 
 /-! ### Shapes of the entry lists, checked by `decide` -/
 
@@ -84,10 +90,9 @@ theorem ite_swap {P Q : Prop} [Decidable P] [Decidable Q] (h : ¬ (P ∧ Q)) (u 
   by_cases hp : P <;> by_cases hq : Q <;> simp_all
 
 /-- The C/D window setup, once the entry's pairs match the endpoints. -/
-theorem cd_sound (_CF : CertFacts) {J : Inst} (hwf : J.WellFormed) (hS : Solvable J) (hw : 11 ≤ J.w)
+theorem cd_sound {J : Inst} (hwf : J.WellFormed) (hS : Solvable J) (hw : 11 ≤ J.w)
     (hh : 11 ≤ J.h) {AB : List (ℕ × ℕ) × List (ℕ × ℕ)} (hAB : AB ∈ CORNER4 ++ CORNER4_ODD)
-    (hcert : ∀ c : Bool, certify (winC AB) (winC AB) (tmC AB c) ((J.w * J.h) % 2) none = true)
-    {c : Bool} (hm : sameSet AB.1 (if c then [J.s1, J.t1] else [J.s0, J.t0]) = true ∧
+    {c : Bool} (hcert : certify (winC AB) (winC AB) (tmC AB c) ((J.w * J.h) % 2) none = true) (hm : sameSet AB.1 (if c then [J.s1, J.t1] else [J.s0, J.t0]) = true ∧
       sameSet AB.2 (if c then [J.s0, J.t0] else [J.s1, J.t1]) = true) : False := by
   obtain ⟨p, q, sol⟩ := hS
   obtain ⟨l1, l2, nd, inw, wk⟩ := corner_shape AB hAB
@@ -120,7 +125,7 @@ theorem cd_sound (_CF : CertFacts) {J : Inst} (hwf : J.WellFormed) (hS : Solvabl
     · simp only [↓reduceIte] at hm
       rcases m1 w6 hm.1 with ⟨e1, e2⟩ | ⟨e1, e2⟩ <;> rcases m2 w1 hm.2 with ⟨e3, e4⟩ | ⟨e3, e4⟩ <;>
         rcases hE with rfl | rfl | rfl | rfl <;> simp_all
-  apply window_sound setup (tm := tmC ([a, a'], [b, b']) c) _ (hcert c)
+  apply window_sound setup (tm := tmC ([a, a'], [b, b']) c) _ hcert
   intro y _ _
   unfold tmC endCol
   simp only [List.map_cons, List.map_nil, List.cons_append, List.nil_append]
@@ -139,36 +144,6 @@ theorem cd_sound (_CF : CertFacts) {J : Inst} (hwf : J.WellFormed) (hS : Solvabl
     rw [ite_swap (P := y = J.s0 ∨ y = J.t0) (Q := y = J.s1 ∨ y = J.t1) (fun h => dis ⟨h.2, h.1⟩)]
     rcases m1 w6 hm.1 with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> rcases m2 w1 hm.2 with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
       simp only [or_comm]
-
-/-- **C and D are sound**, given the certificates. -/
-theorem cSound_of (CF : CertFacts) : ∀ J : Inst, J.WellFormed → Solvable J → 11 ≤ J.w → 11 ≤ J.h →
-    corner4 J.w J.h idF (ptsOf J) = false := by
-  intro J hwf hS hw hh
-  by_contra hf
-  rw [Bool.not_eq_false] at hf
-  unfold corner4 at hf
-  simp only [ptsOf, List.filter_cons, List.filter_nil, beq_self_eq_true, ↓reduceIte, List.map_cons,
-    idF_to] at hf
-  have e01 : ((1 : ℕ) == 0) = false := rfl
-  have e10 : ((0 : ℕ) == 1) = false := rfl
-  simp only [e01, e10, Bool.false_eq_true, ↓reduceIte] at hf
-  split_ifs at hf with hpar
-  · obtain ⟨AB, hAB, h⟩ := List.any_eq_true.mp hf
-    have hp : (J.w * J.h) % 2 = 0 := by simpa using hpar
-    have hcert : ∀ c : Bool, certify (winC AB) (winC AB) (tmC AB c) ((J.w * J.h) % 2) none = true := by
-      intro c; rw [hp]; exact CF.c_even AB hAB c
-    simp only [Bool.or_eq_true, Bool.and_eq_true] at h
-    rcases h with h | h
-    · exact cd_sound CF hwf hS hw hh (List.mem_append_left _ hAB) hcert (c := false) (by simpa using h)
-    · exact cd_sound CF hwf hS hw hh (List.mem_append_left _ hAB) hcert (c := true) (by simpa using h)
-  · obtain ⟨AB, hAB, h⟩ := List.any_eq_true.mp hf
-    have hp : (J.w * J.h) % 2 = 1 := by simp at hpar; omega
-    have hcert : ∀ c : Bool, certify (winC AB) (winC AB) (tmC AB c) ((J.w * J.h) % 2) none = true := by
-      intro c; rw [hp]; exact CF.c_odd AB hAB c
-    simp only [Bool.or_eq_true, Bool.and_eq_true] at h
-    rcases h with h | h
-    · exact cd_sound CF hwf hS hw hh (List.mem_append_right _ hAB) hcert (c := false) (by simpa using h)
-    · exact cd_sound CF hwf hS hw hh (List.mem_append_right _ hAB) hcert (c := true) (by simpa using h)
 
 /-! ### B -/
 
@@ -377,7 +352,7 @@ theorem fslOf_mem (E : Coord) : fslOf E ∈ [none, some 0, some 11] := by
 
 /-- The certificate for a B match, from `CertFacts`. -/
 theorem b_cert (CF : CertFacts) {J : Inst} (hS : Solvable J) {e : (ℕ × ℕ) × (ℕ × ℕ) × (ℕ × ℕ)} {A : ℕ}
-    (hA : A ≤ 1) {E : Coord}
+    (hA : A = 0) {E : Coord}
     (hid : (A = 0 ∧ ((e.1 = J.s0 ∧ e.2.1 = J.t0) ∨ (e.1 = J.t0 ∧ e.2.1 = J.s0)) ∧
         ((e.2.2 = J.s1 ∧ E = J.t1) ∨ (e.2.2 = J.t1 ∧ E = J.s1))) ∨
       (A = 1 ∧ ((e.1 = J.s1 ∧ e.2.1 = J.t1) ∨ (e.1 = J.t1 ∧ e.2.1 = J.s1)) ∧
@@ -391,7 +366,8 @@ theorem b_cert (CF : CertFacts) {J : Inst} (hS : Solvable J) {e : (ℕ × ℕ) �
   · have hodd : (J.w * J.h) % 2 = 1 := by
       simp only [Bool.and_eq_true, beq_iff_eq] at hc; rw [Nat.mul_mod, hc.1, hc.2]
     rw [hodd] at pm one ⊢
-    exact CF.b_odd e he A hA (fslOf E) (fslOf_mem E) pm one
+    subst hA
+    exact CF.b_odd e he (fslOf E) (fslOf_mem E) pm one
   · have hev : (J.w * J.h) % 2 = 0 := by
       simp only [Bool.and_eq_true, beq_iff_eq, not_and] at hc
       rcases Nat.mod_two_eq_zero_or_one J.w with h1 | h1
@@ -400,7 +376,8 @@ theorem b_cert (CF : CertFacts) {J : Inst} (hS : Solvable J) {e : (ℕ × ℕ) �
         · rw [Nat.mul_mod, h2]; simp
         · exact absurd h2 (hc h1)
     rw [hev] at pm one ⊢
-    exact CF.b_even e he A hA (fslOf E) (fslOf_mem E) pm one
+    subst hA
+    exact CF.b_even e he (fslOf E) (fslOf_mem E) pm one
 
 /-- **B is sound**, given the certificates. -/
 theorem bSound_of (CF : CertFacts) : ∀ J : Inst, J.WellFormed → Solvable J → 11 ≤ J.w → 11 ≤ J.h →
@@ -431,10 +408,32 @@ theorem bSound_of (CF : CertFacts) : ∀ J : Inst, J.WellFormed → Solvable J �
     · exact Or.inl ⟨h1.symm, h2.symm⟩
     · exact Or.inr ⟨h1.symm, h2.symm⟩
     · exact absurd (h1.symm.trans h2) n1
-  have fin := fun {A : ℕ} (hA : A ≤ 1) {E : Coord} hid (hout : ¬ (E.1 < 6 ∧ E.2 < 6))
-      (hp : E.1 = 0 ∨ E.2 = 0 ∨ E.1 = J.w - 1 ∨ E.2 = J.h - 1) =>
-    b_core ⟨b0, b1, b2, b3, w1, w2, w3, w4, w5, w6⟩ hS hw hh heAll hA (E := E) hid hout hp
-      (b_cert CF hS hA hid he)
+  have fin : ∀ {A : ℕ}, A ≤ 1 → ∀ {E : Coord},
+      ((A = 0 ∧ ((e.1 = J.s0 ∧ e.2.1 = J.t0) ∨ (e.1 = J.t0 ∧ e.2.1 = J.s0)) ∧
+        ((e.2.2 = J.s1 ∧ E = J.t1) ∨ (e.2.2 = J.t1 ∧ E = J.s1))) ∨
+      (A = 1 ∧ ((e.1 = J.s1 ∧ e.2.1 = J.t1) ∨ (e.1 = J.t1 ∧ e.2.1 = J.s1)) ∧
+        ((e.2.2 = J.s0 ∧ E = J.t0) ∨ (e.2.2 = J.t0 ∧ E = J.s0)))) →
+      ¬ (E.1 < 6 ∧ E.2 < 6) → (E.1 = 0 ∨ E.2 = 0 ∨ E.1 = J.w - 1 ∨ E.2 = J.h - 1) → False := by
+    intro A _ E hid hout hp
+    have hwf : J.WellFormed := ⟨b0, b1, b2, b3, w1, w2, w3, w4, w5, w6⟩
+    rcases hid with ⟨-, h1, h2⟩ | ⟨-, h1, h2⟩
+    · have hid0 : (0 = 0 ∧ ((e.1 = J.s0 ∧ e.2.1 = J.t0) ∨ (e.1 = J.t0 ∧ e.2.1 = J.s0)) ∧
+          ((e.2.2 = J.s1 ∧ E = J.t1) ∨ (e.2.2 = J.t1 ∧ E = J.s1))) ∨
+          (0 = 1 ∧ ((e.1 = J.s1 ∧ e.2.1 = J.t1) ∨ (e.1 = J.t1 ∧ e.2.1 = J.s1)) ∧
+          ((e.2.2 = J.s0 ∧ E = J.t0) ∨ (e.2.2 = J.t0 ∧ E = J.s0))) := Or.inl ⟨rfl, h1, h2⟩
+      exact b_core hwf hS hw hh heAll (by omega) hid0 hout hp (b_cert CF hS rfl hid0 he)
+    · -- colour 1 at the pair: colour 0 after swapping the colours
+      have hS' := solvable_swap hS
+      have hid0 : (0 = 0 ∧ ((e.1 = J.swapColors.s0 ∧ e.2.1 = J.swapColors.t0) ∨
+            (e.1 = J.swapColors.t0 ∧ e.2.1 = J.swapColors.s0)) ∧
+          ((e.2.2 = J.swapColors.s1 ∧ E = J.swapColors.t1) ∨
+            (e.2.2 = J.swapColors.t1 ∧ E = J.swapColors.s1))) ∨
+          (0 = 1 ∧ ((e.1 = J.swapColors.s1 ∧ e.2.1 = J.swapColors.t1) ∨
+            (e.1 = J.swapColors.t1 ∧ e.2.1 = J.swapColors.s1)) ∧
+          ((e.2.2 = J.swapColors.s0 ∧ E = J.swapColors.t0) ∨
+            (e.2.2 = J.swapColors.t0 ∧ E = J.swapColors.s0))) := Or.inl ⟨rfl, h1, h2⟩
+      exact b_core (wf_swapColors hwf) hS' hw hh heAll (by omega) hid0 hout hp
+        (b_cert CF hS' rfl hid0 he)
   have outOf : ∀ {E : Coord}, (!(decide (E.1 < 6) && decide (E.2 < 6))) = true → ¬ (E.1 < 6 ∧ E.2 < 6) := by
     intro E h c; simp [c.1, c.2] at h
   have perOf : ∀ {E : Coord}, (E.1 == 0 || E.2 == 0 || E.1 == J.w - 1 || E.2 == J.h - 1) = true →
@@ -484,13 +483,5 @@ theorem bSound_of (CF : CertFacts) : ∀ J : Inst, J.WellFormed → Solvable J �
         exact fin (by omega) (E := J.s0) (Or.inr ⟨rfl, pair w6 (c1 ha1) (c1 ha2), Or.inr ⟨hb2.symm, rfl⟩⟩)
           (outOf hnw) (perOf hper)
       · rw [ite_eq_right hb1, ite_eq_right hb2] at h; simp at h
-
-/-! ### Theorem B from the certificates -/
-
-theorem bFacts_of (CF : CertFacts) : BFacts := ⟨bSound_of CF, cSound_of CF⟩
-
-/-- **Theorem B**, given only the window certificates (a finite computation). -/
-theorem theoremB_cert (CF : CertFacts) {I : Inst} (hI : InDom I) (hS : Solvable I) : Passes I :=
-  theoremB_R (bFacts_of CF) hI hS
 
 end ZZN.Win

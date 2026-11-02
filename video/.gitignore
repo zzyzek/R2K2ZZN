@@ -1,0 +1,6 @@
+media/
+out/
+logs/
+sheets/
+__pycache__/
+audio/

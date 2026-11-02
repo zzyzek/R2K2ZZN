@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.Thin.DP
 import ZZN.Moves
 
@@ -32,8 +33,6 @@ def SegE (i e f : ℕ) (L : List Coord) : Prop :=
   L.Nodup ∧ chainAdjacent L = true ∧ (∀ x ∈ L, prI a b i x) ∧
     ∃ u v, L.head? = some u ∧ L.getLast? = some v ∧ EndOK a b J i e u ∧ EndOK a b J i f v
 
-/-- The endpoints of colour `col`. -/
-def ends2 (col : ℕ) : Coord × Coord := if col = 0 then (J.s0, J.t0) else (J.s1, J.t1)
 
 def bitOf (dn col : ℕ) : Bool := (dn / 2 ^ col) % 2 == 1
 
@@ -800,7 +799,6 @@ end Final
 
 /-! ### The decision procedure -/
 
-def tmOf (J : Inst) : List ((ℕ × ℕ) × ℕ) := [(J.s0, 0), (J.t0, 0), (J.s1, 1), (J.t1, 1)]
 
 theorem termAt_tmOf (J : Inst) (y : Coord) : termAt (tmOf J) y = endCol J y := by
   unfold termAt tmOf endCol

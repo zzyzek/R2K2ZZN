@@ -1,0 +1,78 @@
+# Two-colour Zig-Zag Numberlink: the kernel-checked proof
+
+This directory is a self-contained Lake project. It proves that two-colour Zig-Zag Numberlink on
+rectangles is decided by `solvableB`, and that the construction `solveZZN` finds a solution
+whenever one exists. Every certificate is checked by the Lean kernel (`decide +kernel`; there is
+no `native_decide`), and the results depend only on `propext`, `Classical.choice` and
+`Quot.sound`. It is generated from `../lean/` by `../lean/tools/make_proof.py`; see
+[`../certgen/`](../certgen/) for how the certificates were made.
+
+## Main results
+
+Registered with Palomar (`Challenge.lean`, `Solution.lean`, `comparator.json`):
+
+| Theorem | File | Statement |
+|---|---|---|
+| `ZZN.T.solvableBT_main` | `ZZN/Timed/Main.lean` | well-formed `J`: `solvableBT J` answers `true` exactly when `J` is solvable, within `Cdec · (R C + R + C + 1)` steps |
+| `ZZN.T.fires3T_iff_solvable` | `ZZN/Timed/Main.lean` | both sides ≥ 11, well-formed: the catalogue `fires3T` finds no pattern exactly when `J` is solvable |
+| `ZZN.T.solveZZNT_main` | `ZZN/Timed/Construct.lean` | every answer of `solveZZNT I` is a solution, it returns one when `I` is well-formed and solvable, within polynomially many steps |
+
+`solvableBT`, `fires3T` and `solveZZNT` are the decision procedure, the forbidden-pattern
+catalogue and the construction with a step counter; they return what the plain versions do
+(`solvableBT_ret`, `solveZZNT_ret`). The plain statements are proved too, not registered:
+
+| Theorem | File | Statement |
+|---|---|---|
+| `ZZN.solvableB_iff` | `ZZN/Thin/Decide.lean` | every rectangle, well-formed `J`: `solvableB J = true ↔ Solvable J` |
+| `ZZN.passes_iff_solvable` | `ZZN/Main.lean` | both sides ≥ 11: `Passes I ↔ Solvable I` |
+| `ZZN.solveZZN_sound` | `ZZN/Constr/Main.lean` | an answer `(p, q)` of `solveZZN I` is a solution |
+| `ZZN.solveZZN_complete` | `ZZN/Constr/Main.lean` | well-formed and solvable: `solveZZN I` returns an answer |
+
+One challenge file holds the counted statements, under Palomar's 1 000-line limit; the plain ones
+would need a second. The constants in the bounds are astronomically large (`Cdec` is about 10^756).
+
+## What to read
+
+`ZZN/Statement.lean` (759 lines, imports only Mathlib) holds the definitions of the plain
+statements:
+- grids and paths (`GridHam`);
+- instances and solutions (`Inst`, `IsSolution`, `Solvable`);
+- the forbidden-pattern catalogue (`Passes`);
+- the plug DP for thin rectangles;
+- `solvableB` and `solveZZN`.
+
+`ZZN/TimedStatement.lean` holds the step-counting definitions (`TimeM`, `fires3T`, `solvableBT`,
+`Cdec`, `solveZZNT`). `Challenge.lean` (998 lines) is the part of `ZZN/Statement.lean` they use,
+that file, and the three registered theorems; it copies the definitions without their
+documentation to stay under 1 000 lines. Everything else is checked by Lean.
+
+## Building
+
+```bash
+lake exe cache get
+LEAN_NUM_THREADS=2 lake build Results Challenge Solution
+lake env lean Axioms.lean
+```
+
+`lake exe cache get` downloads a prebuilt Mathlib. `LEAN_NUM_THREADS=2` keeps Lake to two Lean
+processes; each needs up to about 13 GB of memory on the certificate modules.
+
+`Axioms.lean` prints the axioms of the main results. Expected: `propext`, `Classical.choice` and
+`Quot.sound` only.
+
+A clean build, with Mathlib from the cache, takes 5.4 CPU-hours: 2.6 hours of wall-clock time with
+two Lean processes on a 4-core machine. The Theorem A certificates take about 3.8 hours, the
+Theorem B certificates about 0.8 hours and the library about 0.5 hours.
+
+## Structure
+
+| Path | Contents |
+|---|---|
+| `ZZN/`, `GridHam/` | The library: statement, reductions, band extension, Theorem A and B frameworks, plug DP, construction, step counting |
+| `BoxKGen/` | Theorem A certificates: 21 boxes `N{W}x{H}` (11 ≤ W ≤ H ≤ 16), 16 477 slices, 255 545 template pairs |
+| `WinKU/` | Theorem B certificates: window checkpoints shared by 59 cases |
+| `FinalN.lean` | `passes_iff_solvable_K`: Theorem A over the boxes and Theorem B over the windows |
+
+## License
+
+CC0 1.0 Universal; see [`../LICENSE`](../LICENSE).

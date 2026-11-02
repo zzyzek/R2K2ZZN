@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Removing native_decide</title>
+<style>
+:root {
+  --bg: #fbfaf7; --fg: #1d1d1b; --muted: #5c5c57; --rule: #d9d6cf; --card: #f2f0ea;
+  --accent: #2f5d8a; --good: #2e7d4f; --bad: #a33a2b; --warn: #8a6a12; --code: #ece9e1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181a; --fg: #e6e4df; --muted: #a3a19b; --rule: #34363a; --card: #202226;
+    --accent: #7fb0e0; --good: #6cc08f; --bad: #e0806f; --warn: #d8b45a; --code: #26282c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17181a; --fg: #e6e4df; --muted: #a3a19b; --rule: #34363a; --card: #202226;
+  --accent: #7fb0e0; --good: #6cc08f; --bad: #e0806f; --warn: #d8b45a; --code: #26282c;
+}
+html { background: var(--bg); }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  max-width: 920px; margin: 0 auto; padding: 24px 16px 80px; }
+h1 { font-size: 1.7rem; margin: 0 0 4px; }
+h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 0.4rem; }
+p, li { max-width: 72ch; }
+.sub { color: var(--muted); margin: 0 0 1.2rem; }
+code { background: var(--code); padding: 0 4px; border-radius: 3px; font-size: 0.92em; }
+table { border-collapse: collapse; margin: 0.6rem 0 1rem; width: 100%; font-size: 0.95rem; }
+th, td { border-bottom: 1px solid var(--rule); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wrap { overflow-x: auto; }
+.card { background: var(--card); border-radius: 8px; padding: 12px 16px; margin: 1rem 0; }
+.good { color: var(--good); font-weight: 600; }
+.bad { color: var(--bad); font-weight: 600; }
+.warn { color: var(--warn); font-weight: 600; }
+.tag { font-size: 0.8rem; color: var(--muted); }
+figure { margin: 1rem 0; }
+figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 4px; max-width: 72ch; }
+svg text { fill: var(--fg); font: 12px system-ui, sans-serif; }
+dl dt { font-weight: 600; margin-top: 0.6rem; }
+dl dd { margin: 0 0 0 1.2rem; max-width: 70ch; }
+</style>
+</head>
+<body>
+
+<h1>Removing <code>native_decide</code> from the R2K2ZZN proof</h1>
+<p class="sub">State on 2026-11-02, branch <code>band</code> (worktree <code>~/claude/R2K2ZZN-band</code>).
+Measured numbers are marked as measured; everything else is a projection and says so.</p>
+
+<div class="card">
+<b>Bottom line.</b>
+The proof in <code>proof/</code> has no <code>native_decide</code>. Its main results depend only on
+<code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code> (checked with
+<code>#print axioms</code>). All 154 calls of the released proof are replaced: 144 by 21 kernel-checked box
+certificates (Theorem A), 6 by a new argument and 4 by 59 kernel-checked window certificates
+(Theorem B). A clean build takes <b>5.4 CPU-hours</b> (measured: 19 552 s user + system, 2.6 h wall
+with two Lean processes, peak 12.4 GB per process), with Mathlib from the cache.
+<code>certgen/regen.sh</code> regenerates <code>proof/</code> byte for byte from the committed certificates.
+</div>
+
+<h2>1. What is being proved</h2>
+
+<p>An <b>instance</b> is a rectangle of <i>R</i> × <i>C</i> cells with four endpoints
+s<sub>0</sub>, t<sub>0</sub> (colour 0) and s<sub>1</sub>, t<sub>1</sub> (colour 1).
+It is <b>solvable</b> when two disjoint paths s<sub>0</sub>→t<sub>0</sub> and s<sub>1</sub>→t<sub>1</sub>
+together visit every cell. The <b>catalogue</b> is a finite list of forbidden local patterns;
+an instance <b>passes</b> when none of them occurs.</p>
+
+<p>The main theorem <code>ZZN.passes_iff_solvable</code> says: when both sides are at least 11,
+an instance is solvable exactly when it passes. It splits into two directions.</p>
+
+<div class="wrap"><table>
+<tr><th>Theorem</th><th>Direction</th><th>Lean</th><th>Finite computation it rests on</th></tr>
+<tr><td><b>A</b></td><td>passes ⇒ solvable</td><td><code>theoremA_final</code> (released),
+<code>passes_iff_solvable_K</code> over <code>BoxKGen</code> (<code>proof/FinalN.lean</code>)</td><td>every irreducible passing instance in a box of sides 11–22 is solvable</td></tr>
+<tr><td><b>B</b></td><td>solvable ⇒ passes</td><td><code>Win.theoremB_final</code> (released),
+<code>WinKU.theoremB_K</code> (<code>proof/WinKU/Facts.lean</code>)</td><td>the window patterns B, C, D of the catalogue never occur in a solvable instance</td></tr>
+</table></div>
+
+<h2>2. Where the <code>native_decide</code> calls went</h2>
+
+<p><code>native_decide</code> trusts compiled code. The goal is to replace every call with a check
+the Lean kernel performs itself (<code>decide +kernel</code>), so the proof rests only on
+<code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code>.</p>
+
+<div class="wrap"><table>
+<tr><th>Group</th><th>Released files</th><th class="n">Calls</th><th>Status on branch <code>band</code></th></tr>
+<tr><td>Theorem B, window certificates C8 (window 8)</td><td><code>ZZN/Cert/C8_*.lean</code></td><td class="n">6</td>
+<td><span class="good">removed by proof</span>. <code>C8R.lean</code> shows the catalogue entry R fires on
+every window-8 C match, so these windows need no certificate.</td></tr>
+<tr><td>Theorem B, window certificates C6, D, B</td><td><code>ZZN/Cert/Small.lean</code>, <code>BEven.lean</code>, <code>BOdd.lean</code></td><td class="n">4</td>
+<td><span class="good">replaced</span> by 59 kernel-checked certificates (<code>proof/WinKU</code>).</td></tr>
+<tr><td>Theorem A, box checks</td><td><code>ZZN/Box/B*_*.lean</code></td><td class="n">144</td>
+<td><span class="good">replaced</span> by 21 kernel-checked box certificates <code>N{w}x{h}</code>
+(11 ≤ w ≤ h ≤ 16, <code>proof/BoxKGen</code>). Sides 17–22 are proved to have no irreducible
+instance (<code>BoxK/None.lean</code>, kernel-checked).</td></tr>
+</table></div>
+
+<p class="tag">Verification scope: the axiom check covers the Lean statements. The C programs and
+scripts that generate certificates (<code>certgen/</code>, <code>lean/tools/</code>) are not verified; a wrong certificate makes the kernel check fail, so they
+cannot make a false statement pass.</p>
+
+<h2>3. Theorem A: strategy</h2>
+
+<h3>3.1 Reduce to finitely many boxes</h3>
+<p>Proved reductions shrink a passing instance while keeping it passing and keeping solvability
+equivalent. On branch <code>band</code>, <b>band compressions</b> delete two free lines whose
+neighbourhood is empty; with margin 5 they apply whenever a side has at least 13 lines and the
+endpoints leave room. What remains are <b>irreducible</b> instances in boxes of sides 11 to 16
+(sides 17–22 have none). Up to the 64 symmetries of a square box (32 otherwise: reflections,
+transposition on squares, swapping colours, reversing a path) there are about
+<b>12.06 million</b> such instances, most of them in three boxes:</p>
+
+<div class="wrap"><table>
+<tr><th>Box</th><th class="n">Instances to certify (measured counts)</th></tr>
+<tr><td>11 × 11</td><td class="n">1.26 M</td></tr>
+<tr><td>11 × 12</td><td class="n">3.44 M</td></tr>
+<tr><td>12 × 12</td><td class="n">3.83 M</td></tr>
+<tr><td>all 21 boxes</td><td class="n">12.06 M</td></tr>
+</table></div>
+
+<h3>3.2 Certify each instance with a cut tree</h3>
+<p>An instance is shown solvable by a <b>cut tree</b>: cut the rectangle along a line, say which side
+each path's ends go to and where a path crosses the line, recurse, and stop at <b>leaves</b> that hold
+one path in a rectangle. A leaf is checked by the Itai–Papadimitriou–Szwarcfiter conditions for a
+Hamiltonian path between two given cells of a rectangle (<code>accB</code>). The checker is
+<code>Cut.check</code>; <code>solvable_of_check</code> proves it sound.</p>
+
+<figure>
+<svg viewBox="0 0 560 250" width="100%" role="img" aria-label="An 11 by 11 instance split by one vertical cut into two rectangles">
+  <g transform="translate(20,20)">
+    <rect x="0" y="0" width="220" height="220" fill="none" stroke="currentColor" stroke-opacity="0.35"/>
+    <g stroke="currentColor" stroke-opacity="0.12">
+      <path d="M20 0V220M40 0V220M60 0V220M80 0V220M100 0V220M120 0V220M140 0V220M160 0V220M180 0V220M200 0V220"/>
+      <path d="M0 20H220M0 40H220M0 60H220M0 80H220M0 100H220M0 120H220M0 140H220M0 160H220M0 180H220M0 200H220"/>
+    </g>
+    <line x1="80" y1="-8" x2="80" y2="228" stroke="#c0392b" stroke-width="3"/>
+    <circle cx="30" cy="30" r="7" fill="#2f5d8a"/><text x="22" y="56">s0</text>
+    <circle cx="50" cy="190" r="7" fill="#2f5d8a"/><text x="42" y="216">t0</text>
+    <circle cx="130" cy="50" r="7" fill="#d08a1e"/><text x="122" y="76">s1</text>
+    <circle cx="190" cy="170" r="7" fill="#d08a1e"/><text x="182" y="196">t1</text>
+  </g>
+  <g transform="translate(290,40)">
+    <text x="0" y="0">One cut, column line 4 (red):</text>
+    <text x="0" y="24">left piece 11 × 4 holds the colour-0 path,</text>
+    <text x="0" y="44">right piece 11 × 7 holds the colour-1 path.</text>
+    <text x="0" y="76">Each piece is a leaf; each leaf passes the</text>
+    <text x="0" y="96">IPS test, so the instance is solvable.</text>
+    <text x="0" y="128">A template stores the cut as</text>
+    <text x="0" y="148">"column of s0 + 3" instead of "column 4",</text>
+    <text x="0" y="168">so it applies to many instances.</text>
+  </g>
+</svg>
+<figcaption>Figure 1. A one-cut tree. Real trees have about 7 cuts and 8 leaves.</figcaption>
+</figure>
+
+<p>A <b>template</b> is a cut tree whose positions are given relative to the endpoints and the edges
+(anchor plus offset), so one template certifies many instances. The C side searches templates;
+2281 templates cover every instance of 11 × 11.</p>
+
+<h3>3.3 Check many instances at once</h3>
+<p>A <b>slice</b> fixes the rows of the four endpoints; its instances differ only in their columns.
+For a box of height h there are h<sup>4</sup> column tuples (14 641 for h = 11). The kernel packs one
+column value per 8-bit <b>lane</b> of a single huge natural number and evaluates a template on all
+lanes with a fixed number of whole-number operations (SWAR, "SIMD within a register").
+Per slice the certificate lists about 30 (template, symmetry) <b>pairs</b>; a lane is certified when
+one pair checks on it. Masks remove lanes that are not instances of this slice (equal cells, wrong
+parity, not the symmetry representative).</p>
+
+<figure>
+<svg viewBox="0 0 560 120" width="100%" role="img" aria-label="Lane packing of column values into one natural number">
+  <g transform="translate(10,20)">
+    <text x="0" y="0">column y0 of lanes 0, 1, 2, … packed into one natural number, 8 bits per lane</text>
+    <g transform="translate(0,14)">
+      <rect x="0" y="0" width="60" height="30" fill="none" stroke="currentColor"/><text x="20" y="20">3</text>
+      <rect x="60" y="0" width="60" height="30" fill="none" stroke="currentColor"/><text x="80" y="20">3</text>
+      <rect x="120" y="0" width="60" height="30" fill="none" stroke="currentColor"/><text x="140" y="20">3</text>
+      <rect x="180" y="0" width="60" height="30" fill="none" stroke="currentColor"/><text x="200" y="20">4</text>
+      <rect x="240" y="0" width="60" height="30" fill="none" stroke="currentColor"/><text x="260" y="20">…</text>
+      <rect x="300" y="0" width="90" height="30" fill="none" stroke="currentColor"/><text x="310" y="20">lane 14640</text>
+    </g>
+    <text x="0" y="74">one kernel operation (add, and, compare) acts on all 14 641 lanes;</text>
+    <text x="0" y="92">only about 1 100 of them (7.5%) are instances of the slice after the masks</text>
+  </g>
+</svg>
+<figcaption>Figure 2. Lanes. Lane j of a slice is the instance with the slice's rows and the column
+digits of j.</figcaption>
+</figure>
+
+<h2>4. Theorem B: strategy</h2>
+
+<p>Theorem B needs: in a solvable instance, none of the window patterns B, C, D occurs. Each pattern
+lives in a corner <b>window</b> (6 × 6 cells for C6 and B; 6 × 6 or 8 × 8 for D). The proof shows that no way of
+routing two paths inside the window, with the endpoints the pattern prescribes, can be completed
+outside it.</p>
+
+<p>The certificate is a <b>dynamic program over the window</b> (<code>WinCheck.lean</code>): cells are
+added in row order, and a <b>state</b> records how the processed cells are joined into path pieces and
+where those pieces leave the processed region. The set of reachable states after each cell is
+given to the kernel as data (a <b>checkpoint</b>, a packed list of state codes). The kernel checks:</p>
+<ul>
+<li><code>stepOK</code>: every successor of every state in a checkpoint bucket appears in the next
+checkpoint (one theorem per stage and bucket, the <b>T</b> modules);</li>
+<li><code>finalOK</code>: every state of the last checkpoint fails the outside test, so no completion
+exists (one theorem per final bucket, the <b>Fin</b> modules).</li>
+</ul>
+<p><code>certify_of_chain</code> turns the chain into the statement. Colour symmetry halves the cases
+to 59 certificates. The certificates share their late stages (<code>WinKU/Shared</code>), the step
+and final checks use direct number operations (<code>stepOKD</code>, <code>finalSigOKL</code>), and
+the 59 case modules are bundled into 6, so Theorem B is 28 modules (it began as 6 061).</p>
+
+<h2>5. How long each part takes</h2>
+
+<p>Clean build of <code>proof/</code>, <code>LEAN_NUM_THREADS=2 lake build Results Challenge Solution</code> (the timed challenge adds seconds),
+on a 4-core machine with 32 GB. The total is measured CPU time; the split is the sum of per-module
+times reported by Lake (5.16 h of the 5.43 h), the rest is Lake and process overhead.</p>
+
+<div class="wrap"><table>
+<tr><th>Part</th><th class="n">Modules</th><th class="n">Time</th></tr>
+<tr><td>Theorem A: 21 boxes, 16 477 slices, 255 545 template pairs</td><td class="n">157</td><td class="n">3.84 h</td></tr>
+<tr><td>Theorem B: 59 window certificates</td><td class="n">28</td><td class="n">0.81 h</td></tr>
+<tr><td>Library (<code>ZZN</code>, <code>GridHam</code>), main results, Challenge</td><td class="n">118</td><td class="n">0.51 h</td></tr>
+<tr><td><b>Total</b> (measured CPU, user + system)</td><td class="n">304</td><td class="n"><b>5.43 h</b></td></tr>
+</table></div>
+
+<p>For scale: the released proof with all 154 <code>native_decide</code> calls took about 17 CPU-hours,
+and the first kernel-checked Theorem B alone took 14 CPU-hours.</p>
+
+<h2>6. Why it is slow</h2>
+
+<p>The kernel evaluates definitions by rewriting terms. Arithmetic on big numbers is fast (GMP); the
+cost is the rewriting around it. Measured in this tree:</p>
+
+<div class="wrap"><table>
+<tr><th>Kernel work</th><th class="n">Cost</th></tr>
+<tr><td>One whole-number operation on a 1 KB number, in straight-line code</td><td class="n">≈ 3 µs</td></tr>
+<tr><td>The same operation's arithmetic on a 100 KB number</td><td class="n">≈ 0.22 ns per byte</td></tr>
+<tr><td>One operation inside the leaf test <code>accS</code> (helper calls, type classes)</td><td class="n">≈ 8 µs</td></tr>
+<tr><td>One lane operation through the <code>LV</code> layer (form dispatch, <code>Option</code>, smallness checks)</td><td class="n">≈ 90 µs</td></tr>
+<tr><td>One step of structural recursion (compiled through <code>brecOn</code>)</td><td class="n">≈ 44 µs</td></tr>
+<tr><td>One step of the same loop written with <code>Nat.rec</code></td><td class="n">≈ 8 µs</td></tr>
+<tr><td>Importing Mathlib, per module</td><td class="n">2.8 – 4 s</td></tr>
+</table></div>
+
+<p>Three consequences.</p>
+<ol>
+<li><b>Overhead dominates.</b> A template check does a few thousand useful operations, which would
+take about 5 ms at the straight-line cost; it takes 35–45 ms. Adding lanes is nearly free:
+four times the lanes costs about 15% more per check.</li>
+<li><b>Memory limits merging.</b> The kernel keeps every intermediate value until a declaration ends,
+about 470 bytes per lane per check. One slice theorem holds about 1 GB, which caps how much work can
+share one declaration and with it how far slices can be merged.</li>
+<li><b>Many small modules.</b> Every module pays the Mathlib import. Theorem B first had 6 061 modules
+and Theorem A 8 slices per module; the final export has 304 modules in all.</li>
+</ol>
+
+<h2>7. What brought the cost down</h2>
+
+<div class="wrap"><table>
+<tr><th>Step</th><th>Part</th></tr>
+<tr><td>Reflections and transposition folded into the templates, so every pair of a slice shares the same column lanes</td><td>A</td></tr>
+<tr><td>Checkers on plain numbers and lane words with direct recursors (<code>CheckF</code>, <code>FastD</code>, <code>accSW</code>), smallness proved once</td><td>A</td></tr>
+<tr><td>A box-wide pool of candidate pairs with reverse deletion (<code>GPOOL</code>, <code>REDUCE</code>), each box seeded from the previous one: 380 333 → 255 545 pairs</td><td>A</td></tr>
+<tr><td>One global template set (<code>tset_G</code>, 11 029 templates) shared by all boxes</td><td>A</td></tr>
+<tr><td>Late stages shared between certificates; direct-number step and final checks; cases bundled into 6 modules</td><td>B</td></tr>
+<tr><td>Fewer, larger modules with serial elaboration, so each pays the import once</td><td>A, B</td></tr>
+<tr><td>Generated data marked <code>noncomputable</code>, so Lake does not emit C for the large literals</td><td>A, B</td></tr>
+</table></div>
+
+<h2>8. Release</h2>
+<p><code>proof/</code> is a self-contained Lake project in the Lean module system, generated by
+<code>lean/tools/make_proof.py</code>. One Palomar registration: <code>Challenge.lean</code> (998 lines,
+imports only Mathlib) holds <code>solvableBT_main</code> (the decision procedure is correct within
+<code>Cdec · (R C + R + C + 1)</code> steps), <code>fires3T_iff_solvable</code> (the characterization) and
+<code>solveZZNT_main</code> (the construction is sound, complete and polynomial), all on the procedures
+with a step counter. It copies the definitions it needs from <code>ZZN/Statement.lean</code> and
+<code>ZZN/TimedStatement.lean</code> without their documentation. The plain statements
+(<code>solvableB_iff</code>, <code>passes_iff_solvable</code>, <code>solveZZN_sound</code>,
+<code>solveZZN_complete</code>) are proved but not registered; with them the challenge would pass
+1 000 lines.</p>
+<p>Lean shares matcher helpers between definitions of one module, so a single-file copy can differ
+from the two-module library. A hash comparison of every definition the registered statements reach
+(271, matchers included) shows the challenge identical to the library.</p>
+<p>Palomar verifies on a 16-core, 32 GB runner within 5.5 hours of wall-clock time (build, then
+Lean's kernel and nanoda). Locally nanoda accepted the export of the plain statements' solution in
+70 minutes on 4 cores. The registered solution was not run through the comparator locally.</p>
+
+<h2>9. Terms</h2>
+<dl>
+<dt>Box</dt><dd>A rectangle size w × h (11 ≤ w ≤ h ≤ 16) whose irreducible instances need a certificate.</dd>
+<dt>Irreducible</dt><dd>No proved reduction (strip deletion, band compression) applies.</dd>
+<dt>Slice</dt><dd>All instances of a box with the same four endpoint rows; checked together in one theorem.</dd>
+<dt>Lane</dt><dd>One 8-bit field of a big natural number; one instance per lane.</dd>
+<dt>SWAR</dt><dd>Computing on all lanes at once with ordinary whole-number operations.</dd>
+<dt>Cut tree, leaf</dt><dd>A recursive split of the rectangle by lines; a leaf holds one path and is checked by the IPS conditions.</dd>
+<dt>Template</dt><dd>A cut tree with positions relative to the endpoints and edges, reusable across instances.</dd>
+<dt>Pair</dt><dd>A template together with a symmetry, checked on all lanes of a slice.</dd>
+<dt>Window, checkpoint</dt><dd>For Theorem B, a 6 × 6 corner region and the set of reachable dynamic-programming states after a given cell, supplied as data.</dd>
+<dt><code>decide +kernel</code></dt><dd>A proof by evaluation performed by the Lean kernel itself; trusted like any other kernel check.</dd>
+<dt><code>native_decide</code></dt><dd>A proof by evaluation in compiled code; adds an axiom per use.</dd>
+</dl>
+
+</body>
+</html>

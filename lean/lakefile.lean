@@ -11,11 +11,11 @@ require mathlib from git
 
 -- A copy of the IPS proof (GridHam2D-Lean), used for one-path pieces.
 lean_lib «GridHam» where
-  precompileModules := true
+  precompileModules := false
 
 @[default_target]
 lean_lib «ZZN» where
-  precompileModules := true
+  precompileModules := false
 
 lean_exe catcheck where
   root := `CatCheck.Main
@@ -42,3 +42,7 @@ lean_exe thintime where
 
 lean_exe statecount where
   root := `StateCount.Main
+
+-- Generated checkpoint modules for the window certificates (not in git; `tools/WinGen.lean`).
+lean_lib «WinKGen» where
+  srcDir := "gen"

@@ -6,13 +6,19 @@ the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the
 
 **Status.**
 - **Theorem A** (passes ⇒ solvable, for both sides ≥ 11) and **Theorem B** (every catalogue entry
-  is sound, so solvability is decidable in polynomial time) are proved, and checked in Lean
-  (`lean/README.md`):
+  is sound) are proved, and checked in Lean (`lean/README.md`):
   - `passes_iff_solvable`: for both sides ≥ 11, passing the catalogue is equivalent to
     solvability;
   - `solvableB_iff`: a decision procedure proved correct for every rectangle; thin rectangles use
     a plug DP proved sound and complete (`thinBF_iff`).
-- The finite computations are evaluated by `native_decide` (the paper, Section 9).
+- The finite computations are certificates checked by the Lean kernel (`proof/`, the paper,
+  Section 9). No `native_decide` is used.
+- The decision procedure's running time is also proved in Lean, in a step-counting model:
+  `ZZN.T.solvableBT_time` bounds its steps by `Cdec · (RC + R + C + 1)`. The constant `Cdec` (about
+  10^756) comes from a crude count of plug DP states.
+- The construction (§8) is a Lean function, `ZZN.solveZZN`, proved sound and complete. Its steps
+  are bounded by `ZZN.T.solveZZNT_time`, a polynomial of degree 5 in the longer side with a
+  constant of about 10^3500, from the same state count.
 - The Lean version organizes the finite computations differently from §5 below. It checks every
   box with sides 11–22 directly (144 theorems), one representative per orbit of the 64 symmetries,
   asking that the representative or one of its reflections passes, so the R entry needs no
@@ -257,8 +263,8 @@ Moves used in the main run: strip 43.0 M, 1/3 split 49.3 M, 2/2 cross 4.6 M, 2/2
 
 In the Lean development:
 - Lean's kernel and the standard axioms `propext`, `Classical.choice` and `Quot.sound`;
-- the problem statement, `lean/ZZN/Defs.lean`, with the grid definitions of `lean/GridHam/Basic.lean`;
-- for the 154 `native_decide` axioms (144 box checks and 10 window certificates), the Lean compiler.
+- the definitions of the statements, `proof/ZZN/Statement.lean` (grids, instances, solutions, the
+  catalogue, the plug DP, the decision procedure and the construction).
 
 The programs used for the original computations of §5 (a C catalogue, plug DP, IPS test and move
 checker, and a Python window-certificate program) are no longer part of the trusted base. They were
@@ -271,12 +277,11 @@ cross-checked against each other during development and later against the Lean d
 1. **Soundness of B, C and D on all of 𝔇:** a window certificate per entry shows that no covering
    of a 6 × 6 or 8 × 8 corner window extends outside, by parity, planarity and global path
    structure, for any grid size. All 65 entries are certified, so every catalogue entry is sound
-   on 𝔇 and **Theorem B holds**. In Lean the certificates are checked by `native_decide`.
-2. **Lean formalization:** complete (see Status). No `sorry`; the axioms are the standard three
-   plus the 154 `native_decide` axioms.
+   on 𝔇 and **Theorem B holds**. In Lean the certificates are checked by the kernel.
+2. **Lean formalization:** complete (see Status). No `sorry`; the axioms are the standard three.
 3. **Open questions:** three or more pairs; two pairs on other regions, such as solid grid graphs;
-   a conceptual description of the B, C and D configurations, which might allow kernel-checked
-   certificates.
+   a conceptual description of the B, C and D configurations, which would shorten the proof
+   and its certificates.
 
 ---
 

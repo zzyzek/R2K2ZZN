@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.BandExtension
 
 /-!
@@ -17,19 +18,8 @@ namespace ZZN
 
 open GridHam
 
-/-- Delete the lines `x = d, d+1`. -/
-def delAt (d : ℕ) (v : Coord) : Coord := if v.1 < d then v else (v.1 - 2, v.2)
 
-def Inst.deleteAt (I : Inst) (d : ℕ) : Inst where
-  w  := I.w - 2
-  h  := I.h
-  s0 := delAt d I.s0
-  t0 := delAt d I.t0
-  s1 := delAt d I.s1
-  t1 := delAt d I.t1
 
-/-- The four endpoints of `I`. -/
-def Inst.ends (I : Inst) : List Coord := [I.s0, I.t0, I.s1, I.t1]
 
 /-- No endpoint lies on line `x = k`. -/
 def Inst.FreeLine (I : Inst) (k : ℕ) : Prop := ∀ e ∈ I.ends, e.1 ≠ k

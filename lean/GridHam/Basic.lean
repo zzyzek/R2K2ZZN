@@ -5,6 +5,7 @@
 -- GridHam is a copy of the GridHam2D-Lean project (the IPS theorem in Lean). Its comments refer to
 -- files of that project (`grid_hampath.py`, `bruteforce.py`, `verify.py`, `FINDINGS.md`,
 -- `doc/problem-specification.md`), which are not included here.
+import ZZN.Statement
 import Mathlib
 
 /-!
@@ -30,35 +31,14 @@ first version:
 
 namespace GridHam
 
-/-- A grid vertex, given as `(x, y)` coordinates. -/
-abbrev Coord := ℕ × ℕ
 
-/-- `v` lies within a `width × height` grid (`0 ≤ x < width`, `0 ≤ y <
-height`, with the lower bound automatic since coordinates are natural
-numbers). -/
-def InBounds (width height : ℕ) (v : Coord) : Prop :=
-  v.1 < width ∧ v.2 < height
 
 instance : DecidablePred (fun v => InBounds width height v) :=
   fun v => by unfold InBounds; infer_instance
 
-/-- Two vertices are grid-adjacent: they differ by exactly 1 in exactly one
-coordinate. -/
-def Adjacent (v w : Coord) : Prop :=
-  (v.1 = w.1 ∧ (v.2 + 1 = w.2 ∨ w.2 + 1 = v.2)) ∨
-  (v.2 = w.2 ∧ (v.1 + 1 = w.1 ∨ w.1 + 1 = v.1))
 
-instance : DecidableRel Adjacent := fun v w => by unfold Adjacent; infer_instance
 
-/-- `Adjacent` as a `Bool`, for use inside the recursive chain check below. -/
-def adjacentB (v w : Coord) : Bool := decide (Adjacent v w)
 
-/-- Every consecutive pair in `p` is adjacent, checked by direct recursion
-on the list (see the module note on why this doesn't use `List.Chain'`). -/
-def chainAdjacent : List Coord → Bool
-  | [] => true
-  | [_] => true
-  | a :: b :: rest => adjacentB a b && chainAdjacent (b :: rest)
 
 /-- Every coordinate of a `width × height` grid, as a flat list (used to
 state "covers every vertex" as a decidable `List` membership check rather

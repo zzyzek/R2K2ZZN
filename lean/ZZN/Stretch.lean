@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.PathFacts
 
 /-!
@@ -15,21 +16,8 @@ namespace ZZN
 
 open GridHam
 
-/-- Where an old cell goes when two lines are inserted after line `r`. -/
-def shiftAt (r : ℕ) (v : Coord) : Coord := if v.1 ≤ r then v else (v.1 + 2, v.2)
 
-/-- The new cells to insert between consecutive old cells `a, b`: two cells if `a – b` crosses
-between lines `r` and `r+1`, none otherwise. -/
-def gap (r : ℕ) (a b : Coord) : List Coord :=
-  if a.1 = r ∧ b.1 = r + 1 ∧ a.2 = b.2 then [(r + 1, a.2), (r + 2, a.2)]
-  else if a.1 = r + 1 ∧ b.1 = r ∧ a.2 = b.2 then [(r + 2, a.2), (r + 1, a.2)]
-  else []
 
-/-- The stretched path. -/
-def stretch (r : ℕ) : List Coord → List Coord
-  | [] => []
-  | [a] => [shiftAt r a]
-  | a :: b :: l => shiftAt r a :: (gap r a b ++ stretch r (b :: l))
 
 theorem shiftAt_injective (r : ℕ) : Function.Injective (shiftAt r) := by
   intro u v h

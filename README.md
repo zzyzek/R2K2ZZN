@@ -9,15 +9,20 @@ exists.
 
 For both sides at least 11, an instance is solvable if and only if none of a finite catalogue of
 forbidden patterns occurs; for a side at most 10, a plug dynamic programming algorithm decides it.
-Solutions are constructed in polynomial time, and both directions of the characterization are
-verified in Lean 4.
+Solutions are constructed in polynomial time. Lean 4 verifies both directions of the characterization,
+the correctness of the decision procedure and of the construction, and polynomial bounds on the
+number of steps of both. The kernel checks every proof: the results depend only on `propext`,
+`Classical.choice` and `Quot.sound`, with no `native_decide`. The constants in the step bounds are
+astronomically large.
 
 | Path | Contents |
 |---|---|
 | [`paper/`](paper/) | The paper (LaTeX; `make` builds `build/zzn.pdf`) |
 | [`docs/`](docs/) | The proof in prose ([`PROOF.md`](docs/PROOF.md)), the algorithm ([`ALGORITHM.md`](docs/ALGORITHM.md)) and the plug DP ([`PLUGDP.md`](docs/PLUGDP.md)), with figures |
 | [`lib/`](lib/) | Libraries and command-line programs in Python, JavaScript and C |
-| [`lean/`](lean/) | The Lean 4 verification (main results in [`lean/README.md`](lean/README.md)) |
+| [`proof/`](proof/) | The kernel-checked Lean 4 proof, a self-contained Lake project ([`proof/README.md`](proof/README.md)); also the Palomar registry entry |
+| [`lean/`](lean/) | The Lean 4 development the proof is exported from, with the earlier `native_decide` certificates and test tools ([`lean/README.md`](lean/README.md)) |
+| [`certgen/`](certgen/) | The certificate search and the certificates the proof checks |
 | [`LICENSE`](LICENSE) | CC0 1.0 Universal |
 
 ## Quick start
@@ -32,39 +37,39 @@ arguments and print the same output; see [`lib/README.md`](lib/README.md).
 
 ## How to verify
 
-The results rest on the Lean development in [`lean/`](lean/). To check them:
+The results rest on the Lean proof in [`proof/`](proof/). To check them:
 
 1. **Install Lean** with [elan](https://github.com/leanprover/elan). The toolchain is pinned in
-   `lean/lean-toolchain` (Lean v4.35.0-rc2) and Mathlib in `lean/lake-manifest.json`.
-2. **Build** the proofs, from `lean/`:
+   `proof/lean-toolchain` (Lean v4.35.0-rc2) and Mathlib in `proof/lake-manifest.json`.
+2. **Build**, from `proof/`:
 
    ```bash
-   LEAN_NUM_THREADS=4 lake build ZZN ZZN.Main ZZN.Thin.Decide
+   lake exe cache get
+   LEAN_NUM_THREADS=2 lake build Results Challenge Solution
    ```
 
-   Running `lake exe cache get` first may download a prebuilt Mathlib and save building it from
-   source. The build includes the 144 box checks and 10 window certificates evaluated by
-   `native_decide`: about 4 hours on 4 threads (about 17 CPU-hours). We built with 4 threads under
-   a 24 GB memory cap. It finishes with no errors and no warnings.
-3. **Check the axioms**, from `lean/`:
+   `lake exe cache get` downloads a prebuilt Mathlib. A clean build takes about 5.4 CPU-hours
+   (2.6 hours with two Lean processes) and up to about 13 GB of memory per process.
+3. **Check the axioms**, from `proof/`:
 
    ```bash
-   lake env lean CheckAxioms.lean
+   lake env lean Axioms.lean
    ```
 
-   Expected: `ZZN.Thin.thinBF_iff` depends only on `propext`, `Classical.choice` and
-   `Quot.sound`; `ZZN.passes_iff_solvable` and `ZZN.solvableB_iff` depend on those three plus 154
-   axioms named `..._native.native_decide.ax_1_1`, one per box check or window certificate. No
-   `sorryAx` appears.
-4. **Read the statement.** `lean/ZZN/Defs.lean` (about 60 lines) defines instances, paths and
-   solutions, using `InBounds`, `Adjacent` and `chainAdjacent` from `lean/GridHam/Basic.lean`.
-   The main theorems are `passes_iff_solvable` (`lean/ZZN/Main.lean`), `solvableB_iff`
-   (`lean/ZZN/Thin/Decide.lean`) and `thinBF_iff` (`lean/ZZN/Thin/Fast.lean`). Everything else is
-   checked by Lean against these definitions, so these are the parts a reader has to trust,
-   together with Lean, Mathlib's axioms and, for the 154 `native_decide` axioms, the Lean compiler.
+   Expected: every main result depends only on `propext`, `Classical.choice` and `Quot.sound`.
+4. **Read the statement.** `proof/ZZN/Statement.lean` (759 lines, imports only Mathlib) defines
+   instances, paths and solutions, the forbidden-pattern catalogue, the decision procedure
+   `solvableB` and the construction `solveZZN`. The main theorems are `solvableB_iff`
+   (`ZZN/Thin/Decide.lean`), `passes_iff_solvable` (`ZZN/Main.lean`) and `solveZZN_sound` /
+   `solveZZN_complete` (`ZZN/Constr/Main.lean`). Everything else is checked by Lean against these
+   definitions, so these are the parts a reader has to trust, together with Lean and Mathlib's
+   axioms. The Palomar registration (`proof/Challenge.lean`) states the same results on the
+   procedures with a step counter, with their step bounds: `solvableBT_main`,
+   `fires3T_iff_solvable` and `solveZZNT_main`, using `proof/ZZN/TimedStatement.lean`.
 
-The `native_decide` axioms trust compiled code instead of the kernel; the paper (Section 9)
-explains why, and what checking them in the kernel would cost.
+The finite cases of the characterization are certificates checked by the kernel: 21 boxes of
+slice certificates (Theorem A) and the window certificates of Theorem B. [`certgen/`](certgen/)
+holds the program that found them; it is not trusted, since a wrong certificate fails the build.
 
 ## [Demo](https://zzyzek.github.io/R2K2ZZN/demo/)
 

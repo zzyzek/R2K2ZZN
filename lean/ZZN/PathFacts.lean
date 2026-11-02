@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.Splice
 
 /-!
@@ -119,8 +120,6 @@ theorem pred_ne_succ {l : List Coord} {u v x : Coord} (hn : l.Nodup)
   have := (List.nodup_append.mp hn).2.2
   exact this u (by simp) u (by simp) rfl
 
-/-- `u – v` is an edge of the path `l`, in either direction. -/
-def Used (l : List Coord) (u v : Coord) : Prop := [u, v] <:+: l ∨ [v, u] <:+: l
 
 theorem Used.symm {l : List Coord} {u v : Coord} (h : Used l u v) : Used l v u := Or.symm h
 

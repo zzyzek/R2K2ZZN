@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.Thin.Inside
 
 /-!
@@ -39,10 +40,6 @@ def Kind.lftC : Kind → Option ℕ
   | lft c _ => some c
   | _ => none
 
-/-- The pieces left after removing the attached runs, as `stepCell` computes them. -/
-def restK (ps : List ℕ) (pu pl : Option ℕ) : List ℕ :=
-  if pu.isSome then (if pl.isSome then (ps.erase (pu.getD 0)).erase (pl.getD 0) else ps.erase (pu.getD 0))
-  else (if pl.isSome then ps.erase (pl.getD 0) else ps)
 
 theorem closeP_comm (a b x y : ℕ) (rest : List ℕ) (dn : ℕ) :
     closeP a b x y rest dn = closeP a b y x rest dn := by

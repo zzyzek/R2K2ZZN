@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.Absorb
 
 /-!
@@ -38,9 +39,6 @@ def LineFree (I : Inst) (r : ℕ) : Prop :=
 section
 variable {I : Inst} {p q : List Coord} {r : ℕ}
 
-/-- Column `y` is crossed between lines `r` and `r+1` by one of the paths. -/
-def Cross (p q : List Coord) (r y : ℕ) : Prop :=
-  Used p (r, y) (r + 1, y) ∨ Used q (r, y) (r + 1, y)
 
 theorem gap_cross (r y : ℕ) : gap r (r, y) (r + 1, y) = [(r + 1, y), (r + 2, y)] := by
   simp [gap]

@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: CC0-1.0
 -- To the extent possible under law, the author has waived all copyright and related or
 -- neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+import ZZN.Statement
 import ZZN.Thin.Sound
 
 /-!
@@ -15,16 +16,9 @@ namespace ZZN.Thin
 
 open GridHam
 
-/-- An end code that is a plug inside the grid, or an endpoint. -/
-def okEnd (a b e : ℕ) : Bool := decide (e ≤ b) || isTerm a b e
 
-def noExit (a b : ℕ) (s : St) : Bool := s.1.all fun z => okEnd a b (lo z) && okEnd a b (hi z)
 
-def stageF (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (S : List St) (i : ℕ) : List St :=
-  (stage a b tm S i).filter (noExit a b)
 
-def insideF (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) : List St :=
-  (List.range (a * b)).foldl (stageF a b tm) [([], 0)]
 
 section Proofs
 
@@ -113,7 +107,6 @@ theorem insideF_complete {tm : List ((ℕ × ℕ) × ℕ)} {p q : List Coord} (h
 
 end Proofs
 
-def dpAcceptF (J : Inst) : Bool := (insideF J.w J.h (tmOf J)).contains ([], 3)
 
 theorem dpAcceptF_iff {J : Inst} (hwf : J.WellFormed) : dpAcceptF J = true ↔ Solvable J := by
   unfold dpAcceptF
@@ -161,8 +154,6 @@ theorem dpAcceptF_iff {J : Inst} (hwf : J.WellFormed) : dpAcceptF J = true ↔ S
       rw [hnil, h3]
     rw [← this]; exact hs
 
-/-- Rows along the longer side, so the frontier is the short side. -/
-def thinBF (J : Inst) : Bool := if J.h ≤ J.w then dpAcceptF J else dpAcceptF J.transpose
 
 theorem thinBF_iff {J : Inst} (hwf : J.WellFormed) : thinBF J = true ↔ Solvable J := by
   unfold thinBF
