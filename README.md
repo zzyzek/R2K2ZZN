@@ -12,7 +12,7 @@ forbidden patterns occurs; for a side at most 10, a plug dynamic programming alg
 Solutions are constructed in polynomial time. Lean 4 verifies both directions of the characterization,
 the correctness of the decision procedure and of the construction, and polynomial bounds on the
 number of steps of both. The kernel checks every proof: the results depend only on `propext`,
-`Classical.choice` and `Quot.sound`, with no `native_decide`. The constants in the step bounds are
+`Classical.choice` and `Quot.sound`. The constants in the step bounds are
 astronomically large.
 
 | Path | Contents |

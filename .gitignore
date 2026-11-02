@@ -57,3 +57,14 @@ dkms.conf
 *~
 *.swp
 
+# Lean build state, and modules certgen/regen.sh generates before exporting them into proof/.
+proof/.lake/
+certgen/gen/
+__pycache__/
+
+# Video renders, narration audio and logs (video/render.sh).
+video/audio/
+video/media/
+video/out/
+video/logs/
+video/sheets/
