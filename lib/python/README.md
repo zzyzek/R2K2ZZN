@@ -3,7 +3,7 @@
 Decide and solve two-colour Zig-Zag Numberlink on rectangles: given an R × C grid and endpoints
 s0, t0 (colour A) and s1, t1 (colour B), find two disjoint paths s0 → t0 and s1 → t1 covering every
 cell, or report that none exists. The algorithm is described in
-[`docs/ALGORITHM.md`](../../docs/ALGORITHM.md); its correctness is proved in Lean (`lean/`).
+[`docs/ALGORITHM.md`](../../docs/ALGORITHM.md); its correctness is proved in Lean (`proof/`).
 
 Pure Python 3.8+, no dependencies.
 

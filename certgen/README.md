@@ -12,19 +12,22 @@ made, so they can be regenerated or improved.
 | `inputs/tset_G.txt` | The global template set the certificates index (11 029 templates) |
 | `inputs/reps/e{W}.txt` | Canonical row tuples (slices) for boxes of width `W` |
 | `src/` | The certificate search `slicehyb` (C; with `../lib/c/zzn.c`) |
-| `regen.sh` | Certificates → `lean/gen/` (Lean modules) → `proof/` |
+| `tools/` | Certificates → Lean modules (Python), the Lean generators `WinGenU`, `FireGen`, `BaseGen`, and `export.py` |
+| `regen.sh` | Certificates → `gen/` (Lean modules) → `proof/` |
 
 ## Regenerating the Lean modules
 
-From the repository root, with the library in `lean/` built:
+From the repository root, with the `proof/` library built (`lake build` in `proof/`):
 
 ```bash
 certgen/regen.sh
 ```
 
-Theorem A modules come from `certs/` with the Python tools in `lean/tools/` (`gen_box.py`,
-`gen_cbox.py`). Theorem B modules come from `lean/tools/wincases.txt` through `WinGenU.lean` and
-the post-processing scripts. `regen.sh` lists every step.
+Theorem A modules come from `certs/` with `tools/gen_box.py` and `tools/gen_cbox.py`. Theorem B
+modules come from `tools/wincases.txt` through `tools/WinGenU.lean` and the post-processing
+scripts. `tools/export.py` writes the modules into `proof/` and regenerates `proof/Challenge.lean`,
+`Solution.lean` and `comparator.json`. `regen.sh` lists every step; its output is byte for byte
+the committed `proof/`.
 
 ## Rerunning the certificate search
 
@@ -49,9 +52,9 @@ from the previous box in two chains.
 
 The certificate then goes through four steps:
 
-1. `lean/tools/remap_templates.py` renumbers the template indices into `inputs/tset_G.txt`.
-2. `lean/tools/cert2c.py` converts the format.
-3. `lean/tools/FireGen.lean` adds a fire witness per reflection (`lake env lean --run`).
-4. `lean/tools/BaseGen.lean` computes the base file from `inputs/reps/e{W}.txt`.
+1. `tools/remap_templates.py` renumbers the template indices into `inputs/tset_G.txt`.
+2. `tools/cert2c.py` converts the format.
+3. `tools/FireGen.lean` adds a fire witness per reflection (`lake env lean --run`, from `proof/`).
+4. `tools/BaseGen.lean` computes the base file from `inputs/reps/e{W}.txt`.
 
 The result is what `certs/` holds.

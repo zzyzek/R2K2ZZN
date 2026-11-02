@@ -21,7 +21,6 @@ astronomically large.
 | [`docs/`](docs/) | The proof in prose ([`PROOF.md`](docs/PROOF.md)), the algorithm ([`ALGORITHM.md`](docs/ALGORITHM.md)) and the plug DP ([`PLUGDP.md`](docs/PLUGDP.md)), with figures |
 | [`lib/`](lib/) | Libraries and command-line programs in Python, JavaScript and C |
 | [`proof/`](proof/) | The kernel-checked Lean 4 proof, a self-contained Lake project ([`proof/README.md`](proof/README.md)); also the Palomar registry entry |
-| [`lean/`](lean/) | The Lean 4 development the proof is exported from, with the earlier `native_decide` certificates and test tools ([`lean/README.md`](lean/README.md)) |
 | [`certgen/`](certgen/) | The certificate search and the certificates the proof checks |
 | [`LICENSE`](LICENSE) | CC0 1.0 Universal |
 

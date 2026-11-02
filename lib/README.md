@@ -12,7 +12,7 @@ behaviour and output:
 The algorithm: [`docs/ALGORITHM.md`](../docs/ALGORITHM.md) and [`docs/PLUGDP.md`](../docs/PLUGDP.md).
 Each library also has an optimized solver for thin instances (`--optimized` on the command line):
 guessed splits with the plug DP as the fallback, exact, and much faster on long thin grids.
-Its correctness is proved in Lean ([`lean/`](../lean/)); the libraries implement the same
+Its correctness is proved in Lean ([`proof/`](../proof/)); the libraries implement the same
 decision procedure and the constructive steps of the proof.
 
 ## Tests

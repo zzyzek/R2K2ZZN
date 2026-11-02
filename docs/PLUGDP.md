@@ -6,7 +6,7 @@ the thin pieces of moves, and small Hamiltonian-path pieces. Running time is lin
 side; the frontier width is the short side.
 
 Implementations: `lib/python/zzn/plugdp.py`, `lib/js/zzn.js`, `lib/c/zzn.c`. The Lean proof
-(`lean/ZZN/Thin/`) verifies a variant with a different state encoding (§6).
+(`proof/ZZN/Thin/`) verifies a variant with a different state encoding (§6).
 
 ## 1. Sweep and frontier
 
@@ -93,7 +93,7 @@ empty final state is reachable iff a solution exists.
 
 ## 6. The Lean version
 
-`lean/ZZN/Thin/` proves this for a DP with a different, proof-friendly encoding: a state is a
+`proof/ZZN/Thin/` proves this for a DP with a different, proof-friendly encoding: a state is a
 sorted list of pieces, each coded by its two **ends** (a column plug, the right plug, or an endpoint
 of a colour), plus a bitmask of completed colours. The cells are visited row by row. States with
 an end leaving the grid are dropped after each cell. Both directions are proved:

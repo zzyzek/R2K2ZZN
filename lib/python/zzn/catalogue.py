@@ -4,7 +4,7 @@
 
 """The forbidden-pattern catalogue: `fires(R, C, s0, t0, s1, t1)`.
 
-A transcription of `fires3` in `lean/ZZN/Catalogue.lean` (the definition the Lean theorems are
+A transcription of `fires3` in `proof/ZZN/Statement.lean` (the definition the Lean theorems are
 about). Returns the name of an entry that fires, or None if the instance passes.
 
 Entries: P (parity), T1 (perimeter alternation), T2 (alternating unit square), L1 (isolated

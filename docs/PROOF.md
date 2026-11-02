@@ -1,17 +1,18 @@
 # Two-color Zig-Zag Numberlink on rectangles: the proof in prose
 
 This document gives the whole argument in prose. The paper (`paper/`) presents it with figures and
-the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the Lean development
-(`lean/`) checks it. Terms are defined in §1.
+the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the Lean proof
+(`proof/`) checks it. Terms are defined in §1.
 
 **Status.**
 - **Theorem A** (passes ⇒ solvable, for both sides ≥ 11) and **Theorem B** (every catalogue entry
-  is sound) are proved, and checked in Lean (`lean/README.md`):
+  is sound) are proved, and checked in Lean (`proof/README.md`):
   - `passes_iff_solvable`: for both sides ≥ 11, passing the catalogue is equivalent to
     solvability;
   - `solvableB_iff`: a decision procedure proved correct for every rectangle; thin rectangles use
     a plug DP proved sound and complete (`thinBF_iff`).
-- The finite computations are evaluated by `native_decide` (the paper, Section 9).
+- The finite computations are certificates checked by the Lean kernel (`proof/`, the paper,
+  Section 9). No `native_decide` is used.
 - The decision procedure's running time is also proved in Lean, in a step-counting model:
   `ZZN.T.solvableBT_time` bounds its steps by `Cdec · (RC + R + C + 1)`. The constant `Cdec` (about
   10^756) comes from a crude count of plug DP states.
@@ -34,7 +35,7 @@ the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the
 - **Checkerboard color.** Cell (r, c) is black if r + c is even, white otherwise.
 - **Passes.** No entry of the forbidden-pattern catalogue fires. The catalogue is listed in the
   paper (Table 1 and Appendix C); it is defined as `fires` in the libraries (`lib/`) and as `fires3`
-  in `lean/ZZN/Catalogue.lean`.
+  in `proof/ZZN/Statement.lean`.
   - **Proved entries:** P (parity), T1, T2, L1–L6, E1, and R (rewrites R1–R3 with effective
     alternation).
   - **Verified-only entries:** B (21 + 5 boundary-only corner patterns), C (36 corner
@@ -47,7 +48,7 @@ the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the
   - an *internal gap* lies between two endpoint lines.
 - **IPS.** The Itai–Papadimitriou–Szwarcfiter theorem (1982). It decides exactly when an m × n
   rectangle has a Hamiltonian path between two given cells: color compatibility, plus three
-  forbidden families at widths 1, 2 and 3. It is formalized in `lean/GridHam`.
+  forbidden families at widths 1, 2 and 3. It is formalized in `proof/GridHam`.
 - **Plug DP.** An exact dynamic programming algorithm over the grid (`docs/PLUGDP.md`). It decides solvability,
   in time linear in the long side for a fixed short side.
 
@@ -72,7 +73,7 @@ The move types, by how the four real endpoints fall:
 | 2/2 cross | each side holds one endpoint of each color | two two-path pieces, two crossings |
 | excursion | each side holds one whole pair | one color crosses twice. Near piece: its two segments as a two-path instance. Far piece: the other pair plus the excursion, as a two-path instance. |
 
-In Lean, an accepted move is `MoveOK` (`lean/ZZN/Moves.lean`).
+In Lean, an accepted move is `MoveOK` (`proof/ZZN/Moves.lean`).
 
 ---
 
@@ -154,7 +155,7 @@ Fix solutions of the pieces.
 **Lemma.** If R′ is solvable and some full line of R′ holds no endpoint, then inserting two
 empty lines next to that line gives a solvable instance. There is no length condition.
 
-**Proof** (Lean: `lean/ZZN/BandExtension.lean`):
+**Proof** (Lean: `proof/ZZN/BandExtension.lean`):
 1. Extend every path crossing the insertion line straight through the two new lines.
 2. Absorb each block of new cells between consecutive crossings by a U-shaped detour of a
    neighbouring crossing.
@@ -166,15 +167,15 @@ empty lines next to that line gives a solvable instance. There is no length cond
 
 ### 4.3 Strip (S)
 
-- **Lifting:** §4.1 with w = 2 (Lean: `lean/ZZN/StripExtend.lean`).
-- **Passing is preserved** (Lean: `lean/ZZN/PassStrip.lean`). It needs an edge gap of ≥ 4 lines and
+- **Lifting:** §4.1 with w = 2 (Lean: `proof/ZZN/StripExtend.lean`).
+- **Passing is preserved** (Lean: `proof/ZZN/PassStrip.lean`). It needs an edge gap of ≥ 4 lines and
   n − 2 ≥ 11. Every size condition in the catalogue is monotone, so it holds on R whenever it holds
   on R′.
 
 ### 4.4 Compression (K)
 
 - **Lifting:** band extension (§4.2).
-- **Passing is preserved** (Lean: `lean/ZZN/PassX.lean`, `lean/ZZN/PassXAssemble.lean`). Delete the two middle lines of an
+- **Passing is preserved** (Lean: `proof/ZZN/PassX.lean`, `proof/ZZN/PassXAssemble.lean`). Delete the two middle lines of an
   internal gap of G ≥ 10 lines. Every catalogue entry fires on R iff it fires on R′:
   - the 8 × 8 corner windows see the same cells, because G − 2 ≥ 8 empty lines remain;
   - the boundary cyclic order is unchanged;
@@ -183,7 +184,7 @@ empty lines next to that line gives a solvable instance. There is no length cond
 ### 4.5 Interior compression (I)
 
 - **Lifting:** band extension.
-- **Passing is preserved** (Lean: `lean/ZZN/PassX.lean`, `lean/ZZN/PassXR.lean`), entry by entry.
+- **Passing is preserved** (Lean: `proof/ZZN/PassX.lean`, `proof/ZZN/PassXR.lean`), entry by entry.
   - Let φ insert the two lines at position d, with 8 ≤ d ≤ n − 10. Then φ fixes the first 8 and
     the last 8 lines, so every corner window is identical, and it never moves an endpoint toward
     a corner.
@@ -202,9 +203,9 @@ The computation of §5.2 was redone for the instances the wrong claim had skippe
 ### 4.7 Soundness of the proved catalogue entries (used only by Theorem B)
 
 P, T1 and T2: parity and planarity. L1–L6 and E1: local forcing. R1–R3 and effective alternation:
-forced corner routes, then T1 on the remaining region. Lean: `lean/ZZN/Parity.lean`,
+forced corner routes, then T1 on the remaining region. Lean: `proof/ZZN/Parity.lean`,
 `SoundT1.lean`, `SoundT2.lean`, `SoundLocal.lean` and `SoundR.lean`. The entries B, C and D are
-sound by window certificates (`lean/ZZN/WinBCD.lean`, `lean/ZZN/Final.lean`).
+sound by window certificates (`proof/ZZN/WinBCD.lean`, `proof/WinKU/Facts.lean`).
 
 ---
 
@@ -262,8 +263,8 @@ Moves used in the main run: strip 43.0 M, 1/3 split 49.3 M, 2/2 cross 4.6 M, 2/2
 
 In the Lean development:
 - Lean's kernel and the standard axioms `propext`, `Classical.choice` and `Quot.sound`;
-- the problem statement, `lean/ZZN/Defs.lean`, with the grid definitions of `lean/GridHam/Basic.lean`;
-- for the 154 `native_decide` axioms (144 box checks and 10 window certificates), the Lean compiler.
+- the definitions of the statements, `proof/ZZN/Statement.lean` (grids, instances, solutions, the
+  catalogue, the plug DP, the decision procedure and the construction).
 
 The programs used for the original computations of §5 (a C catalogue, plug DP, IPS test and move
 checker, and a Python window-certificate program) are no longer part of the trusted base. They were
@@ -276,12 +277,11 @@ cross-checked against each other during development and later against the Lean d
 1. **Soundness of B, C and D on all of 𝔇:** a window certificate per entry shows that no covering
    of a 6 × 6 or 8 × 8 corner window extends outside, by parity, planarity and global path
    structure, for any grid size. All 65 entries are certified, so every catalogue entry is sound
-   on 𝔇 and **Theorem B holds**. In Lean the certificates are checked by `native_decide`.
-2. **Lean formalization:** complete (see Status). No `sorry`; the axioms are the standard three
-   plus the 154 `native_decide` axioms.
+   on 𝔇 and **Theorem B holds**. In Lean the certificates are checked by the kernel.
+2. **Lean formalization:** complete (see Status). No `sorry`; the axioms are the standard three.
 3. **Open questions:** three or more pairs; two pairs on other regions, such as solid grid graphs;
-   a conceptual description of the B, C and D configurations, which might allow kernel-checked
-   certificates.
+   a conceptual description of the B, C and D configurations, which would shorten the proof
+   and its certificates.
 
 ---
 

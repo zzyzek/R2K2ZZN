@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mathlib-initiative/formalization.yaml/main/schema/formalization.schema.json
+version: "v0.4"
+
+project:
+  name: "Two-colour Zig-Zag Numberlink on rectangles"
+  description: >-
+    A Lean 4 proof that two-colour Zig-Zag Numberlink on rectangular grids (the paired
+    2-disjoint path cover problem: two vertex-disjoint paths s0 → t0 and s1 → t1 that together
+    visit every cell) is decided by an explicit procedure, and that an explicit construction
+    finds a solution whenever one exists. For both sides at least 11, an instance is solvable
+    exactly when it passes a finite catalogue of forbidden patterns; for a side at most 10, a
+    plug dynamic program decides it. The finite cases of the characterization are 21 boxes of
+    slice certificates and 59 window certificates, all checked by the kernel (no native_decide).
+  authors:
+    - "Z. Zzyzek (github: zzyzek)"
+  license: "CC0-1.0"
+  responsible_maintainers:
+    - "Z. Zzyzek (github: zzyzek)"
+
+classification:
+  arxiv: ["cs.DM", "math.CO"]
+  msc2020: ["05C38", "05C85", "68R10"]
+
+sources:
+  - title: "Two-colour Zig-Zag Numberlink on rectangles"
+    type: article
+    relationship: formalizes
+    authors:
+      - "Z. Zzyzek"
+    location: "paper/ in https://github.com/zzyzek/R2K2ZZN"
+    author_endorsement: endorsed
+    note: >-
+      The paper accompanying this formalization (written alongside it). It describes the
+      catalogue, the proof structure (Theorem A over finite boxes, Theorem B over windows, the
+      reductions and band extension) and the algorithms.
+
+related_formalizations:
+  - title: "GridHam2D-Lean (Itai–Papadimitriou–Szwarcfiter)"
+    location: "https://github.com/zzyzek/GridHam2D-Lean"
+    note: >-
+      The grid, path and adjacency definitions (GridHam.Basic) and lemmas used for one-path
+      pieces are copied from it.
+
+status:
+  scope: >-
+    Formalized and registered, on the decision procedure, the catalogue and the construction with
+    a step counter (solvableBT, fires3T, solveZZNT, which return what the plain solvableB, the
+    catalogue test and solveZZN do): for well-formed instances on any rectangle, solvableBT
+    decides solvability within Cdec (RC + R + C + 1) steps (ZZN.T.solvableBT_main); for both
+    sides at least 11, the catalogue finds no pattern exactly when the instance is solvable
+    (ZZN.T.fires3T_iff_solvable); every answer of solveZZNT is a solution, it returns one for
+    every well-formed solvable instance, within polynomially many steps (ZZN.T.solveZZNT_main).
+    The plain statements (solvableB_iff, passes_iff_solvable, solveZZN_sound, solveZZN_complete)
+    are proved in the same project but not registered: with them the challenge file would exceed
+    1 000 lines. The constants in the step bounds are astronomically large.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms: []
+  main_results:
+    - declaration: "ZZN.T.solvableBT_main"
+      file: "ZZN/Timed/Main.lean"
+      sorry_count: 0
+      axioms: ["propext", "Classical.choice", "Quot.sound"]
+      comparator_config: "comparator.json"
+    - declaration: "ZZN.T.fires3T_iff_solvable"
+      file: "ZZN/Timed/Main.lean"
+      sorry_count: 0
+      axioms: ["propext", "Classical.choice", "Quot.sound"]
+      comparator_config: "comparator.json"
+    - declaration: "ZZN.T.solveZZNT_main"
+      file: "ZZN/Timed/Construct.lean"
+      sorry_count: 0
+      axioms: ["propext", "Classical.choice", "Quot.sound"]
+      comparator_config: "comparator.json"
+
+automation:
+  methods:
+    - method: agent
+      models: ["Claude Opus 5.5"]
+      framework: "Claude Code"
+      tool_setup: >-
+        Claude Code with the Lean toolchain, Python and a C compiler on a local machine. The
+        human provided the problem and steered by review.
+      cost:
+        wall_time: "not tracked"
+        spend_usd: "subscription-based"
+        hardware: "local machine (4 cores, 32 GB)"
+      prompting_notes: >-
+        The human posed the problem, set the goals (a complete Lean proof, then one checked by
+        the kernel alone within about 5 CPU-hours) and steered by review and requests.
+  spend_usd: "subscription-based"
+  notes: >-
+    Claude (Opus 5.5) wrote the Lean 4 proof in its entirety, the certificate generators, the
+    reference implementations, the paper and the documentation. The listed author contributed
+    the problem statement and guidance.
+
+fidelity:
+  divergences: >-
+    Cells are 0-indexed pairs (x, y) on a w × h grid; a path is a list of cells (IsPath: starts
+    at s, ends at t, no repeats, in bounds, consecutive cells adjacent). Inst.WellFormed asks
+    the four endpoints to be distinct cells of the grid. The registered theorems are about the
+    counted procedures (TimeM, a value with a step count); the step count is defined by the
+    procedures themselves, one step per basic list or arithmetic operation. solvableBT_main and
+    solveZZNT_main do not depend on the forbidden-pattern catalogue being right: they relate the
+    procedures to Solvable directly. fires3T_iff_solvable states equivalence with the catalogue as
+    defined (fires3T counts the steps of fires3, a transcription of the development's JavaScript
+    catalogue, compared with it on 3.66 M instances); a transcription error would make it
+    unprovable, not wrong.
+
+review:
+  status: "self-assessed"
+  reviewers:
+    - "none"
+  notes: >-
+    The kernel checks every proof, using only propext, Classical.choice and Quot.sound;
+    certificates are checked with decide +kernel, with no native_decide. Independent
+    mathematical review has not taken place.
+
+alignment:
+  namespace: "ZZN"
+  statements:
+    - source: "Main theorem (decision procedure, every rectangle) with its running time"
+      lean: "ZZN.T.solvableBT_main"
+      module: "ZZN.Timed.Main"
+      status: "proved"
+    - source: "Characterization (both sides at least 11)"
+      lean: "ZZN.T.fires3T_iff_solvable"
+      module: "ZZN.Timed.Main"
+      status: "proved"
+    - source: "Construction with its running time"
+      lean: "ZZN.T.solveZZNT_main"
+      module: "ZZN.Timed.Construct"
+      status: "proved"
+
+acknowledgements: "Lean 4 and Mathlib."

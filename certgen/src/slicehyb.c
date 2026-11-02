@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
   int xs[4]; long ns = 0, sp = 0, si = 0, su = 0, sf = 0, sfail = 0;
   while (fscanf(rf, "%d,%d,%d,%d", &xs[0], &xs[1], &xs[2], &xs[3]) == 4) {
     printf("SLICE %d,%d,%d,%d\n", xs[0], xs[1], xs[2], xs[3]);
-    // Row symmetries fixing xs (stabL in lean/ZZN/BoxK/Slice.lean); with the column reflection.
+    // Row symmetries fixing xs (stabL in proof/ZZN/BoxK/Slice.lean); with the column reflection.
     //
     int stb[16][2], nstb = 0;
     for (int f = 0; f < 2; f++) for (int l = 0; l < 8; l++) {
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
       int dup = 0;
       for (int a = 0; a < 4; a++) for (int b = a + 1; b < 4; b++) { if (ceq(c[a], c[b])) { dup = 1; } }
       if (dup) { continue; }
-      // Column-canonical lanes only (ccV in lean/ZZN/BoxK/Slice.lean): key(y) <= key(C - 1 - y).
+      // Column-canonical lanes only (ccV in proof/ZZN/BoxK/Slice.lean): key(y) <= key(C - 1 - y).
       //
       { int lt = 0, gt = 0;
         for (int u = 0; (u < 4) && !lt && !gt; u++) {
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
           else if (r > Y[jj][u]) { gt = 1; }
         }
         if (lt) { continue; } }
-      // Square box: lanes with key(y) >= key(x) only (trV in lean/ZZN/BoxK/Slice.lean).
+      // Square box: lanes with key(y) >= key(x) only (trV in proof/ZZN/BoxK/Slice.lean).
       //
       if ( (R == C) && lexlt4(Y[jj], xs) ) { continue; }
       { int skip = 0;

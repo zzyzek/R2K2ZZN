@@ -1,6 +1,6 @@
 // Exhaustive template+peel coverage over the irreducible instances of boxes
 // R x C (R <= C), restricted to the symmetry fundamental domain. Irreducible:
-// no RedX reduction on either axis (axB, lean/ZZN/Finite.lean). Peel results
+// no RedX reduction on either axis (axB, proof/ZZN/Finite.lean). Peel results
 // are memoised.
 //
 // usage: exh2 K templates R C [R C ...]
@@ -28,7 +28,7 @@ static int redX(int n, const int *xs, int d) {
   }
   if ( (8 <= d) && (d + 10 <= n) && Fr(xs, d) && Fr(xs, d + 1) &&
        ( ((1 <= d) && Fr(xs, d - 1)) || Fr(xs, d + 2) ) && Bl(xs, d) && Ab(xs, d + 1) ) { return 1; }
-  // band compression (RedB, bandGen in lean/ZZN/FiniteB.lean): 5 <= d, d + 7 <= n, every
+  // band compression (RedB, bandGen in proof/ZZN/FiniteB.lean): 5 <= d, d + 7 <= n, every
   // endpoint at least 5 lines from the edge it approaches after deleting d, d+1.
   //
   if ( (5 <= d) && (d + 7 <= n) && Fr(xs, d) && Fr(xs, d + 1) &&

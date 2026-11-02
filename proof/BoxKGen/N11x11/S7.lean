@@ -1,0 +1,49 @@
+/-
+SPDX-License-Identifier: CC0-1.0
+Dedicated to the public domain under CC0 1.0 Universal; see LICENSE.
+-/
+module
+
+public import BoxKGen.Templates
+public import BoxKGen.N11x11.Base
+
+@[expose] public section
+
+set_option Elab.async false
+namespace BoxKGen.N11x11
+open ZZN ZZN.Cut ZZN.BoxK BoxKGen
+
+noncomputable def d1120 : CData := (![4,4,4,6], [], [(t3895, ⟨false, false, false, false, false, false⟩), (t3792, ⟨false, false, false, true, true, true⟩), (t3790, ⟨false, false, false, false, false, false⟩), (t3787, ⟨false, false, false, false, true, true⟩), (t3742, ⟨false, false, false, false, false, true⟩), (t6349, ⟨false, false, false, false, true, true⟩), (t3763, ⟨false, false, false, false, false, false⟩), (t6355, ⟨false, false, false, false, true, true⟩)], [], [])
+theorem sl1120 : sliceCOK 11 11 d1120.1 L1 b1 11 ![4,4,4,6] d1120.2.1 0 d1120.2.2.1 d1120.2.2.2.1 [] d1120.2.2.2.2 = true := by decide +kernel
+theorem g1120 : SliceGood 11 11 d1120.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base1 (subM_zero (tgtM 11 11 ![4,4,4,6] [] [])) sl1120
+noncomputable def d1121 : CData := (![4,4,5,5], [], [(t5, ⟨false, false, false, false, false, false⟩), (t3, ⟨false, false, false, false, false, false⟩), (t67, ⟨false, false, false, false, false, true⟩), (t3753, ⟨false, false, false, false, false, true⟩), (t3742, ⟨false, false, false, false, false, true⟩)], [], [])
+theorem sl1121 : sliceCOK 11 11 d1121.1 L2 b2 11 ![4,4,5,5] d1121.2.1 0 d1121.2.2.1 d1121.2.2.2.1 [] d1121.2.2.2.2 = true := by decide +kernel
+theorem g1121 : SliceGood 11 11 d1121.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base2 (subM_zero (tgtM 11 11 ![4,4,5,5] [] [])) sl1121
+noncomputable def d1122 : CData := (![4,4,5,6], [], [(t3821, ⟨false, false, false, false, false, true⟩), (t54, ⟨false, false, false, false, false, true⟩), (t3754, ⟨false, false, false, true, true, true⟩), (t67, ⟨false, false, false, false, true, true⟩), (t3763, ⟨false, false, false, false, false, false⟩), (t5908, ⟨false, false, false, false, false, true⟩), (t4107, ⟨false, false, false, false, true, true⟩), (t3742, ⟨false, false, false, false, false, true⟩)], [], [])
+theorem sl1122 : sliceCOK 11 11 d1122.1 L1 b1 11 ![4,4,5,6] d1122.2.1 0 d1122.2.2.1 d1122.2.2.2.1 [] d1122.2.2.2.2 = true := by decide +kernel
+theorem g1122 : SliceGood 11 11 d1122.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base1 (subM_zero (tgtM 11 11 ![4,4,5,6] [] [])) sl1122
+noncomputable def d1123 : CData := (![4,4,6,6], [], [(t3, ⟨false, false, false, false, false, false⟩)], [], [])
+theorem sl1123 : sliceCOK 11 11 d1123.1 L3 b3 11 ![4,4,6,6] d1123.2.1 0 d1123.2.2.1 d1123.2.2.2.1 [] d1123.2.2.2.2 = true := by decide +kernel
+theorem g1123 : SliceGood 11 11 d1123.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base3 (subM_zero (tgtM 11 11 ![4,4,6,6] [] [])) sl1123
+noncomputable def d1124 : CData := (![4,5,4,5], [], [(t5540, ⟨false, false, false, false, true, true⟩), (t5644, ⟨false, false, false, true, false, true⟩), (t25, ⟨false, false, false, false, false, false⟩), (t1998, ⟨false, false, false, false, false, false⟩), (t5972, ⟨false, false, false, true, false, false⟩), (t5518, ⟨false, false, false, false, true, true⟩), (t6090, ⟨false, false, false, true, true, true⟩)], [], [])
+theorem sl1124 : sliceCOK 11 11 d1124.1 L4 b4 11 ![4,5,4,5] d1124.2.1 0 d1124.2.2.1 d1124.2.2.2.1 [] d1124.2.2.2.2 = true := by decide +kernel
+theorem g1124 : SliceGood 11 11 d1124.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base4 (subM_zero (tgtM 11 11 ![4,5,4,5] [] [])) sl1124
+noncomputable def d1125 : CData := (![4,5,4,6], [], [(t2055, ⟨false, false, false, false, false, false⟩), (t4255, ⟨false, false, false, false, false, false⟩), (t4810, ⟨false, false, false, false, true, true⟩), (t3792, ⟨false, false, false, false, true, true⟩), (t5708, ⟨false, false, false, true, true, false⟩), (t1948, ⟨false, false, false, false, false, false⟩), (t5547, ⟨false, false, false, false, true, true⟩), (t5707, ⟨false, false, false, true, false, false⟩), (t3763, ⟨false, false, false, false, false, false⟩), (t6788, ⟨false, false, false, true, true, true⟩), (t6378, ⟨false, false, false, false, true, true⟩), (t6376, ⟨false, false, false, false, true, true⟩), (t3742, ⟨false, false, false, true, false, true⟩), (t4746, ⟨false, false, false, true, false, true⟩), (t3902, ⟨false, false, false, false, false, true⟩), (t4, ⟨false, false, false, false, false, true⟩), (t1625, ⟨false, false, false, false, false, false⟩), (t6377, ⟨false, false, false, false, false, false⟩), (t1107, ⟨false, false, false, false, true, false⟩), (t5820, ⟨false, false, false, true, true, true⟩), (t4887, ⟨false, false, false, true, false, true⟩), (t3876, ⟨false, false, false, true, true, true⟩), (t4835, ⟨false, false, false, true, true, false⟩), (t6348, ⟨false, false, false, false, false, true⟩), (t3974, ⟨false, false, false, false, false, true⟩), (t6044, ⟨false, false, false, true, false, true⟩), (t5770, ⟨false, false, false, true, true, true⟩), (t5811, ⟨false, false, false, true, true, true⟩), (t4648, ⟨false, false, false, true, false, true⟩), (t6385, ⟨false, false, false, true, true, true⟩), (t4158, ⟨false, false, false, false, false, false⟩)], [], [])
+theorem sl1125 : sliceCOK 11 11 d1125.1 L5 b5 11 ![4,5,4,6] d1125.2.1 0 d1125.2.2.1 d1125.2.2.2.1 [] d1125.2.2.2.2 = true := by decide +kernel
+theorem g1125 : SliceGood 11 11 d1125.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base5 (subM_zero (tgtM 11 11 ![4,5,4,6] [] [])) sl1125
+noncomputable def d1126 : CData := (![4,5,5,5], [], [(t3999, ⟨false, false, false, true, false, true⟩), (t5847, ⟨false, false, false, true, false, true⟩), (t4307, ⟨false, false, false, true, false, true⟩), (t3884, ⟨false, false, false, false, false, true⟩), (t6791, ⟨false, false, false, true, true, false⟩), (t1959, ⟨false, false, false, false, false, true⟩), (t6414, ⟨false, false, false, false, false, false⟩), (t6415, ⟨false, false, false, false, true, true⟩), (t1100, ⟨false, false, false, false, true, false⟩), (t6416, ⟨false, false, false, false, false, false⟩), (t6423, ⟨false, false, false, true, false, false⟩), (t5010, ⟨false, false, false, false, false, false⟩), (t3742, ⟨false, false, false, true, false, true⟩), (t6429, ⟨false, false, false, true, true, true⟩), (t6606, ⟨false, false, false, false, true, true⟩), (t788, ⟨false, false, false, false, false, true⟩), (t6723, ⟨false, false, false, true, true, true⟩), (t3992, ⟨false, false, false, true, true, false⟩), (t4, ⟨false, false, false, false, false, true⟩)], [], [])
+theorem sl1126 : sliceCOK 11 11 d1126.1 L6 b6 11 ![4,5,5,5] d1126.2.1 0 d1126.2.2.1 d1126.2.2.2.1 [] d1126.2.2.2.2 = true := by decide +kernel
+theorem g1126 : SliceGood 11 11 d1126.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base6 (subM_zero (tgtM 11 11 ![4,5,5,5] [] [])) sl1126
+noncomputable def d1127 : CData := (![4,5,5,6], [], [(t3999, ⟨false, false, false, true, true, true⟩), (t6379, ⟨false, false, false, true, false, true⟩), (t3895, ⟨false, false, false, false, false, false⟩), (t1, ⟨false, false, false, false, true, false⟩), (t4545, ⟨false, false, false, false, false, true⟩), (t4720, ⟨false, false, false, false, true, true⟩), (t4499, ⟨false, false, false, false, false, true⟩), (t6792, ⟨false, false, false, true, false, true⟩)], [], [])
+theorem sl1127 : sliceCOK 11 11 d1127.1 L7 b7 11 ![4,5,5,6] d1127.2.1 0 d1127.2.2.1 d1127.2.2.2.1 [] d1127.2.2.2.2 = true := by decide +kernel
+theorem g1127 : SliceGood 11 11 d1127.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base7 (subM_zero (tgtM 11 11 ![4,5,5,6] [] [])) sl1127
+noncomputable def d1128 : CData := (![4,6,4,6], [], [], [], [])
+theorem sl1128 : sliceCOK 11 11 d1128.1 L8 b8 11 ![4,6,4,6] d1128.2.1 0 d1128.2.2.1 d1128.2.2.2.1 [] d1128.2.2.2.2 = true := by decide +kernel
+theorem g1128 : SliceGood 11 11 d1128.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base8 (subM_zero (tgtM 11 11 ![4,6,4,6] [] [])) sl1128
+noncomputable def d1129 : CData := (![4,6,5,5], [], [], [], [])
+theorem sl1129 : sliceCOK 11 11 d1129.1 L10 b10 11 ![4,6,5,5] d1129.2.1 0 d1129.2.2.1 d1129.2.2.2.1 [] d1129.2.2.2.2 = true := by decide +kernel
+theorem g1129 : SliceGood 11 11 d1129.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base10 (subM_zero (tgtM 11 11 ![4,6,5,5] [] [])) sl1129
+noncomputable def d1130 : CData := (![5,5,5,5], [], [], [], [])
+theorem sl1130 : sliceCOK 11 11 d1130.1 L11 b11 11 ![5,5,5,5] d1130.2.1 0 d1130.2.2.1 d1130.2.2.2.1 [] d1130.2.2.2.2 = true := by decide +kernel
+theorem g1130 : SliceGood 11 11 d1130.1 := sliceCOK_sound (by decide) (by decide) (by decide) (by decide) base11 (subM_zero (tgtM 11 11 ![5,5,5,5] [] [])) sl1130
+end BoxKGen.N11x11

@@ -2,7 +2,7 @@
 
 A reference for the decision and construction algorithm: enough to understand it and to
 re-implement it. The dynamic program for thin rectangles has its own page, [PLUGDP.md](PLUGDP.md).
-Implementations: [`lib/`](../lib/) (Python, JavaScript, C). Proofs: [`lean/`](../lean/) (Lean 4) and
+Implementations: [`lib/`](../lib/) (Python, JavaScript, C). Proofs: [`proof/`](../proof/) (Lean 4) and
 [`PROOF.md`](../PROOF.md).
 
 ## 1. The problem
@@ -105,7 +105,7 @@ staircases). **R** fires if the moved ("effective") endpoints are all on that wa
 their colours alternate along it: T1 for the remaining region. In the figure, grey cells are
 settled and dashed circles are effective endpoints.
 
-The exact evaluation order and edge cases are those of `fires3` in `lean/ZZN/Catalogue.lean`, which
+The exact evaluation order and edge cases are those of `fires3` in `proof/ZZN/Statement.lean`, which
 `lib/*/` transcribe; the three implementations agree with it on 60,000 test instances.
 
 ## 4. Reductions: delete two free lines
@@ -224,7 +224,7 @@ Run it: `python3 lib/python/zzn_cli.py 16 13 5 2 12 10 6 9 13 3 --grid --trace`.
   and a computer check showed each passing one has a valid move.
 - **Thin:** the plug DP is exact (sound and complete).
 
-All three are proved in Lean 4 (`lean/README.md`): `passes_iff_solvable`, `thinBF_iff`,
+All three are proved in Lean 4 (`proof/README.md`): `passes_iff_solvable`, `thinBF_iff`,
 `solvableB_iff`. The finite checks (window certificates, the 144 boxes of sides 11–22) are run by
 `native_decide`, which trusts Lean's compiler.
 
@@ -235,7 +235,7 @@ All three are proved in Lean 4 (`lean/README.md`): `passes_iff_solvable`, `thinB
 | Implementations | `lib/python`, `lib/js`, `lib/c` (same algorithm, same output) |
 | Plug DP | [PLUGDP.md](PLUGDP.md) |
 | Proof in prose | `PROOF.md` |
-| Lean | `lean/README.md` |
+| Lean | `proof/README.md` |
 | Figures | `docs/figures/make_figures.py` regenerates every figure from the Python library |
 
 ## License

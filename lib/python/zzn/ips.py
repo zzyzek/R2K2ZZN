@@ -4,7 +4,7 @@
 
 """Hamiltonian paths in rectangles (Itai, Papadimitriou, Szwarcfiter 1982).
 
-`acceptable(R, C, s, t)` is the IPS criterion (as in `lean/GridHam/Forbidden.lean`): a
+`acceptable(R, C, s, t)` is the IPS criterion (as in `proof/GridHam/Forbidden.lean`): a
 Hamiltonian s-t path exists in the R x C grid iff it holds. `hamiltonian_path(R, C, s, t)`
 constructs one: small rectangles by the plug DP; otherwise peel two lines from an edge with three
 endpoint-free lines
