@@ -49,7 +49,7 @@ IPS_YES_PATH = hamiltonian_path(5, 7, (0, 0), (4, 6))
 assert acceptable(5, 7, (0, 0), (4, 6))
 assert not acceptable(5, 7, (0, 0), (0, 1))
 
-# 2. Catalogue examples (as in lib/figures/make_figures.py) -----------------------------------
+# 2. Catalogue examples (as in docs/figures/make_figures.py) -----------------------------------
 PARITY = Instance(4, 5, (0, 0), (2, 4), (1, 1), (3, 2))
 assert fires(*PARITY) == "P"
 CATALOGUE = [

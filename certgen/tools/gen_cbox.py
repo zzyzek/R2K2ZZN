@@ -2,10 +2,10 @@
 """Write Lean modules for slice certificates checked by `sliceCOK` (ZZN/BoxK/SliceC.lean).
 
 gen_cbox.py W H CERT BASE NAME [BASE_TEMPLATES TEMPLATES_OUT]
-CERT: from split/cslice.c then tools/FireGen.lean: TARGET g w0 a,b,c,d n / LANES / PAIR / SOL, then
+CERT: from src/slicehyb.c then tools/FireGen.lean: TARGET g w0 a,b,c,d n / LANES / PAIR / SOL, then
 CSLICE a,b,c,d g steps / FIRE lane code / PAIR / SOL.
 BASE: from tools/BaseGen.lean: CLASS k L / BASE k hex / SLICE a,b,c,d k.
-With BASE_TEMPLATES and TEMPLATES_OUT (cslice TOUT), templates past the base set go to TX.lean.
+With BASE_TEMPLATES and TEMPLATES_OUT (slicehyb TOUT), templates past the base set go to TX.lean.
 
 Modules in gen/BoxKGen/NAME: Base (stabiliser lists, base masks, one check each), T{i} (targets:
 literal lane mask and one check that the target's pairs and solutions cover it), S{i} (slices,

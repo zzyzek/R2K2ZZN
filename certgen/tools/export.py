@@ -96,7 +96,7 @@ for m in gen:
         continue
     write(m.replace('.', '/') + '.lean', to_module(imps, re.sub(r'(?m)^def ', 'noncomputable def ', body)))
 
-# No native_decide anywhere in the project.
+# Every certificate is a kernel check (decide +kernel).
 for r, ds, fs in os.walk(OUT):
     ds[:] = [d for d in ds if d != '.lake']
     for f in fs:
@@ -139,7 +139,7 @@ def context(lines, upto):
     return [n for k, n in stack if k == 'ns'], [x for _, x in scoped]
 
 def subset(m, decls):
-    """The declarations of module m at the given (lean/ source) line ranges, in their contexts."""
+    """The declarations of module m at the given source line ranges, in their contexts."""
     lines = text_of(m).split('\n')
     rs = set()
     for l in open(decls):

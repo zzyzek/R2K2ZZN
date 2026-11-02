@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Write gen/FinalK.lean: the characterization from the box certificates (BoxKGen) and the window
-certificates (WinKU), with no `native_decide`.
+certificates (WinKU).
 
-usage: gen_final.py [PREFIX]   box modules BoxKGen.{PREFIX}{w}x{h} (default B; N for gen_cbox boxes)
+usage: gen_final.py [PREFIX]   box modules BoxKGen.{PREFIX}{w}x{h} (N for the gen_cbox boxes, as regen.sh uses)
 """
 import os, sys
 P = sys.argv[1] if len(sys.argv) > 1 else "B"

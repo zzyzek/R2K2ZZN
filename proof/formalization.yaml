@@ -10,7 +10,7 @@ project:
     finds a solution whenever one exists. For both sides at least 11, an instance is solvable
     exactly when it passes a finite catalogue of forbidden patterns; for a side at most 10, a
     plug dynamic program decides it. The finite cases of the characterization are 21 boxes of
-    slice certificates and 59 window certificates, all checked by the kernel (no native_decide).
+    slice certificates and 59 window certificates, all checked by the kernel.
   authors:
     - "Z. Zzyzek (github: zzyzek)"
   license: "CC0-1.0"
@@ -113,7 +113,7 @@ review:
     - "none"
   notes: >-
     The kernel checks every proof, using only propext, Classical.choice and Quot.sound;
-    certificates are checked with decide +kernel, with no native_decide. Independent
+    certificates are checked with decide +kernel. Independent
     mathematical review has not taken place.
 
 alignment:

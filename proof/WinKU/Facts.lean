@@ -166,7 +166,7 @@ theorem b_odd : ∀ e ∈ BOUNDARY3_ODD, ∀ fsl ∈ [none, some 0, some 11],
 /-- **The window certificates**, kernel-checked. -/
 theorem certFactsK : CertFacts := ⟨c_even, c_odd, b_even, b_odd⟩
 
-/-- **Theorem B** on the domain, without `native_decide`. -/
+/-- **Theorem B** on the domain. -/
 theorem theoremB_K {I : Inst} (hI : InDom I) (hS : Solvable I) : Passes I :=
   theoremB_cert certFactsK hI hS
 

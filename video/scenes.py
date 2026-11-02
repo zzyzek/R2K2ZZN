@@ -1033,15 +1033,14 @@ class S11Proof(Base):
             text("theorem solvableB_iff", 28, COL["A"], mono=True),
             text("    every rectangle, the decision procedure is correct", 24, FG, mono=True),
             text("theorem thinBF_iff", 28, COL["A"], mono=True),
-            text("    the plug DP is exact (standard axioms only)", 24, FG, mono=True),
+            text("    the plug DP is exact", 24, FG, mono=True),
         ).arrange(DOWN, aligned_edge=LEFT, buff=0.22).move_to(UP * 1.0)
-        trust = text("154 native_decide axioms, for 144 box checks and 10 window certificates,\n"
-                     "evaluated by compiled code. A full build takes about 4 hours on 4 threads.", 22, DIM)
+        trust = text("The finite checks are certificates checked by the Lean kernel.\n"
+                     "The results use only the standard axioms.", 22, DIM)
         trust.next_to(lean, DOWN, buff=0.5)
         self.say("All of this is checked in Lean 4, in three main theorems.")
         self.play(LaggedStart(*[FadeIn(l) for l in lean], lag_ratio=0.25), run_time=2.5)
-        self.say("The finite checks run by native_decide, which trusts Lean's compiler rather than "
-                 "its kernel. Everything else is checked by the kernel.")
+        self.say("The finite checks are certificates, and Lean's kernel checks every proof.")
         self.play(FadeIn(trust))
         self.say("This shows that two-path Zig-Zag Numberlink on rectangles is decided, and solved, "
                  "in polynomial time, with the whole argument checked in Lean 4.")

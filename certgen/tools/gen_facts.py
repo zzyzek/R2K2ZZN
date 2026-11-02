@@ -57,7 +57,7 @@ boundary("b_even", "Be", nBe, 0, "BOUNDARY3_EVEN")
 boundary("b_odd", "Bo", nBo, 1, "BOUNDARY3_ODD")
 out += ["/-- **The window certificates**, kernel-checked. -/",
         "theorem certFactsK : CertFacts := ⟨c_even, c_odd, b_even, b_odd⟩", "",
-        "/-- **Theorem B** on the domain, without `native_decide`. -/",
+        "/-- **Theorem B** on the domain. -/",
         "theorem theoremB_K {I : Inst} (hI : InDom I) (hS : Solvable I) : Passes I :=",
         "  theoremB_cert certFactsK hI hS", "", f"end {PRE}", ""]
 open(os.path.join(ROOT, 'gen', PRE, 'Facts.lean'), 'w').write('\n'.join(out))

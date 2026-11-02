@@ -12,17 +12,18 @@ the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the
   - `solvableB_iff`: a decision procedure proved correct for every rectangle; thin rectangles use
     a plug DP proved sound and complete (`thinBF_iff`).
 - The finite computations are certificates checked by the Lean kernel (`proof/`, the paper,
-  Section 9). No `native_decide` is used.
+  Section 9).
 - The decision procedure's running time is also proved in Lean, in a step-counting model:
   `ZZN.T.solvableBT_time` bounds its steps by `Cdec · (RC + R + C + 1)`. The constant `Cdec` (about
   10^756) comes from a crude count of plug DP states.
 - The construction (§8) is a Lean function, `ZZN.solveZZN`, proved sound and complete. Its steps
   are bounded by `ZZN.T.solveZZNT_time`, a polynomial of degree 5 in the longer side with a
   constant of about 10^3500, from the same state count.
-- The Lean version organizes the finite computations differently from §5 below. It checks every
-  box with sides 11–22 directly (144 theorems), one representative per orbit of the 64 symmetries,
-  asking that the representative or one of its reflections passes, so the R entry needs no
-  reflection symmetry. Moves are found by a checked search, and thin pieces are solved and checked.
+- The Lean version organizes the finite computations differently from §5 below. Band
+  compressions (deleting two free lines whose neighbourhood is empty) leave irreducible instances
+  only in boxes with sides 11–16; sides 17–22 are proved to have none (`ZZN/BoxK/None.lean`). The
+  21 boxes are covered by slice certificates, one per set of four endpoint rows, up to the box's
+  symmetries (`proof/BoxKGen`, `docs/DISCHARGE.html`).
 
 ---
 

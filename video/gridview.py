@@ -211,7 +211,6 @@ SPOKEN = [
     ("\u03c3", "sigma"),
     ("2/2", "two-two"),
     ("1/3", "one-three"),
-    ("native_decide", "native decide"),
     ("NP-complete", "N P complete"),
     ("\u00d7", "by"),
     ("\u00b7", " times "),

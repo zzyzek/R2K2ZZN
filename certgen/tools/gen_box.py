@@ -4,7 +4,7 @@
 gen_box.py templates TEMPLATES_FILE          -> gen/BoxKGen/Templates.lean
 gen_box.py box W H CERT_FILE [PER_FILE]     -> gen/BoxKGen/B{W}x{H}/S{n}.lean, Main.lean
 CERT_FILE: lines SLICE a,b,c,d / PAIR k s / FIRE j / INST lane k s / ITREE lane TEMPLATE / SOL lane P Q
-(from split/slicehyb.c); UNM or UNSOLVED lines abort.
+(from src/slicehyb.c); UNM or UNSOLVED lines abort.
 """
 import os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
