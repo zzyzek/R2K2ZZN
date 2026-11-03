@@ -96,6 +96,30 @@ for m in gen:
         continue
     write(m.replace('.', '/') + '.lean', to_module(imps, re.sub(r'(?m)^def ', 'noncomputable def ', body)))
 
+# Lake builds as many modules at once as there are cores, and a certificate module needs up to
+# about 13 GB. The certificate modules (box slices, shared window checks) form CHAINS chains, each
+# module importing the previous one in its chain, so at most CHAINS of them build at once on any
+# machine. Modules go to the chain with the least build time so far (build_times.txt, seconds
+# measured with two Lean processes), longest first; WinKU.Shared.D comes first, since the other
+# shared window modules import it.
+#
+CHAINS = 2
+times = dict((m, float(t)) for m, t in (l.split() for l in open(os.path.join(TOOLS, 'build_times.txt'))))
+members = [m for m in gen if re.fullmatch(r'BoxKGen\.N\d+x\d+\.S\d+|WinKU\.Shared\.(D|T\d+|G\d+)', m)]
+assert set(members) == set(times), set(members) ^ set(times)
+members.sort(key=lambda m: (m != 'WinKU.Shared.D', -times[m], m))
+chains = [[] for _ in range(CHAINS)]
+for m in members:
+    min(chains, key=lambda c: sum(times[x] for x in c)).append(m)
+for c in chains:
+    for prev, m in zip(c, c[1:]):
+        p = os.path.join(OUT, *m.split('.')) + '.lean'
+        t = open(p).read()
+        t = t.replace('\n\n@[expose] public section\n',
+                      f'\n-- Build order only (at most {CHAINS} certificate modules build at once).\n'
+                      f'import {prev}\n\n@[expose] public section\n', 1)
+        open(p, 'w').write(t)
+
 # Every certificate is a kernel check (decide +kernel).
 for r, ds, fs in os.walk(OUT):
     ds[:] = [d for d in ds if d != '.lake']

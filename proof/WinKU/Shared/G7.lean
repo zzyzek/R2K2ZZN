@@ -6,6 +6,8 @@ module
 
 public import WinKU.Shared.D
 public import ZZN.WinK.SigL
+-- Build order only (at most 2 certificate modules build at once).
+import WinKU.Shared.G5
 
 @[expose] public section
 

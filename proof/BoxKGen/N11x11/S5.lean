@@ -6,6 +6,8 @@ module
 
 public import BoxKGen.Templates
 public import BoxKGen.N11x11.Base
+-- Build order only (at most 2 certificate modules build at once).
+import WinKU.Shared.T2
 
 @[expose] public section
 

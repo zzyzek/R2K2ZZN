@@ -6,6 +6,8 @@ module
 
 public import BoxKGen.Templates
 public import BoxKGen.N12x13.Base
+-- Build order only (at most 2 certificate modules build at once).
+import BoxKGen.N12x12.S7
 
 @[expose] public section
 

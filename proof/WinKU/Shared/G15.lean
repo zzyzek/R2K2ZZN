@@ -6,6 +6,8 @@ module
 
 public import WinKU.Shared.D
 public import ZZN.WinK.SigL
+-- Build order only (at most 2 certificate modules build at once).
+import BoxKGen.N12x15.S6
 
 @[expose] public section
 
