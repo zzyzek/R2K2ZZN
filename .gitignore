@@ -68,3 +68,5 @@ video/media/
 video/out/
 video/logs/
 video/sheets/
+lib/tests/boxes
+lib/tests/boxes.out

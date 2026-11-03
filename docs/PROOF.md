@@ -294,16 +294,19 @@ Input: an instance R. Output: a solution, or "unsolvable".
 3. If a reduction (S), (K) or (I) applies: build R′, solve it recursively, and lift the solution
    (strip splice, or band extension).
 4. If (Q) applies: solve both one-path pieces by the IPS construction and return their union.
-5. Otherwise R is a base box or in 𝔉, with sides ≤ 22. Find a valid move (Theorem A guarantees
-   one), solve the pieces recursively, and glue.
+5. Otherwise R is a base box or in 𝔉, with sides ≤ 22. Find a valid move, solve the pieces
+   recursively, and glue. §5 found a valid move for every such instance outside 11 × 11, 11 × 12 and
+   12 × 12; in those three `lib/tests/boxes.sh` finds a same-colour split or a valid move for every
+   passing instance. If no move is found, solve R with the exact plug DP.
 
 **Cost.**
-- Steps 3 and 4 shrink one side per step, so there are O(N0 + N1) of them, each costing a
-  catalogue check plus an O(N0 + N1) lift.
+- Step 3 shrinks one side per step, so there are O(N0 + N1) of them, each costing a catalogue
+  check (O(N0 + N1)) plus a lift (O(N0·N1), the paths are rebuilt). Step 4 happens once and costs
+  O(N0·N1).
 - Step 5 runs on a bounded-size instance, in constant time.
 - Step 1 is linear in the long side, with a large constant (the number of width-10 plug states).
 
-So the total is polynomial: about O((N0 + N1)²), plus the plug DP on thin inputs.
+So the total is O((N0 + N1)·N0·N1), plus the plug DP on thin inputs.
 
 The libraries in `lib/` (Python, JavaScript, C) implement this algorithm, together with an optimized
 solver for thin instances.

@@ -149,8 +149,11 @@ its first line: a row serpentine with a return column when w is even, column sna
 
 ## 6. Moves: cut, solve the pieces, glue
 
-When no reduction applies, the instance has sides ≤ 22 and has a **valid move** (verified for
-every such instance; §9). A move is a cut plus a choice of crossings. Its pieces must be **OK**:
+When no reduction applies, the instance has sides ≤ 22. If no same-colour split applies, the
+algorithm looks for a **valid move**. The proof's computer check found one for every passing such
+instance outside the boxes 11 × 11, 11 × 12 and 12 × 12; in those three, `lib/tests/boxes.sh` finds a
+same-colour split or a valid move for every passing instance. If none is found, the whole instance
+is solved by the exact plug DP algorithm. A move is a cut plus a choice of crossings. Its pieces must be **OK**:
 - a **one-path piece** (one pair, possibly virtual) passes IPS; it is solved by a Hamiltonian-path
   construction;
 - a **two-path piece** is either thin and solvable (plug DP), or in 𝔇 and passing the catalogue
@@ -178,8 +181,9 @@ solve(I):                                   # returns (path A, path B) or None
   if a reduction (S, K or I) deletes lines d, d+1:
       return bandExtend(solve(I minus lines d, d+1), d)
   if a same-colour split exists: return its two Hamiltonian paths
-  m := first valid move of I                # exists; sides <= 22
-  solve its pieces (Hamiltonian path / plug DP / solve), glue
+  m := first valid move of I                # sides <= 22
+  if m exists: solve its pieces (Hamiltonian path / plug DP / solve), glue
+  else: return plugDP(I)                    # exact; not reached in the tests (§6)
 decide(I) := plugDP feasibility if thin, else "catalogue does not fire"
 ```
 
@@ -221,7 +225,8 @@ Run it: `python3 lib/python/zzn_cli.py 16 13 5 2 12 10 6 9 13 3 --grid --trace`.
   global and local entries by direct arguments; B, C, D by exhaustive *window certificates*.
 - **Theorem A** (catalogue complete): every passing instance in 𝔇 is solvable. Induction on area:
   reductions preserve passing and solutions extend back; irreducible instances have sides ≤ 22,
-  and a computer check showed each passing one has a valid move.
+  and a computer check showed each passing one solvable (directly in 11 × 11, 11 × 12 and 12 × 12,
+  by a valid move in the other boxes).
 - **Thin:** the plug DP is exact (sound and complete).
 
 All three are proved in Lean 4 (`proof/README.md`): `passes_iff_solvable`, `thinBF_iff`,

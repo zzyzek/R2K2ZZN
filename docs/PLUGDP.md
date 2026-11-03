@@ -71,8 +71,24 @@ predecessors plus the checkpoints.
   side ≤ 6.
 - **Feasibility only:** the forward pass alone (`solvable_paths`).
 - **States:** bounded by the number of valid frontiers of width W + 1: tens at W = 4, about 10⁵
-  at W = 10. Time is O(L · W · states); for W = 10 the C version takes about 0.5 s on 11 × 11, and
-  grows linearly with L.
+  at W = 10. Time is O(L · W · states): linear in the long side L, exponential in the short side W.
+  Measured for the C version (`lib/tests/dp_cost.py 10 1`, one process per instance, random
+  endpoints that pass parity, 4-core machine, 2026-11-03):
+
+  | Size | Solver | Instances (solvable) | Time median / max (s) | Peak memory median / max (MB) |
+  |---|---|---|---|---|
+  | 8 × 40 | thin | 10 (10) | 0.06 / 0.12 | 4 / 5 |
+  | 9 × 40 | thin | 10 (10) | 0.40 / 0.76 | 10 / 17 |
+  | 10 × 10 | thin | 10 (10) | 0.16 / 0.41 | 14 / 35 |
+  | 10 × 20 | thin | 10 (10) | 0.55 / 1.29 | 27 / 39 |
+  | 10 × 40 | thin | 10 (10) | 2.84 / 7.00 | 62 / 81 |
+  | 11 × 11 | fallback | 10 (10) | 0.46 / 1.59 | 23 / 91 |
+  | 12 × 12 | fallback | 10 (10) | 2.03 / 7.24 | 54 / 183 |
+
+  "Thin" is the plain thin solver (not `--optimized`). "Fallback" is a passing irreducible
+  instance solved whole by the plug DP algorithm (`ZZN_SKIP_MOVES=1`); the libraries reach it only
+  if the move search fails, which `lib/tests/boxes.sh` never sees. The JavaScript version takes
+  about 2–4 times as long and Python about 30 times.
 - **Splitting long thin grids** (the libraries' optimized solvers, `--optimized`): since the
   state count grows exponentially with the frontier, cut the grid into pieces with a short side
   and run the DP only on those. Each cut is several lines away from every endpoint; the solver

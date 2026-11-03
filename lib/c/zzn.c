@@ -1255,7 +1255,9 @@ static int solve_rec(solver_t *S, const inst_t *I, path_t out[2]) {
       }
     }
   }
-  /* moves */
+  /* moves; ZZN_SKIP_MOVES=1 skips them, for testing */
+  const char *skip = getenv("ZZN_SKIP_MOVES");
+  if (!(skip && strcmp(skip, "1") == 0))
   for (int m = 0; m <= THIN; m++)
     for (int t = 0; t < 5; t++)
       for (int gi = 0; gi < 8; gi++)
@@ -1281,8 +1283,12 @@ static int solve_rec(solver_t *S, const inst_t *I, path_t out[2]) {
           }
           if (g_err) return -1;
         }
-  g_err = 1;
-  return -1;
+  /* The proof checks single moves in every box except 11x11, 11x12 and 12x12, where it shows each
+     instance solvable directly; if no move is found, solve it exactly. */
+  snprintf(line, sizeof line, "  exact %dx%d", I->R, I->C); tlog(S, line);
+  int r = dp_solve(I, out);
+  if (r != 1) { g_err = 1; return -1; }
+  return 1;
 }
 
 /* ------------------------------------------------------------------- public ---------- */

@@ -11,7 +11,7 @@ public import ZZN.BoxK.Box
 /-!
 # Sides 17–22 have no irreducible tuple
 
-Band and strip compressions apply to every tuple of side 19 to 22, so only boxes with both
+Band and strip compressions apply to every tuple of side 17 to 22, so only boxes with both
 sides at most 16 need slice certificates.
 -/
 

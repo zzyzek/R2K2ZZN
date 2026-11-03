@@ -14,11 +14,13 @@ The constructive algorithm follows the proof (docs/ALGORITHM.md):
   3. a reduction applies:  delete two empty lines, solve, band-extend the solution back
   4. same-colour split:    two Hamiltonian paths (IPS)
   5. otherwise:            sides <= 22; find a valid move, solve the pieces, glue
+  6. no move found:        solve the instance with the exact plug DP algorithm
 """
 from .grid import (Instance, well_formed, ends, GEOS, apply_geo, relabel, map_back, orient,
                    check_solution)
 from .catalogue import fires
 from . import plugdp, ips, lift
+import os
 
 THIN = 10
 
@@ -180,9 +182,15 @@ class _Solver:
         sol = self.same_split(I)
         if sol:
             return sol
-        sol = self.move(I)
+        # The proof checks single moves in every box except 11x11, 11x12 and 12x12, where it shows
+        # each instance solvable directly; if no move is found, solve it exactly. ZZN_SKIP_MOVES=1
+        # forces this step, for testing.
+        sol = None if os.environ.get("ZZN_SKIP_MOVES") == "1" else self.move(I)
         if sol is None:
-            raise SolverError(f"no valid move found for {I} (contradicts Theorem A)")
+            self.log("exact", I)
+            sol = plugdp.solve_instance(I)
+            if sol is None:
+                raise SolverError(f"internal error: passing instance {I} unsolvable")
         return sol
 
     def same_split(self, I):
