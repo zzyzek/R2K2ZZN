@@ -43,16 +43,17 @@ related_formalizations:
 
 status:
   scope: >-
-    Formalized and registered, on the decision procedure, the catalogue and the construction with
-    a step counter (solvableBT, fires3T, solveZZNT, which return what the plain solvableB, the
-    catalogue test and solveZZN do): for well-formed instances on any rectangle, solvableBT
-    decides solvability within Cdec (RC + R + C + 1) steps (ZZN.T.solvableBT_main); for both
+    Formalized, and submitted for registration, the decision procedure, the catalogue and the
+    construction with a step counter (solvableBT, fires3T, solveZZNT, which return what the plain
+    solvableB, the catalogue test and solveZZN do): for well-formed instances on any rectangle,
+    solvableBT decides solvability within Cdec (RC + R + C + 1) steps (ZZN.T.solvableBT_main); for both
     sides at least 11, the catalogue finds no pattern exactly when the instance is solvable
     (ZZN.T.fires3T_iff_solvable); every answer of solveZZNT is a solution, it returns one for
     every well-formed solvable instance, within polynomially many steps (ZZN.T.solveZZNT_main).
     The plain statements (solvableB_iff, passes_iff_solvable, solveZZN_sound, solveZZN_complete)
-    are proved in the same project but not registered: with them the challenge file would exceed
-    1 000 lines. The constants in the step bounds are astronomically large.
+    are proved in the same project but not submitted for registration: with them the challenge file
+    would exceed 1 000 lines. The constants in the step bounds come from a crude count of plug DP
+    algorithm states: Cdec is about 10^756, the construction's constant about 10^3500.
   sorry_count: 0
   sorry_in_definitions: 0
   axioms: []
@@ -98,7 +99,7 @@ fidelity:
   divergences: >-
     Cells are 0-indexed pairs (x, y) on a w × h grid; a path is a list of cells (IsPath: starts
     at s, ends at t, no repeats, in bounds, consecutive cells adjacent). Inst.WellFormed asks
-    the four endpoints to be distinct cells of the grid. The registered theorems are about the
+    the four endpoints to be distinct cells of the grid. The submitted theorems are about the
     counted procedures (TimeM, a value with a step count); the step count is defined by the
     procedures themselves, one step per basic list or arithmetic operation. solvableBT_main and
     solveZZNT_main do not depend on the forbidden-pattern catalogue being right: they relate the

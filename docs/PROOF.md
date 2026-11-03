@@ -18,7 +18,8 @@ the algorithm in pseudocode, `docs/ALGORITHM.md` is a shorter reference, and the
   10^756) comes from a crude count of plug DP states.
 - The construction (§8) is a Lean function, `ZZN.solveZZN`, proved sound and complete. Its steps
   are bounded by `ZZN.T.solveZZNT_time`, a polynomial of degree 5 in the longer side with a
-  constant of about 10^3500, from the same state count.
+  constant of about 10^3500, from the same state count. `docs/CONSTANT.md` describes how to lower
+  both constants.
 - The Lean version organizes the finite computations differently from §5 below. Band
   compressions (deleting two free lines whose neighbourhood is empty) leave irreducible instances
   only in boxes with sides 11–16; sides 17–22 are proved to have none (`ZZN/BoxK/None.lean`). The

@@ -8,7 +8,7 @@ results depend only on `propext`, `Classical.choice` and `Quot.sound`. Its certi
 
 ## Main results
 
-Registered with Palomar (`Challenge.lean`, `Solution.lean`, `comparator.json`):
+Submitted to Palomar for registration (`Challenge.lean`, `Solution.lean`, `comparator.json`):
 
 | Theorem | File | Statement |
 |---|---|---|
@@ -18,7 +18,7 @@ Registered with Palomar (`Challenge.lean`, `Solution.lean`, `comparator.json`):
 
 `solvableBT`, `fires3T` and `solveZZNT` are the decision procedure, the forbidden-pattern
 catalogue and the construction with a step counter; they return what the plain versions do
-(`solvableBT_ret`, `solveZZNT_ret`). The plain statements are proved too, not registered:
+(`solvableBT_ret`, `solveZZNT_ret`). The plain statements are proved too, not submitted:
 
 | Theorem | File | Statement |
 |---|---|---|
@@ -42,7 +42,7 @@ statements:
 
 `ZZN/TimedStatement.lean` holds the step-counting definitions (`TimeM`, `fires3T`, `solvableBT`,
 `Cdec`, `solveZZNT`). `Challenge.lean` (998 lines) is the part of `ZZN/Statement.lean` they use,
-that file, and the three registered theorems; it copies the definitions without their
+that file, and the three submitted theorems; it copies the definitions without their
 documentation to stay under 1 000 lines. Everything else is checked by Lean.
 
 ## Building
