@@ -13,7 +13,8 @@ public import ZZN.Cut.LaneV
 
 `accS` is `accB` written directly with whole-number operations on lanes in 8-bit fields; lane
 Booleans sit in bit `8 j`. With every input lane below 128 (`Sm`), lane `j` of `accS` is `accB` of
-lane `j` (`accS_get`). `accV2` uses it when all inputs have the field form, `accV` otherwise.
+lane `j` (`accS_get`). `accV3` uses it when all inputs have the field form and `accV` otherwise; `accV2` uses `accV`
+when the width and height are both constants and `accV3` otherwise.
 -/
 
 namespace ZZN.Lane

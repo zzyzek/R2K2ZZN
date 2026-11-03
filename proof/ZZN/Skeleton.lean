@@ -13,17 +13,20 @@ public import ZZN.Moves
 
 `PROOF.md` Theorem A: every instance with both sides ≥ 11 that passes the catalogue is solvable.
 
-Here it is proved (`theoremA`) from a structure `Facts` whose fields are proved in later files:
+Here it is proved (`theoremA`) from a structure `Facts`. `passX` and `passT` are proved in later
+files; on the final route `finite` is replaced by `FactsFiniteB.finite` (`PassB.lean`):
 
 * `passX`, `passT` — the catalogue facts: the reductions preserve passing (§4.3–§4.5;
   `PassX.lean`, `PassXR.lean`, `PassXAssemble.lean`, `PassStrip.lean`), and the catalogue is
   symmetric under transposition (`PassT.lean`, `PassTR.lean`);
 * `finite` — the computations (§5): every passing instance in the domain with both sides ≤ 22 to
   which no reduction applies has a valid move (`MoveOK`, exactly what the one-step checker
-  accepts), or is solvable outright (the box checks, `Boxes.lean`).
+  accepts), or is solvable outright.
 
 Everything else (the induction, the case analysis, lifting solutions through every reduction,
-transposition) is checked here. `theoremA_final` (`Boxes.lean`) is Theorem A with no hypotheses.
+transposition) is checked here. The kernel-checked Theorem A is `ZZN.passes_iff_solvable_K`
+(`FinalN.lean`), via `BoxK.theoremA_boxes` and `theoremA_B` (`PassB.lean`), which repeats this
+induction with band compressions added.
 -/
 
 namespace ZZN

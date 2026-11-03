@@ -19,8 +19,8 @@ public import Mathlib.Data.Finset.Card
 
 `TimeM α` pairs a result with a step count, and `bind` adds the counts. The counted algorithm
 (`ZZN/Timed/*.lean`) is written with the operations below and with constant-time functions on
-numbers, Booleans, cells, endpoint records, frames and options. Nothing else: the script
-`checks/timed_lint.py` rejects any other list operation inside a counted definition.
+numbers, Booleans, cells, endpoint records, frames and options. No other list operation is
+used inside a counted definition.
 
 **The trusted part is this list of costs.** Each is one step per element touched, with a
 quadratic charge for removing duplicates.

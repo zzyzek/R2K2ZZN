@@ -10,7 +10,7 @@ public import ZZN.Splice
 @[expose] public section
 
 /-!
-# Window certificates: the inside DP is sound
+# The plug DP: processed cells, end codes and the run invariant `Inv`
 
 After processing cells `0 … i−1` (row-major), some DP state lists exactly the end pairs of the
 runs of the solution paths in the processed cells.

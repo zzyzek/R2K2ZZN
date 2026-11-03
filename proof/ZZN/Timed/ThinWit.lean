@@ -13,7 +13,7 @@ public import ZZN.Timed.Thin
 /-!
 # The counted witness-carrying plug DP
 
-`thinSolveWT` is the solver `Thin.thinSolveW` (`ZZN/Constr/ThinWit.lean`) written with the counted
+`thinSolveWT` is the solver `Thin.thinSolveW` (`ZZN/Statement.lean`; lemmas in `ZZN/Constr/ThinWit.lean`) written with the counted
 operations of `TimeM.lean`; `thinSolveWT_ret` shows it returns the same answer.
 
 Beyond the helpers of `Timed/Thin.lean`, constant-time work used directly: `mkP`, `setDp`,

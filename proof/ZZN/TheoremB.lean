@@ -15,7 +15,9 @@ public import ZZN.Parity
 Proved here: P, T1, T2, L1–L6, E1. The effective-alternation entry R is an argument of
 `theoremB` (`theoremB_R` in `ZZN/SoundRMain.lean` supplies it). Stated as hypotheses (`BFacts`):
 the entries B, C, D, whose soundness comes from the window certificates (the paper, Section 7;
-`bFacts_of` in `WinBCD.lean`, discharged in `Final.lean`).
+`bFacts_of` in `ZZN/C8R.lean`; the certificates are discharged by `certFactsK` in
+`WinKU/Facts.lean`, giving `WinKU.theoremB_K`). `BFacts` has two fields: `bSound` covers B, and
+`cSound` (`corner4`) covers C and D.
 -/
 
 namespace ZZN

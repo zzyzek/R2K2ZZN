@@ -16,8 +16,8 @@ A Hamiltonian path must alternate colors at every step, which forces a
 relationship between the colors of its two endpoints and the parity of the
 total vertex count -- this file is the Lean counterpart of
 `are_color_compatible` / `_is_forbidden_case_*`'s color checks in
-`grid_hampath.py`, together with a proof of the direction that actually
-matters for a *necessary*-condition theorem: `HasHamPath → ColorCompatible`.
+`grid_hampath.py` (a script of the GridHam2D-Lean project), together with a proof of the
+direction that actually matters for a *necessary*-condition theorem: `HasHamPath → ColorCompatible`.
 
 The even case follows from alternation alone. The odd case is a counting
 argument: colours alternate along the path, so a path of odd length `n`
@@ -79,8 +79,7 @@ theorem chain_parity_alternates (p : List Coord) (hc : chainAdjacent p = true) :
 /-- Bridges `List.getLast?` (which returns `Option`) to `List.getLast`
 (which takes a nonempty-proof and returns the element directly): if the
 former says `some x`, the latter computes to `x`. Proved from scratch by
-induction rather than by citing a Mathlib lemma name -- see the note above
-`chain_parity_head_last` for why. Each step relies only on `rfl` (both
+induction rather than by citing a Mathlib lemma name. Each step relies only on `rfl` (both
 `List.getLast` and `List.getLast?` reduce definitionally on a concrete
 `cons`/`cons`/... pattern, exactly like `chainAdjacent` did in
 `chain_parity_alternates` above) plus `injection` (a core tactic, not a

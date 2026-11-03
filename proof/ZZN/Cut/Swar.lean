@@ -13,7 +13,7 @@ public import ZZN.Cut.Lane
 
 A number `a` holds one small value per lane: lane `j` is the base-256 digit `fld a j`. Addition,
 subtraction and bitwise operations act field by field when no field carries or borrows
-(`fld_add`, `fld_sub`, `fld_land`, `fld_mul`). With every field below 128 (bit 7 free), the
+(`fld_add`, `fld_sub`, `fld_land`, `fld_mulc`). With every field below 128 (bit 7 free), the
 truncated difference and the comparison take a handful of operations on whole numbers.
 -/
 

@@ -13,8 +13,9 @@ public import ZZN.TheoremA
 
 A strip deletes two endpoint-free lines at an edge (`d = 0` with lines 0–3 free, or `d = w − 2`
 with the last four lines free). In the frames at the strip's corners (*near* frames) every
-endpoint is at least 2 lines from the corner line, so no corner-local entry can fire there
-(*locality*); in the other frames (*far* frames) the endpoints keep their frame coordinates.
+endpoint is at least 2 lines from the corner line, so no corner-local entry fires there except E1
+in a transposed frame, which reflects to a far frame (`edgeClosure_flip`) (*locality*); in the
+other frames (*far* frames) the endpoints keep their frame coordinates.
 -/
 
 namespace ZZN
@@ -325,7 +326,8 @@ theorem frames_any_strip {R R' C : ℕ} {pts pts' : List Pt} (hR : R' ≤ R) (ne
 
 /-! ### Right strip: the rewrite phase is unchanged -/
 
-/-- All cells of a rewrite state are at least 5 lines from the far edge `R - 1`. -/
+/-- Every endpoint cell of a rewrite state has row at most `R - 5`, so at least 4 lines from the
+far edge `R - 1`. -/
 def LowSt (R : ℕ) (st : RWState) : Prop := ∀ q ∈ st.eff, q.1.1 + 5 ≤ R
 
 theorem nearP_low {R R' C : ℕ} (hR' : R' ≤ R) (hRR : R ≤ R' + 2) {pts : List Pt}

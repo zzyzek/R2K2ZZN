@@ -16,7 +16,11 @@ theorems (`passX_comp`). Its remaining fields, proved in later files:
 
 * `passStrip` — the strip reductions preserve passing (`PROOF.md` §4.3; `PassStrip.lean`);
 * `passT` — the catalogue is symmetric under transposition (`PassT.lean`, `PassTR.lean`);
-* `finite` — the computations (`Boxes.lean`).
+* `finite` — every passing irreducible instance with both sides at most 22 has a valid move or
+  is solvable.
+
+`Facts'` is not discharged as a whole. The kernel-checked Theorem A is `BoxK.theoremA_boxes`,
+used in `passes_iff_solvable_K` (`FinalN.lean`).
 -/
 
 namespace ZZN

@@ -11,7 +11,7 @@ public import ZZN.Timed.Catalogue
 /-!
 # The time of the counted catalogue test
 
-`fires3T_time`: the counted catalogue test takes at most `10⁶ (R + C + 1)` steps. Everything is
+`fires3T_time`: the counted catalogue test takes at most `300000 (R + C + 1)` steps. Everything is
 constant-size except the edge-closure scan along one side (`edgeClosureT`) and the outer walk
 of the region (`walk3T`), whose length is at most `2 (R + C)` plus a constant.
 -/

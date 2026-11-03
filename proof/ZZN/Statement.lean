@@ -11,8 +11,9 @@ public import Mathlib
 /-!
 # The statements: definitions
 
-The definitions the main theorems mention, in one module (Palomar's `Challenge.lean` is this file
-plus the theorems): grids and paths (`GridHam`), instances and solutions (`ZZN.Defs`), the
+The definitions the main theorems mention, in one module (Palomar's `Challenge.lean` is the part
+of this file that the counted definitions use, plus `ZZN/TimedStatement.lean` and the three
+theorems): grids and paths (`GridHam`), instances and solutions (`ZZN.Defs`), the
 forbidden-pattern catalogue (`ZZN.Catalogue`), the plug DP for thin rectangles (`ZZN.Thin`), the
 decision procedure `solvableB`, and the construction `solveZZN`. Each block names the module it
 was moved from, where its lemmas remain.

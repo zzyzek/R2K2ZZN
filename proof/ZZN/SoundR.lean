@@ -11,10 +11,12 @@ public import ZZN.TheoremB
 /-!
 # Soundness of R (effective alternation)
 
-Plan:
+Contents:
 1. The rewrite phase, as functions of the original endpoints.
 2. Forced routes: the solution paths, cut at the settled cells.
-3. Exits from the effective endpoints to the perimeter, in doubled coordinates; then `t1_core`.
+3. Exits from the effective endpoints to the perimeter, in doubled coordinates.
+
+The contradiction with `Planar.t1_core` is assembled in `SoundRMain.lean`.
 -/
 
 namespace ZZN
@@ -1341,7 +1343,8 @@ theorem eff_unsettled {E : Coord} (hr : ¬ RmI I E) : effI I E = E := by
   rcases hm with ((h | h) | h) | h <;> exact hr (e ▸ src_settled H h)
 
 /-- **Each endpoint's forced prefix**: it ends at the endpoint's effective cell, or (R2 with the
-other filling) at its partner's, which then ends at its own. -/
+other filling) at the effective cell of a same-colour partner `E'`, and then every forced prefix of
+`E'` ends at this endpoint's effective cell. -/
 theorem endpoint_info {E : Coord} (hE : IsEnd I E) :
     ∃ F, GoodPre (RmI I) (orient p q E) F ∧ F.head? = some E ∧
       (F.getLast? = some (effI I E) ∨

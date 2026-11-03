@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write gen/FinalK.lean: the characterization from the box certificates (BoxKGen) and the window
+"""Write gen/FinalN.lean for prefix N (as regen.sh uses), gen/FinalK.lean for the default prefix B: the characterization from the box certificates (BoxKGen) and the window
 certificates (WinKU).
 
 usage: gen_final.py [PREFIX]   box modules BoxKGen.{PREFIX}{w}x{h} (N for the gen_cbox boxes, as regen.sh uses)

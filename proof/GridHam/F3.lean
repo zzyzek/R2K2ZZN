@@ -26,6 +26,11 @@ Paths are lists, so "who is next to whom on the path" needs a small toolkit:
 Base case B0 (`b0_no_path`): on a 3-high grid, no Hamiltonian path starts at
 `(0, 1)` and ends in a column `≥ 1`. Both corners `(0,0)` and `(0,2)` would
 have to come right after `(0,1)`.
+
+Base case B1 (`b1_no_path`, `b1_no_path'`: start `(1,0)` or `(1,2)`, end column `≥ 3`) follows
+from the forced opening `c2_prefix` and B0. The contraction step `c1_contract` (with `c1_run`,
+`contract_prefix`, `contract_mid`) removes columns 0 and 1 when both endpoints are in columns
+`≥ 2`. `obs_no_path` is the case-3 obstruction on 3-high grids, by induction on the start column.
 -/
 
 namespace GridHam

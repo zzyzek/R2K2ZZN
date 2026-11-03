@@ -13,7 +13,7 @@ public import ZZN.Timed.BandCost
 /-!
 # The counted reduction search, lifting and checker
 
-* `findRedT` (`findRed`): at most `40 (w + 1)²` steps.
+* `findRedT` (`findRed`): at most `200 (w + 1)²` steps.
 * `liftET` (`liftE`): band extension after the reduction.
 * `solBT` (`solB`): at most `3 (|p| + |q| + 1)² + 10` steps.
 * `checkET` (`checkE`).

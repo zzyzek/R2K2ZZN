@@ -13,7 +13,7 @@ public import ZZN.Timed.TimeM
 /-!
 # The counted plug DP
 
-`thinBFT` is the plug DP of `ZZN/Thin/Fast.lean` (`thinBF`) written with the counted operations.
+`thinBFT` is the plug DP `thinBF` (`ZZN/Statement.lean`; lemmas in `ZZN/Thin/Fast.lean`) written with the counted operations.
 One step differs: after each cell the state list is cleaned with `ldedupT` (every duplicate
 removed, cost `|l|² + 1`) instead of the merge sort with adjacent deduplication (`normS`). Both
 keep exactly the same states, so the final answer is the same (`thinBFT_ret`).

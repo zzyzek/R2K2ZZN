@@ -15,7 +15,8 @@ The window DP (`ZZN.Win.inside`) is replayed against literal checkpoints: the st
 every cell is given as data, a packed set of codes. One small kernel check per (stage, bucket)
 shows that every successor of a state in the bucket is in the next checkpoint
 (`stepOK`), and one check per final bucket shows that every final state fails the outside test
-(`finalOK`). `certify_of_chain` turns these into the certificate `∀ s ∈ inside …, outsideOK … s =
+(`finalOK`). `cov_init` and `cov_stage` carry the covering through the stages, and
+`certify_of_cov` turns it into the certificate `∀ s ∈ inside …, outsideOK … s =
 false`.
 
 The encoding of states is not proved injective: every check re-decodes the code it looks up and
@@ -97,7 +98,7 @@ def decP : ℕ → ℕ → List ℕ
 
 def dec (n : ℕ) : St := (decP 32 (n / 4), n % 4)
 
-/-- Every state reachable by the window DP whose set is `S` has a code in `L`. -/
+/-- Every state in `S` is the decoding of some code in `L`. -/
 def Cov (L : KSet) (S : List St) : Prop := ∀ s ∈ S, ∃ c, Mem L c ∧ dec c = s
 
 /-! ### Step and final checks -/

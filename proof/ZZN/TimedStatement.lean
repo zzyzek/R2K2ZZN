@@ -608,7 +608,8 @@ def restT (ps : List ℕ) (pu pl : Option ℕ) : TimeM (List ℕ) :=
   | some u, none => leraseT ps u
   | none, some l => leraseT ps l
   | none, none => pure ps
-/-- The (at most three) incoming and endpoint ends, then the (at most two) outgoing ones. -/
+/-- The (at most three) ends entering the current cell: from the piece above, the piece to the
+left, and an endpoint. -/
 def endsL (a b c : ℕ) (e pu pl : Option ℕ) : List ℕ :=
   (match pu with | some z => [other c z] | none => []) ++
     (match pl with | some z => [other b z] | none => []) ++

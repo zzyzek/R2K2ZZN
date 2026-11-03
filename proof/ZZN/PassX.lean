@@ -17,7 +17,7 @@ that fires on `I.deleteAt d` fires on `I`. This file proves it entry by entry:
 * P (parity): unchanged by deleting two lines (`parityOk_deleteAt`).
 * Corner views: if every endpoint either keeps its distance to a frame's corner line or is at
   distance ≥ 8 in both instances (`GoodIn`), the 8 × 8 corner windows of that frame look the same
-  (`view_at_eq`), and the corner tests L2–L5 carry over (`testL*_of`).
+  (`view_at_eqK` with `k = 8`), and the corner tests L2–L5 carry over (`testL*_of`).
 * The other frame-based entries: C and D, B, E1.
 * For compressions: T2, L6, L1, T1.
 
@@ -105,7 +105,7 @@ theorem view_at_eqK {k R R' C : ℕ} {f : Frame} {r c : ℕ} (hr : r < k) (hc : 
 
 /-! ### The corner tests carry over -/
 
-/-- Two views agreeing on the 6 × 6 corner window. -/
+/-- Two views agreeing on the 5 × 5 corner window (coordinates `≤ 4`). -/
 def SameCorner (v v' : View) : Prop := ∀ r c, r ≤ 4 → c ≤ 4 → v'.at r c = v.at r c
 
 theorem testL2_of {v v' : View} (hs : SameCorner v v') (h : testL2 v' = true) :
@@ -149,8 +149,9 @@ theorem testL5_of {v v' : View} (hs : SameCorner v v') (h : testL5 v' = true) :
 
 /-! ### Compressions keep corner windows -/
 
-/-- An endpoint is far from the corners across the deletion: below it, at least 11 lines from the
-far edge; above it, at least at line 10. -/
+/-- An endpoint is far from the corners across the deletion: below the deleted lines,
+`p.1 + k + 3 ≤ R`; above them, `k + 2 ≤ p.1`. For `Far = FarK 8` that is at least 11 lines from
+the far edge, or at least at line 10. -/
 def FarK (k d R : ℕ) (p : ℕ × ℕ) : Prop := (p.1 < d → p.1 + k + 3 ≤ R) ∧ (d + 2 ≤ p.1 → k + 2 ≤ p.1)
 
 abbrev Far := FarK 8
@@ -800,7 +801,7 @@ theorem winRel_comp {I : Inst} {d : ℕ} (hI : InDom I) (h : CompClause I d) (f 
     (one _ (by simp [Inst.ends]) 0) (List.Forall₂.cons (one _ (by simp [Inst.ends]) 1)
     (List.Forall₂.cons (one _ (by simp [Inst.ends]) 1) List.Forall₂.nil)))
 
-/-- The endpoint relation in every frame at band 6, for a compression core. -/
+/-- The endpoint relation in every frame at band 5 (`WinRelK 5`), for a compression core. -/
 theorem winRel_core {I : Inst} {d : ℕ} (hI : InDom I) (h : CompCore I d) (f : Frame) :
     List.Forall₂ (WinRelK 5 I.w (I.w - 2) I.h f)
       [(I.s0, 0), (I.t0, 0), (I.s1, 1), (I.t1, 1)]

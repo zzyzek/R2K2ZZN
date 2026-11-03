@@ -14,7 +14,7 @@ public import GridHam.StripSplit
 For each prime shape (both sides ≤ 3, or 4×4, 4×5, 5×4) there is a list of
 Hamiltonian paths, one for every ordered pair `s ≠ t` that has one (596
 paths in total, over 1160 ordered pairs). The paths were found by
-exhaustive search in `bruteforce.py`; nothing here is trusted from that
+exhaustive search in `bruteforce.py` (GridHam2D-Lean project); nothing here is trusted from that
 script, because `prime_check` has the kernel verify, for every shape and every
 acceptable pair, that the looked-up path satisfies `ValidPath`.
 

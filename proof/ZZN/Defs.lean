@@ -12,8 +12,10 @@ public import GridHam.Basic
 /-!
 # Two-color Zig-Zag Numberlink on rectangles: the problem statement
 
-This file is the part of the formalization that has to be read and trusted: everything else is
-checked by Lean against these definitions.
+The definitions described here (`IsPath`, `Inst`, `Inst.WellFormed`, `IsSolution`, `Solvable`) are
+in `ZZN/Statement.lean`; this module re-exports them with `GridHam.Basic`. They are the part of
+the formalization that has to be read and trusted: everything else is checked by Lean against
+them.
 
 Conventions follow `GridHam` (the Itai–Papadimitriou–Szwarcfiter formalization): a cell is a
 `Coord = ℕ × ℕ`, the grid is `w × h` with `InBounds w h v ↔ v.1 < w ∧ v.2 < h`, and two cells

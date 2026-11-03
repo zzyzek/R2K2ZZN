@@ -12,13 +12,14 @@ public import GridHam.Forbidden
 /-!
 # Lane values with constant folding, and IPS acceptability per lane
 
-`LV`: a number per lane, either one constant for all lanes or bit-planes. `LB`: a Boolean per
-lane, either a constant or a mask. Operations on constants fold to constants, so tests that only
+`LV`: a number per lane, either one constant for all lanes, bit-planes, or an 8-bit field word
+(`s`, or `t` with a `chkS` proof). `LB`: a Boolean per lane, either a constant, a mask, or bits
+`8 j` of a field word (`g`). Operations on constants fold to constants, so tests that only
 involve constants cost no kernel bit operations.
 
 `accB` is IPS acceptability written with the operations available on lanes;
 `accB_eq : accB w h s t = decide (IsAcceptable w h s t)`. `accV` is its lane version;
-`accV_at : (accV …).get j = accB (… get j)`.
+`accV_get : (accV …).get j = accB (… get j)`.
 -/
 
 namespace ZZN.Lane

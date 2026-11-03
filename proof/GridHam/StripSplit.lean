@@ -11,37 +11,12 @@ public import GridHam.Forbidden
 /-!
 # Strip and split: the sufficiency-direction reduction lemmas
 
-This is the Lean counterpart of `_try_strip_{right,up,left,down}` and
-`_split_{horizontally,vertically}` in `grid_hampath.py`. Together with the
-prime base cases (`PrimeCases.lean`), these are exactly the pieces
-`Main.lean`'s strong induction combines to prove sufficiency
-(`IsAcceptable → HasHamPath`).
-
-Each lemma states that solvability of a strictly smaller sub-problem
-implies solvability of the original -- i.e. these are the *constructive*
-direction, matching `_extend_{up,down,left,right}` in the Python (which
-build the actual detour path). Each proof exhibits that detour explicitly
-and shows it is a valid extension, mirroring `_extend_*`.
-
-STATUS: proved (no `sorry`). An earlier version stated these lemmas with
-`sorry`; their conditions had been cross-checked empirically against
-brute-force search in `verify.py` (1,019,200+ structural instances,
-0 failures) and against exhaustive existence search for `width*height ≤ 26`
-(0 mismatches). Also see `FINDINGS.md` for the one substantive fix made
-during the port: reconstruction must undo strips in *reverse* order, which
-matters for `Main.lean`'s assembly but not for these individual lemma
-statements.
-
-REVISION NOTE: the split lemmas below were rewritten from a previous
-version that had a real signature bug (flagged and now fixed): they had
-fixed the cut vertex's row/column to `s`'s or `t`'s own coordinate, when
-`_split_vertically`/`_split_horizontally` in `grid_hampath.py` actually
-*search over* a free cut-row (for a vertical split) or cut-column (for a
-horizontal split), independent of either endpoint's coordinate. Each split
-direction also has two orientation cases (`s` left/below of `t`, or the
-reverse), matching the Python's `is_start_left`/`is_start_below` branches --
-stated here as separate lemmas rather than one lemma with a disjunctive
-hypothesis, to keep each one's geometry unambiguous.
+The Lean counterpart of `_try_strip_{right,up,left,down}` and
+`_split_{horizontally,vertically}` in `grid_hampath.py`, a script of the GridHam2D-Lean project.
+Each lemma builds a Hamiltonian path of the full grid from paths of smaller grids. The split
+lemmas take a free cut row (vertical split) or cut column (horizontal split), with one lemma per
+orientation of `s` and `t`. The base cases are `PrimeTable.lean` (`prime_solvable`); `Main.lean`
+combines both by strong induction to prove sufficiency (`IsAcceptable → HasHamPath`).
 -/
 
 namespace GridHam
@@ -201,8 +176,8 @@ theorem getLast?_map_coord (f : Coord → Coord) : ∀ (l : List Coord) (t : Coo
       exact ih t h
 
 /-- Splitting vertically at a column edge `(cut, cutRow) – (cut+1, cutRow)`,
-where `s` is the left endpoint (`s.1 < t.1`) and the cut column is strictly
-between `s.1` and `t.1`: if the left piece (from `s` to the cut vertex) and
+where `s` is the left endpoint (`s.1 < t.1`) and the cut column satisfies
+`s.1 ≤ cut < t.1`: if the left piece (from `s` to the cut vertex) and
 the right piece (from the cut's right-neighbor, in coordinates shifted left
 by `cut+1`, to `t`) are both solvable, so is the whole problem. The path is
 the left path followed by the right path shifted right by `cut + 1`. -/

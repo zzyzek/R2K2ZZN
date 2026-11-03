@@ -12,22 +12,9 @@ public import Mathlib
 /-!
 # Basic definitions for Hamiltonian paths in rectangular grid graphs
 
-See the module docstring in the original version of this file for the
-overall intent. This revision fixes three build errors reported against the
-first version:
-
-* `And.decidable` / `Or.decidable` are not real constant names in this
-  Lean/Mathlib version -- replaced with `infer_instance`, which doesn't
-  require knowing the exact instance name, only that Lean's typeclass
-  search can find *some* `Decidable` instance for the (very standard)
-  pieces involved (`<`, `=`, `∧`, `∨` on `ℕ`).
-* `List.Chain'` isn't found -- rather than chase down which Mathlib module
-  it currently lives in (this has moved across versions), the
-  "consecutive-adjacent" check is now defined directly by recursion on the
-  list as a plain `Bool`-valued function, sidestepping the question
-  entirely. This also makes the later `decide`-based proofs in
-  `PrimeCases.lean` more robust (pure `Bool` computation, not a derived
-  typeclass instance for an externally-defined relation).
+`allCoords` lists every cell, `ValidPath w h s t p` says `p` is a Hamiltonian path from `s` to `t`,
+and `HasHamPath` is its existential. `Coord`, `InBounds`, `Adjacent` and `chainAdjacent` come from
+`ZZN.Statement`.
 -/
 
 namespace GridHam

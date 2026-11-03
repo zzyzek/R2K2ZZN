@@ -21,7 +21,7 @@ namespace ZZN
 open GridHam
 
 /-- `RedB`, for given tests of free lines and endpoints below / above. The band condition: every
-line `k < d` with `n < k + 8`, and every line `d + 2 ≤ k < 8`, is free. -/
+line `k < d` with `n < k + 8`, and every line `d + 2 ≤ k < 7`, is free. -/
 def bandGen (n : ℕ) (F B A : ℕ → Bool) (d : ℕ) : Bool :=
   decide (13 ≤ n) && decide (5 ≤ d) && decide (d + 7 ≤ n) && F d && F (d + 1) &&
     ((decide (1 ≤ d) && F (d - 1)) || F (d + 2)) && B d && A (d + 1) &&

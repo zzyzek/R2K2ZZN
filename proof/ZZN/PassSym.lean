@@ -11,11 +11,14 @@ public import ZZN.PassTR
 /-!
 # The catalogue is symmetric under reversing a path and swapping the colors
 
-`Passes` is unchanged by `Inst.rev0`, `Inst.rev1` and `Inst.swapColors`. Each is a reordering of
-the endpoint list `[(s0, 0), (t0, 0), (s1, 1), (t1, 1)]`, after relabelling the colors `0 ↔ 1`
-for the swap. So it suffices that every entry is unchanged
+On the domain (`InDom`, both sides at least 11), `Passes` is unchanged by `Inst.rev0`,
+`Inst.rev1` and `Inst.swapColors`. Each is a reordering of the endpoint list
+`[(s0, 0), (t0, 0), (s1, 1), (t1, 1)]`, after relabelling the colors `0 ↔ 1` for the swap. So it
+suffices that every entry except T2 is unchanged
 * by a reordering of endpoints on distinct cells (`Perm`), and
-* by the relabelling `relab`, which swaps the colors 0 and 1.
+* by the relabelling `relab`, which swaps the colors 0 and 1,
+
+and that T2 is unchanged by the three reorderings used (`t2_swap01`, `t2_swap23`, `t2_pairs`).
 -/
 
 namespace ZZN
@@ -801,7 +804,8 @@ theorem four_col (a b c e : ℕ × ℕ) : ∀ q ∈ [((a, 0) : Pt), (b, 0), (c, 
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hq
   rcases hq with rfl | rfl | rfl | rfl <;> simp
 
-/-- The entries other than T2, for a reordering. -/
+/-- `fires3` is unchanged by a reordering of the endpoints, given that T2 is unchanged (`ht`);
+every other entry is shown unchanged here. -/
 theorem fires3_perm {R C : ℕ} (hR : 11 ≤ R) (hC : 11 ≤ C) {a b c e a' b' c' e' : ℕ × ℕ}
     (h4 : Four R C a b c e)
     (hp : [((a, 0) : Pt), (b, 0), (c, 1), (e, 1)].Perm [(a', 0), (b', 0), (c', 1), (e', 1)])

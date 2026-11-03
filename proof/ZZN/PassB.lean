@@ -13,7 +13,7 @@ public import ZZN.B5Hit
 # Band compressions
 
 `RedB I d`: lines `d, d+1` are free with a free neighbour, endpoints lie on both sides,
-`5 ≤ d`, `d + 7 ≤ w`, and after the deletion every endpoint is at least 6 lines from the edge
+`5 ≤ d`, `d + 7 ≤ w`, and after the deletion every endpoint is at least 5 lines from the edge
 it approaches (`FarK 5`). The compressions of `RedX` need 8 lines.
 
 `passB`: band compressions preserve passing. The views agree on frame coordinates `≤ 4`

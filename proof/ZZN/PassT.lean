@@ -9,7 +9,9 @@ public import ZZN.PassStrip
 @[expose] public section
 
 /-!
-# The catalogue is symmetric under transposition (`passT`)
+# Every catalogue entry except R is symmetric under transposition (`fires3_transpose`)
+
+`passT`, which adds the R entry, is in `PassTR.lean`.
 
 Argument: `PROOF.md` §3 (symmetry).
 -/

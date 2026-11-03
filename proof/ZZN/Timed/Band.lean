@@ -13,7 +13,7 @@ public import ZZN.Timed.TimeM
 /-!
 # The counted band extension
 
-`bandExtET` is `bandExtE` (`ZZN/Constr/Band.lean`) written with the counted operations; each
+`bandExtET` is `bandExtE` (`ZZN/Statement.lean`; lemmas in `ZZN/Constr/Band.lean`) written with the counted operations; each
 counted definition has a `*_ret` lemma saying it returns the original result.
 
 Constant-time helpers used directly: arithmetic and comparisons, `shiftAt`, `gap` (at most two

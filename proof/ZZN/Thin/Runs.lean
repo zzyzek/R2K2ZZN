@@ -13,8 +13,8 @@ public import ZZN.Defs
 # Runs of a path inside a set of cells
 
 A **run** of a path `L` in a predicate `P` is a maximal interval `[st, en]` of indices whose cells
-all satisfy `P`. Used for the window certificates: the pieces of the inside DP are the runs of the
-solution paths in the processed cells.
+all satisfy `P`. Used for the plug DP: the pieces of the DP are the runs of the solution paths in the
+processed cells.
 -/
 
 namespace ZZN.Thin

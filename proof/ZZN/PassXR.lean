@@ -11,8 +11,10 @@ public import ZZN.PassX
 /-!
 # `passX` for the R test (effective alternation), compressions
 
-With the deleted lines `d, d+1` at least 4 lines from both edges (`4 ≤ d`, `d + 6 ≤ R`), the
-rewrite phase, the corner staircases and the outer walk of the two instances correspond.
+The rewrite phase of the two instances corresponds when `4 ≤ d` and `d + 6 ≤ R`
+(`rewriteAll_map`). The corner staircases and the outer walk correspond when `5 ≤ d` and
+`d + 7 ≤ R`, so the R test gives the same answer when `5 ≤ d`, `d + 7 ≤ R` and `4 ≤ C`
+(`effAlt3_comp`).
 -/
 
 namespace ZZN

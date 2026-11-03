@@ -17,8 +17,7 @@ JavaScript program from the project's development, not included). Coordinates: a
 `(r, c)` of a `w × h` grid with `w = R`, `h = C`.
 
 `firstPattern` returns the id of the first entry that fires (in the JS order), or `none`;
-`Passes I` means no entry fires. The transcription was checked against that implementation on the
-same test sets as the C implementation (the `catcheck` executable).
+`Passes I` (`ZZN/Statement.lean`) is `fires3 … = false`, the form with the explicit outer walk.
 -/
 
 namespace ZZN
@@ -71,7 +70,7 @@ def dR : Fin 4 → ℤ := ![-1, 0, 1, 0]
 def dC : Fin 4 → ℤ := ![0, 1, 0, -1]
 
 /-- The outer face walk of the grid minus `removed`, as in `outerFaceOrder`: walk every face
-(each dart once), keep the longest walk; return, for each cell, its positions along it. -/
+(each dart once) and return the longest walk, as its list of cells. -/
 def outerFaceWalk (R C : ℕ) (removed : List (ℕ × ℕ)) : List (ℕ × ℕ) := Id.run do
   let N := R * C
   let rem : Array Bool := (Array.replicate N false).modify 0 id |> fun a =>
@@ -272,15 +271,7 @@ def fires (R C : ℕ) (s0 t0 s1 t1 : ℕ × ℕ) : Bool :=
   !parityOk R C pts || t1Fires R C pts || t2Fires [s0, t0, s1, t1] || l1Fires R C pts ||
     l6Fires R C pts || frames.any (frameFires R C pts) || effectiveAlternation R C pts
 
-/-! ### The outer walk, explicitly
-
-After the rewrites, the removed cells form a staircase (Young diagram) at each corner. The outer
-walk follows: the top-left staircase, the top row, the top-right staircase, the right column, the
-bottom-right staircase, the bottom row, the bottom-left staircase, the left column. The staircase of
-a corner, in that corner's frame, with row lengths `λ 0 ≥ λ 1 ≥ …` (of removed cells): from
-`(k, 0)` (the first row with no removed cell), right along row `i+1` and up to `(i, λ i)`, for
-`i = k-1, …, 0`.
--/
+/-! The explicit outer walk (`staircase`, `walk3`, `effAlt3`) is in `ZZN/Statement.lean`. -/
 
 
 

@@ -14,7 +14,7 @@ public import ZZN.C8R
 Two even-grid B entries have a cell at `(0, 5)`: `((0,1),(0,5),(1,1))` and `((0,5),(1,1),(1,0))`.
 On every even-area grid with both sides at least 11, in every frame, when the two cells of one
 colour and the third cell of the other colour match, and the fourth endpoint lies on the
-perimeter outside the 6 × 6 window, the R test fires (`b5_fires`).
+perimeter outside the 6 × 6 window, the R test fires (`b5_all`, in `ZZN.B5Fire`).
 
 Proof: delete pairs of lines (`effAlt3_comp`) away from the entry and from the fourth endpoint,
 keeping it outside the window, until both sides are at most 14 (`b5_stepR`, transposition for

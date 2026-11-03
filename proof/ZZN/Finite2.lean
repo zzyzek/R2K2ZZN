@@ -207,7 +207,8 @@ theorem finite_of_checkC (ck : ℕ → ℕ → Inst → Bool)
   · exact Or.inl (MoveOK.of_apply hwf (moveB2_sound hm))
   · exact Or.inr (Sym.solvable hwf (solvable_of_solveCheck hs))
 
-/-- The check used for every box. -/
+/-- `checkInst2` as a per-box check, for `finite_of_checkC`. The kernel-checked Theorem A uses
+the slice certificates of `ZZN.BoxK` instead. -/
 def ckBox (_w _h : ℕ) : Inst → Bool := checkInst2
 
 theorem hck_ckBox (w h : ℕ) (J : Inst) (h1 : ckBox w h J = true) (q1 : quickB J = true)

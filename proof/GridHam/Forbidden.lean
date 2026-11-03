@@ -11,21 +11,17 @@ public import GridHam.Coloring
 /-!
 # Forbidden cases (necessary condition, part 2)
 
-Color compatibility alone is not sufficient: `grid_hampath.py`'s
-`is_forbidden` (cases for `width/height ∈ {1,2,3}`) rules out additional
+Color compatibility alone is not sufficient: `is_forbidden` in `grid_hampath.py` (a script of
+the GridHam2D-Lean project), with cases for `width/height ∈ {1,2,3}`, rules out additional
 color-compatible pairs. This file ports those three cases directly and
 proves the necessity theorem for case 1.
 
-STATUS: proved (no `sorry`). The definitions are transcribed from the Python
-(which was exhaustively cross-checked against brute-force search for all
-`width,height` with `width*height ≤ 26`, including every case-3 instance --
-see `verify.py`'s `exhaustive_characterization_check`, 0 mismatches). The
-necessity proofs `isForbidden → ¬HasHamPath`: case 1 here
+The definitions are transcribed from the Python. The necessity proofs
+`isForbidden → ¬HasHamPath`: case 1 here
 (`forbiddenCase1_implies_no_path`; a path on a width/height-1 grid has no
 choice but to be the straight line); cases 2 and 3 in `Necessity.lean`
 (`forbiddenCase2_implies_no_path`, a cut/separation argument, and
-`forbiddenCase3_implies_no_path`, built on the tools in `F3.lean`). An
-earlier version of this file stated them with `sorry`.
+`forbiddenCase3_implies_no_path`, built on the tools in `F3.lean`).
 -/
 
 namespace GridHam
@@ -39,15 +35,7 @@ instance : DecidablePred (fun v => IsCorner width height v) :=
 
 /-- Ported from `_is_forbidden_case_1`: when `width = 1` or `height = 1`, a
 Hamiltonian path must be the straight line, so `{s,t}` must be exactly the
-two extreme corners.
-
-REVISION NOTE: originally stated using `Set Coord` equality (`{s,t} =
-{(0,0), far}`), which is mathematically fine but unnecessarily hard to work
-with in an actual proof (`Set` equality needs `Set.ext`-style unfolding, and
-isn't `Decidable` in general). Rewritten as a plain `∨`/`∧`/`=` statement on
-`Coord` directly, matching every other definition in this file -- this is
-what a two-element set equality actually *means* for a two-element set, just
-spelled out instead of routed through `Set`. -/
+two extreme corners. -/
 def ForbiddenCase1 (width height : ℕ) (s t : Coord) : Prop :=
   let isW := width = 1
   let bound := if isW then height else width
@@ -98,7 +86,7 @@ def IsAcceptable (width height : ℕ) (s t : Coord) : Prop :=
   ColorCompatible width height s t ∧ ¬ IsForbidden width height s t
 
 /-! Direct (non-`DecidablePred`) instances, so `decide`/`#eval` can evaluate
-`IsAcceptable w h s t` for concrete arguments (used by `CrossCheck.lean`). -/
+`IsAcceptable w h s t` for concrete arguments. -/
 
 instance instDecColorCompatible (w h : ℕ) (s t : Coord) :
     Decidable (ColorCompatible w h s t) := by
@@ -124,7 +112,7 @@ instance instDecIsAcceptable (w h : ℕ) (s t : Coord) :
     Decidable (IsAcceptable w h s t) := by
   unfold IsAcceptable; infer_instance
 
-/-- The core combinatorial fact underlying `forbiddenCase1_implies_no_path`,
+/-! The core combinatorial fact underlying `forbiddenCase1_implies_no_path`,
 isolated as its own self-contained statement about plain `List ℕ` (no
 `Coord`/grid vocabulary): a `Nodup`, unit-step-adjacent sequence that covers
 exactly the interval `[k, k + length)` must run from one extreme of that
@@ -138,6 +126,8 @@ Proved below as `unitChain_endpoints`, by way of
 at an *interior* point of that range would, followed in either direction,
 run out of room on one side while the other side stays uncovered and
 unreachable. -/
+
+/-- `a` and `b` differ by exactly 1. -/
 def unitStepB (a b : ℕ) : Bool := decide (a + 1 = b ∨ b + 1 = a)
 
 def unitStepChain : List ℕ → Bool

@@ -10,7 +10,7 @@ public import ZZN.Thin.Inside
 @[expose] public section
 
 /-!
-# Window certificates: one DP step, as a computation
+# The plug DP: one step, as a computation
 
 The two path sides of the current cell, by kind; `stepCell` then yields the state closing the
 merged run.

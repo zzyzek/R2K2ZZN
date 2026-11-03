@@ -13,7 +13,7 @@ public import ZZN.Timed.TimeM
 /-!
 # The counted catalogue test
 
-`fires3T` is `fires3` (`ZZN/Catalogue.lean`) written with the counted operations of
+`fires3T` is `fires3` (`ZZN/Statement.lean`) written with the counted operations of
 `ZZN/Timed/TimeM.lean`. Each counted definition has a lemma saying that its result is the
 original one (`*_ret`). The time bounds are in `ZZN/Timed/CatalogueCost.lean`.
 

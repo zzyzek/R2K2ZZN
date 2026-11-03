@@ -14,8 +14,8 @@ public import ZZN.Timed.ThinCost
 /-!
 # The decision procedure runs in polynomial time
 
-`solvableBT` is the decision procedure `solvableB` (`ZZN/Thin/Decide.lean`) with its steps
-counted: the catalogue test when both sides are at least 11, the plug DP otherwise.
+`solvableBT` is the decision procedure `solvableB` (`ZZN/Statement.lean`; lemmas in
+`ZZN/Thin/Decide.lean`) with its steps counted: the catalogue test when both sides are at least 11, the plug DP otherwise.
 
 * `solvableBT_ret`: it returns what `solvableB` returns.
 * `solvableBT_time`: it takes at most `Cdec · (R C + R + C + 1)` counted steps. This uses only

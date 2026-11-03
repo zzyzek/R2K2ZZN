@@ -25,7 +25,7 @@ kind and a side `s` (`false` = before the line) for its first end:
 Sides are data, not tests: a wrong side puts an endpoint into a piece whose leaf test
 (`leafOK`, which checks region membership) fails, so soundness needs no side check.
 
-New pairs are appended to each side in order (the order of `split/chain3.c`). A leaf holds one pair:
+New pairs are appended to each side in order (the order of `certgen/src/chain3.c`). A leaf holds one pair:
 a Hamiltonian path of its rectangle (IPS), or a single cell.
 
 `check_sound`: `check T P = true → RCover P.region P.segs`.

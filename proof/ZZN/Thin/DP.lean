@@ -10,7 +10,7 @@ public import ZZN.SoundLocal
 @[expose] public section
 
 /-!
-# Window certificates: the solution's signature is a final DP state
+# The plug DP is complete: a solution's signature is a final DP state
 -/
 
 namespace ZZN.Thin

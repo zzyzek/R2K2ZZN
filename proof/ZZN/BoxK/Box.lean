@@ -13,8 +13,9 @@ public import ZZN.FiniteB
 /-!
 # From slice certificates to `FactsFiniteB`
 
-`finite_of_boxes`: if every box `w ≤ h` (sides 11–22) has a list of representative row tuples
-with `rowsOK` and a `sliceOK` certificate for each, then `FactsFiniteB` holds.
+`finite_of_boxes`: if every box `w ≤ h` with sides 11–16 has a certificate (`BoxCert`: a list of
+representative row tuples with `rowsOK` and a `sliceOK` certificate for each) and `noneOK n`
+holds for `n` from 17 to 22, then `FactsFiniteB` holds.
 -/
 
 namespace ZZN.BoxK
