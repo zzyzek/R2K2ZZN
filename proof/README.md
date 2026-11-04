@@ -8,7 +8,7 @@ results depend only on `propext`, `Classical.choice` and `Quot.sound`. Its certi
 
 ## Main results
 
-Submitted to Palomar for registration (`Challenge.lean`, `Solution.lean`, `comparator.json`):
+Registered on Palomar as [PALOMAR-2026-11-04-000002 v1](https://palomar-registry.org/entry?id=PALOMAR-2026-11-04-000002&version=1) (`Challenge.lean`, `Solution.lean`, `comparator.json`):
 
 | Theorem | File | Statement |
 |---|---|---|

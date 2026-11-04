@@ -62,7 +62,7 @@ The results rest on the Lean proof in [`proof/`](proof/). To check them:
    (`ZZN/Thin/Decide.lean`), `passes_iff_solvable` (`ZZN/Main.lean`) and `solveZZN_sound` /
    `solveZZN_complete` (`ZZN/Constr/Main.lean`). Everything else is checked by Lean against these
    definitions, so these are the parts a reader has to trust, together with Lean and Mathlib's
-   axioms. The Palomar registration (`proof/Challenge.lean`) states the same results on the
+   axioms. The Palomar registration ([PALOMAR-2026-11-04-000002 v1](https://palomar-registry.org/entry?id=PALOMAR-2026-11-04-000002&version=1), `proof/Challenge.lean`) states the same results on the
    procedures with a step counter, with their step bounds: `solvableBT_main`,
    `fires3T_iff_solvable` and `solveZZNT_main`, using `proof/ZZN/TimedStatement.lean`.
 

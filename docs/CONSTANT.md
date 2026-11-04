@@ -128,3 +128,6 @@ width 10.
 
 - 2026-11-03: analysis above. No Lean changes made. Plan: register the current result first, then
   A, then B, then C.
+- 2026-11-04: current result registered as
+  [PALOMAR-2026-11-04-000002 v1](https://palomar-registry.org/entry?id=PALOMAR-2026-11-04-000002&version=1).
+  Lowering the constants is low priority.
