@@ -17,8 +17,8 @@ public import Mathlib.Data.Finset.Range
 After the exit filter, every end of every piece is a plug code `≤ b` or the endpoint code of a
 colour (`termE a b 0` or `termE a b 1`). Compressing such an end to a number `< b + 3`, a piece to
 a number `< Q b = (b + 3)²`, and a state (a duplicate-free list of pieces and a colour mask `< 4`)
-to a number `< Nst b = 4 (Q b + 1) ^ Q b`, is injective. So a duplicate-free list of such states
-has at most `Nst b` entries (`card_good`). The bound depends on the short side `b` only.
+to a number `< NstQ b = 4 (Q b + 1) ^ Q b`, is injective. So a duplicate-free list of such states
+has at most `NstQ b` entries (`card_good`). `ThinCount2.lean` sharpens this to `Nst b`. The bound depends on the short side `b` only.
 -/
 
 namespace ZZN.T
@@ -124,10 +124,13 @@ lemma good_len {a b : ℕ} {s : St} (hs : Good a b s) : s.1.length ≤ Q b := by
     exact pcode_lt (he z hz).1 (he z hz).2)
   simpa using this
 
+/-- The first bound on the number of states. -/
+def NstQ (b : ℕ) : ℕ := 4 * (Q b + 1) ^ Q b
+
 /-- Code of a state. -/
 def scode (a b : ℕ) (s : St) : ℕ := 4 * lcode (Q b) (s.1.map (pcode a b)) + s.2
 
-lemma scode_lt {a b : ℕ} {s : St} (hs : Good a b s) : scode a b s < Nst b := by
+lemma scode_lt {a b : ℕ} {s : St} (hs : Good a b s) : scode a b s < NstQ b := by
   have hl := good_len hs
   obtain ⟨-, h4, he⟩ := hs
   have h1 := lcode_lt (Q b) (s.1.map (pcode a b)) (fun x hx => by
@@ -135,7 +138,7 @@ lemma scode_lt {a b : ℕ} {s : St} (hs : Good a b s) : scode a b s < Nst b := b
     exact pcode_lt (he z hz).1 (he z hz).2)
   rw [List.length_map] at h1
   have h2 : (Q b + 1) ^ s.1.length ≤ (Q b + 1) ^ Q b := Nat.pow_le_pow_right (by omega) hl
-  unfold scode Nst
+  unfold scode NstQ
   omega
 
 lemma scode_inj {a b : ℕ} {s s' : St} (hs : Good a b s) (hs' : Good a b s')
@@ -152,12 +155,12 @@ lemma scode_inj {a b : ℕ} {s s' : St} (hs : Good a b s) (hs' : Good a b s')
     (fun x y hx hy hxy => pcode_inj hx.1 hx.2 hy.1 hy.2 hxy) s.1 s'.1 he he' hl2
   exact Prod.ext this h2
 
-/-- **A duplicate-free list of good states has at most `Nst b` entries.** -/
+/-- **A duplicate-free list of good states has at most `NstQ b` entries.** -/
 theorem card_good {a b : ℕ} (S : List St) (hn : S.Nodup) (hg : ∀ s ∈ S, Good a b s) :
-    S.length ≤ Nst b := by
+    S.length ≤ NstQ b := by
   have hmap : (S.map (scode a b)).Nodup :=
     List.Nodup.map_on (fun x hx y hy h => scode_inj (hg x hx) (hg y hy) h) hn
-  have := nodup_len_le (Nst b) _ hmap (fun x hx => by
+  have := nodup_len_le (NstQ b) _ hmap (fun x hx => by
     obtain ⟨s, hs, rfl⟩ := List.mem_map.1 hx
     exact scode_lt (hg s hs))
   simpa using this

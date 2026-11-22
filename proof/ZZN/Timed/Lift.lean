@@ -7,6 +7,8 @@ module
 public import ZZN.TimedStatement
 public import ZZN.Constr.Solve
 public import ZZN.Timed.BandCost
+public import ZZN.Timed.BandL
+public import ZZN.Constr.Solve2
 
 @[expose] public section
 
@@ -14,7 +16,7 @@ public import ZZN.Timed.BandCost
 # The counted reduction search, lifting and checker
 
 * `findRedT` (`findRed`): at most `200 (w + 1)²` steps.
-* `liftET` (`liftE`): band extension after the reduction.
+* `liftET` (`liftL`, equal to `liftE` on solutions): one-pass band extension after the reduction.
 * `solBT` (`solB`): at most `3 (|p| + |q| + 1)² + 10` steps.
 * `checkET` (`checkE`).
 -/
@@ -74,40 +76,77 @@ lemma redBT_time (I : Inst) (d : ℕ) : (redBT I d).time ≤ 100 * (I.w + d + 2)
   omega
 
 
-lemma findRedT_ret (I : Inst) : (findRedT I).ret = findRed I := by
-  simp [findRedT, findRed, lfindT, rangeT, redBT_ret]
+lemma redBBT_ret (I : Inst) (d : ℕ) : (redBBT I d).ret = redBB I d := by
+  simp [redBBT, redBB, freeLineBT_ret, endBelowBT, endAboveBT, endBelowB, endAboveB, lanyT]
 
-lemma findRedT_time (I : Inst) : (findRedT I).time ≤ 200 * (I.w + 1) ^ 2 := by
-  have := lfindT_time_le (redBT I) (List.range I.w) (200 * (I.w + 1))
-    (fun d hd => by have := redBT_time I d; have := List.mem_range.mp hd; omega)
+lemma redBBT_time (I : Inst) (d : ℕ) : (redBBT I d).time ≤ 24 := by
+  have := freeLineBT_time I d
+  have := freeLineBT_time I (d + 1)
+  have := freeLineBT_time I (d - 1)
+  have := freeLineBT_time I (d + 2)
+  have := endBelowBT_time I d
+  have := endAboveBT_time I (d + 1)
+  simp only [redBBT, time_bind, time_pure]
+  omega
+
+lemma findRed2T_ret (I : Inst) : (findRed2T I).ret = findRed2 I := by
+  simp [findRed2T, findRed2, lfindT, rangeT, redBT_ret, redBBT_ret]
+  rfl
+
+lemma findRed2T_time (I : Inst) : (findRed2T I).time ≤ 300 * (I.w + 1) ^ 2 := by
+  have := lfindT_time_le (fun d => do
+      let x ← redBT I d
+      let y ← redBBT I d
+      pure (x || y)) (List.range I.w) (200 * (I.w + 1))
+    (fun d hd => by
+      have := redBT_time I d; have := redBBT_time I d; have := List.mem_range.mp hd
+      simp only [time_bind, time_pure]; omega)
   simp only [List.length_range] at this
-  simp only [findRedT, time_bind, rangeT]
+  simp only [findRed2T, time_bind, rangeT]
   nlinarith
 
 /-! ### Lifting -/
 
 
-lemma liftET_ret (I : Inst) (d : ℕ) (p q : List Coord) : (liftET I d p q).ret = liftE I d p q := by
-  simp only [liftET, liftE, ret_bind, freeLineBT_ret]
-  split_ifs <;> simp
+lemma liftET_ret (I : Inst) (d : ℕ) (p q : List Coord) : (liftET I d p q).ret = liftL I d p q := by
+  simp only [liftET, liftL, ret_bind, freeLineBT_ret]
+  split_ifs <;> exact bandExtLT_ret (I.deleteAt d) _ p q
 
-lemma liftET_time (I : Inst) (d : ℕ) (p q : List Coord) :
-    (liftET I d p q).time ≤ 210 * ((I.h + 1) * (p.length + q.length + I.h + 1)) := by
+/-- A solution lists every cell once. -/
+lemma sol_len {I : Inst} {p q : List Coord} (h : IsSolution I p q) :
+    p.length + q.length = I.w * I.h := by
+  have := solB_complete h
+  simp only [solB, Bool.and_eq_true, beq_iff_eq] at this
+  exact this.2
+
+/-- **One lift**: linear in the paths plus `O(h²)`. -/
+lemma liftET_time {I : Inst} {d : ℕ} {p q : List Coord} (hr : FreeShape I d)
+    (hs : IsSolution (I.deleteAt d) p q) :
+    (liftET I d p q).time ≤ 6 * (p.length + q.length) + 40 * (I.h + 1) ^ 2 + 5 := by
   have f := freeLineBT_time I (d + 2)
-  have lx := @linX I.h (p.length + q.length)
-  simp only [liftET, time_bind]
-  split_ifs
-  · have := bandExtET_time (I.deleteAt d) d p q
-    rw [show (I.deleteAt d).h = I.h from rfl] at this; omega
-  · have := bandExtET_time (I.deleteAt d) (d - 1) p q
-    rw [show (I.deleteAt d).h = I.h from rfl] at this; omega
-
-lemma liftE_len (I : Inst) (d : ℕ) (p q : List Coord) :
-    (liftE I d p q).1.length + (liftE I d p q).2.length ≤ 3 * (p.length + q.length) + 4 * I.h + 4 := by
-  unfold liftE
-  split_ifs
-  · exact bandExtE_len _ _ _ _
-  · exact bandExtE_len _ _ _ _
+  have hL := liftL_eqF hr hs
+  have hsol := liftE_solF hr hs
+  have l1 := sol_len hs
+  have l2 := sol_len hsol
+  have hw : 13 ≤ I.w := hr.1
+  have hdw : (I.deleteAt d).w = I.w - 2 := rfl
+  have hdh : (I.deleteAt d).h = I.h := rfl
+  have hp := hs.1.2.2.1
+  have hq := hs.2.1.2.2.1
+  have hbp : ∀ v ∈ p, v.2 < I.h := fun v hv => (hs.1.2.2.2.1 v hv).2
+  have hbq : ∀ v ∈ q, v.2 < I.h := fun v hv => (hs.2.1.2.2.2.1 v hv).2
+  have hout : (liftL I d p q).1.length + (liftL I d p q).2.length ≤ p.length + q.length + 2 * I.h := by
+    rw [hL, l2, l1, hdw, hdh]
+    have : (I.w - 2) * I.h + 2 * I.h = I.w * I.h := by
+      rw [← Nat.add_mul]; congr 1; omega
+    rw [this]
+  simp only [liftET, time_bind, freeLineBT_ret]
+  unfold liftL at hout
+  split_ifs at hout ⊢
+  · have := bandExtLT_time I.h d p q hp hq hbp hbq (by rw [bandExtLT_ret]; exact hout)
+    omega
+  · have := bandExtLT_time I.h (d - 1) p q hp hq hbp hbq (by rw [bandExtLT_ret]; exact hout)
+    omega
 
 /-! ### The checker -/
 

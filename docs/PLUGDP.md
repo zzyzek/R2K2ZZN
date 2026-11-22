@@ -2,8 +2,8 @@
 
 An exact solver for covering a grid by one or two disjoint paths with given endpoints. It decides
 and solves the **thin** case (a side ≤ 10) of the main algorithm ([ALGORITHM.md](ALGORITHM.md)),
-the thin pieces of moves, and small Hamiltonian-path pieces. Running time is linear in the long
-side; the frontier width is the short side.
+and the pieces of the optimized thin solver (§4). Running time is linear in the long side; the
+frontier width is the short side.
 
 Implementations: `lib/python/zzn/plugdp.py`, `lib/js/zzn.js`, `lib/c/zzn.c`. The Lean proof
 (`proof/ZZN/Thin/`) verifies a variant with a different state encoding (§6).
@@ -67,28 +67,26 @@ predecessors plus the checkpoints.
 ## 4. Variants and costs
 
 - **One path** (Hamiltonian path between s and t): the same DP with only colour A's endpoints
-  (`solve_paths(R, C, [(s, 0), (t, 0)])`). The main algorithm uses it for one-path pieces with a
-  side ≤ 6.
+  (`solve_paths(R, C, [(s, 0), (t, 0)])`). The optimized thin solver uses it, through
+  `ips.hamiltonian_path`, for one-path pieces with a side ≤ 6.
 - **Feasibility only:** the forward pass alone (`solvable_paths`).
 - **States:** bounded by the number of valid frontiers of width W + 1: tens at W = 4, about 10⁵
   at W = 10. Time is O(L · W · states): linear in the long side L, exponential in the short side W.
   Measured for the C version (`lib/tests/dp_cost.py 10 1`, one process per instance, random
-  endpoints that pass parity, 4-core machine, 2026-11-03):
+  endpoints that pass parity, 4-core machine, 2026-11-16):
 
-  | Size | Solver | Instances (solvable) | Time median / max (s) | Peak memory median / max (MB) |
-  |---|---|---|---|---|
-  | 8 × 40 | thin | 10 (10) | 0.06 / 0.12 | 4 / 5 |
-  | 9 × 40 | thin | 10 (10) | 0.40 / 0.76 | 10 / 17 |
-  | 10 × 10 | thin | 10 (10) | 0.16 / 0.41 | 14 / 35 |
-  | 10 × 20 | thin | 10 (10) | 0.55 / 1.29 | 27 / 39 |
-  | 10 × 40 | thin | 10 (10) | 2.84 / 7.00 | 62 / 81 |
-  | 11 × 11 | fallback | 10 (10) | 0.46 / 1.59 | 23 / 91 |
-  | 12 × 12 | fallback | 10 (10) | 2.03 / 7.24 | 54 / 183 |
+  | Size | Instances (solvable) | Time median / max (s) | Peak memory median / max (MB) |
+  |---|---|---|---|
+  | 8 × 40 | 10 (10) | 0.06 / 0.12 | 4 / 5 |
+  | 9 × 40 | 10 (10) | 0.40 / 0.78 | 10 / 17 |
+  | 10 × 10 | 10 (10) | 0.16 / 0.43 | 14 / 35 |
+  | 10 × 20 | 10 (10) | 0.56 / 1.31 | 27 / 39 |
+  | 10 × 40 | 10 (10) | 2.88 / 7.25 | 62 / 81 |
 
-  "Thin" is the plain thin solver (not `--optimized`). "Fallback" is a passing irreducible
-  instance solved whole by the plug DP algorithm (`ZZN_SKIP_MOVES=1`); the libraries reach it only
-  if the move search fails, which `lib/tests/boxes.sh` never sees. The JavaScript version takes
-  about 2–4 times as long and Python about 30 times.
+  This is the plain thin solver (not `--optimized`). The JavaScript version takes about 2–4 times
+  as long and Python about 30 times. The libraries run the plug DP algorithm only on thin
+  instances. Instances with both sides at least 11 never reach it: their leaf, with both sides
+  11–16, is answered by the certificate lookup ([ALGORITHM.md](ALGORITHM.md)).
 - **Splitting long thin grids** (the libraries' optimized solvers, `--optimized`): since the
   state count grows exponentially with the frontier, cut the grid into pieces with a short side
   and run the DP only on those. Each cut is several lines away from every endpoint; the solver
@@ -113,4 +111,12 @@ empty final state is reachable iff a solution exists.
 sorted list of pieces, each coded by its two **ends** (a column plug, the right plug, or an endpoint
 of a colour), plus a bitmask of completed colours. The cells are visited row by row. States with
 an end leaving the grid are dropped after each cell. Both directions are proved:
-`dpAcceptF_iff : dpAcceptF J = true ↔ Solvable J`, with the standard axioms only.
+`dpAcceptF_iff : dpAcceptF J = true ↔ Solvable J` (`ZZN/Thin/Fast.lean:116`), with the standard
+axioms only.
+
+The construction uses the same DP carrying the path pieces as witnesses, `thinSolveW2`
+(`ZZN/Constr/ThinWit2.lean`, sound and complete), and its counted form `thinSolveWRT`, which stores
+the pieces as trees with constant-time append and reverse. Lean proves that the reached states have
+non-crossing pieces (`fold_NC`), bounds the states per stage by a count of bracket words
+(`card_fold`), and bounds the time by `(wh + 1) · KwR (min w h)` steps (`thinSolveWRT_time`); see
+[PROOF.md](PROOF.md) §6.

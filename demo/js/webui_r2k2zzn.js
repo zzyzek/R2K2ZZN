@@ -770,7 +770,17 @@ function ui_input(btn_id) {
       "s1": [ _opt.S[1][1], _opt.S[1][0] ],
       "t1": [ _opt.T[1][1], _opt.T[1][0] ]
     };
-    let s = zzn.solve(I);
+    // Leaves with both sides 11-16 are answered from the certificate table, which loads
+    // asynchronously (_load_look); until it has loaded, such instances cannot be solved.
+    //
+    let s = null;
+    try {
+      s = zzn.solve(I);
+    }
+    catch (err) {
+      _display_message(-1, (g_look_state == "loading") ? "lookup table still loading" : "lookup table not loaded");
+      return;
+    }
     _opt.paths = [ [], [] ];
 
 
@@ -879,8 +889,36 @@ function _rnd(a) {
   return Math.floor( Math.random() * a );
 }
 
+// The certificate table of the leaf lookup (lib/data/look.json.gz), fetched and handed to
+// zzn.setLookData once at start-up.
+//
+var LOOK_URL = "../lib/data/look.json.gz";
+var g_look_state = "loading";
+
+function _load_look() {
+  fetch(LOOK_URL)
+    .then(function(r) {
+      if (!r.ok) { throw new Error("HTTP " + r.status); }
+      return r.arrayBuffer();
+    })
+    .then(function(gz) {
+      let st = new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"));
+      return new Response(st).text();
+    })
+    .then(function(text) {
+      zzn.setLookData(text);
+      g_look_state = "loaded";
+    })
+    .catch(function(err) {
+      g_look_state = "failed";
+      console.log("lookup table not loaded from " + LOOK_URL + ": " + err);
+    });
+}
+
 function web_init() {
   let two = g_fig_ctx.two;
+
+  _load_look();
 
   var ele = document.getElementById(CANVAS_ID);
   two.appendTo(ele);

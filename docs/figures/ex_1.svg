@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="262" height="338" viewBox="0 0 262 338" font-family="Helvetica, Arial, sans-serif">
 <rect width="100%" height="100%" fill="white"/>
-<text x="14" y="26" font-size="13" font-weight="700" fill="#222">Step 1: strip reduction</text>
+<text x="14" y="26" font-size="13" font-weight="700" fill="#222">Step 1: left block, rows 0-1</text>
 <rect x="14" y="36" width="18" height="18" fill="#7F77DD" fill-opacity="0.35"/>
 <rect x="32" y="36" width="18" height="18" fill="#7F77DD" fill-opacity="0.35"/>
 <rect x="50" y="36" width="18" height="18" fill="#7F77DD" fill-opacity="0.35"/>
@@ -27,32 +27,6 @@
 <rect x="194" y="54" width="18" height="18" fill="#7F77DD" fill-opacity="0.35"/>
 <rect x="212" y="54" width="18" height="18" fill="#7F77DD" fill-opacity="0.35"/>
 <rect x="230" y="54" width="18" height="18" fill="#7F77DD" fill-opacity="0.35"/>
-<rect x="14" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="32" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="50" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="68" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="86" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="104" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="122" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="140" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="158" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="176" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="194" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="212" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="230" y="72" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="14" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="32" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="50" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="68" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="86" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="104" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="122" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="140" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="158" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="176" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="194" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="212" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
-<rect x="230" y="90" width="18" height="18" fill="#7F77DD" fill-opacity="0.12"/>
 <line x1="14" y1="36" x2="248" y2="36" stroke="#c8c8c8" stroke-width="0.6"/>
 <line x1="14" y1="54" x2="248" y2="54" stroke="#c8c8c8" stroke-width="0.6"/>
 <line x1="14" y1="72" x2="248" y2="72" stroke="#c8c8c8" stroke-width="0.6"/>

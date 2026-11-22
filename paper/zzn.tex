@@ -2,6 +2,12 @@
 % To the extent possible under law, the author has waived all copyright and related or
 % neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
 
+% Every technical statement carries a comment "% lean: <file>:<line> <name>" on the line before
+% it, with paths relative to proof/. Section 4 names the Lean files of the main results; the
+% supplement maps every name of the text to its Lean name.
+% A statement about cited work carries either "% checked against primary text, <date>" or
+% "% UNSURE: ...", which says how far the cited paper was read.
+
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm}
@@ -13,777 +19,1700 @@
 \usepackage{hyperref}
 \usepackage{xspace}
 \usepackage{float}
+\usepackage{array}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{definition}[theorem]{Definition}
-\newtheorem{corollary}[theorem]{Corollary}
 
-\newcommand{\Dom}{\mathcal{D}}
-\newcommand{\pass}{\textup{\textsc{Passes}}\xspace}
 \newcommand{\ent}[1]{\textsf{#1}}
-\newcommand{\nd}{\texttt{native\_decide}\xspace}
+\newcommand{\lean}[1]{\texttt{#1}}
+\setlength{\emergencystretch}{3em}
+% Let floats share pages with text instead of leaving half-empty float pages.
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.15}
+\renewcommand{\floatpagefraction}{0.8}
 \algrenewcommand\algorithmicrequire{\textbf{Input:}}
 \algrenewcommand\algorithmicensure{\textbf{Output:}}
 
+% Section length bookkeeping. \secmark{name} records the page and the vertical position of the
+% point where a section starts in build/zzn.aux, as "\secpos{name}{page}{y in sp}", so the pages
+% of each section can be measured. It prints nothing.
+%
+\makeatletter
+\newcommand{\secmark}[1]{\pdfsavepos\protected@write\@auxout{}{\string\secpos{#1}{\thepage}{\noexpand\the\noexpand\pdflastypos}}}
+\def\secpos#1#2#3{}
+\makeatother
+
 \title{Two-Colour Zig-Zag Numberlink on Rectangles:\\
-A Forbidden-Pattern Characterization, a Constructive\\
-Polynomial-Time Algorithm, and a Lean Verification}
+A Forbidden-Pattern Characterization and a Polynomial-Time\\
+Construction, Verified in Lean}
 \author{Z. Zzyzek\thanks{To the extent possible under law, the author has waived all copyright and
 related or neighboring rights to this paper and to the accompanying code, proofs and data, under
 CC0 1.0 Universal (\url{https://creativecommons.org/publicdomain/zero/1.0/}).}}
-\date{Draft, October 2026}
+\date{Draft, November 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-In Zig-Zag Numberlink, pairs of endpoints in a grid must be joined by vertex-disjoint paths that
-together visit every cell. The problem is NP-complete when the number of pairs is unbounded
-(Adcock et al.). For a single pair it is the Hamiltonian path problem in rectangular grid graphs,
-solved by Itai, Papadimitriou and Szwarcfiter. Two pairs on a rectangle form the paired 2-disjoint
-path cover problem. We settle the case of two pairs on rectangles with the endpoints anywhere in the grid.
-If both sides of the rectangle are at least $11$, an instance is solvable if and only if no entry of
-a finite catalogue of forbidden patterns occurs. The catalogue consists of a parity condition, an
-alternation condition on the border, a handful of local corner and edge patterns, $65$ listed
-corner configurations, and a rule that propagates forced routes out of the corners before testing
-alternation. If a side is at most $10$, a frontier dynamic programming algorithm decides the
-instance in time linear in the long side. The characterization is constructive. Solutions are
-built by deleting empty lines, splitting the rectangle by straight cuts, and splicing the pieces
-back together, in time $O((R+C)\,RC)$. Both directions of the characterization and the correctness
-of the dynamic programming algorithm are verified in Lean~4. The finite case analyses, which are
-window certificates for the corner configurations and a check of all irreducible instances with
-sides $11$--$22$, are carried out by the Lean compiler via \nd. We describe the algorithm, the
-catalogue, the proof structure, the compromises made in the formalization, and implementations in
-Python, JavaScript and C that produce identical output.
+In Zig-Zag Numberlink, pairs of endpoint cells in a grid must be joined by vertex-disjoint paths
+that together visit every cell. This paper solves the case of two pairs on a rectangular grid, with
+the endpoints anywhere in the grid. When a side is at most $10$, a plug dynamic programming
+algorithm decides the instance. When both sides are at least $11$, an instance is solvable if and
+only if no entry of a finite catalogue of forbidden patterns matches it. On a $w\times h$ grid
+the decision takes $O(wh)$ counted steps, and a construction returns a solution of every solvable
+instance within $O(M^2)$ counted steps, where $M=\max(w,h)$. Each pattern is shown to
+rule out solutions by a parity count, planarity arguments, local arguments, or an enumeration of
+how two paths can cover a square window at a corner. For the converse, the proof deletes pairs of
+adjacent lines that hold no endpoint, under conditions that keep an instance free of matching
+patterns, inserts the lines back into solutions, and settles the remaining grids,
+with both sides between $11$ and $16$, by machine-found certificates. The characterization, the
+decision procedure, the construction and the step bounds are proved in Lean~4, with the
+certificates and enumerations checked by the Lean kernel.
 \end{abstract}
 
 \section*{AI disclosure}
-Nearly the entirety of the work for this project was done by Claude (Opus 5.5), including writing
+Nearly the entirety of the work for this project was done by Claude (Opus 5.5, Fable 5.2), including writing
 this paper, writing the reference implementations and writing the Lean 4 proof. I, the listed
 author, contributed little more than the problem statement and guidance. I have listed myself as
 an author only to satisfy any requirement that a human author be attached to this work.
 
-\section{Introduction}
+\secmark{intro}
+\section{Introduction}\label{sec:intro}
 
-Numberlink is a pencil puzzle. The player is given pairs of numbered cells in a grid and connects
-each pair by a path along edge-adjacent cells, so that no two paths share a cell. The
-\emph{zig-zag} variant, popular as the mobile game \emph{Flow Free}, additionally requires every
-cell of the grid to be used. Adcock et al.~\cite{adcock15} showed that Zig-Zag Numberlink is
-NP-complete when the number of pairs is unbounded.
+% lean: ZZN/Statement.lean:59 Inst
+% lean: ZZN/Statement.lean:74 IsSolution
+% checked against primary text, 2026-11-19 (adcock15, arXiv v1: the name and Definitions 2 and 4)
+An instance of \emph{two-colour Zig-Zag Numberlink}, the case of two pairs of the puzzle studied by
+Adcock et al.~\cite{adcock15}, is a rectangular grid with four endpoint cells, $s_0,t_0$ of colour~$0$ and
+$s_1,t_1$ of colour~$1$. A solution is a path from $s_0$ to $t_0$ and a path from $s_1$ to $t_1$
+that share no cell and together visit every cell (Figure~\ref{fig:problem}(a) and~(b)).
+% UNSURE: abstract read, body not read (kk24)
+In graph terms this is the paired many-to-many $2$-disjoint path cover problem on a rectangular
+grid graph~\cite{kk24}. This paper decides, for two pairs with the endpoints anywhere in the grid,
+whether a solution exists, and constructs one when it does.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.32\textwidth]{figures/splash_instance.pdf}\hfill
-\includegraphics[width=0.32\textwidth]{figures/splash_solution.pdf}\hfill
-\includegraphics[width=0.32\textwidth]{figures/splash_unsolvable.pdf}
-\caption{Two-colour Zig-Zag Numberlink on a $7 \times 10$ rectangle. Left, an instance with
-endpoints $s_0, t_0$ of colour~$0$ (green) and $s_1, t_1$ of colour~$1$ (orange). Middle, a
-solution. The two vertex-disjoint paths $s_0 \to t_0$ and $s_1 \to t_1$ together visit every cell,
-and the colour-$0$ path winds around the colour-$1$ path. Right, an unsolvable instance. The
-endpoints alternate in colour around the border, so the two paths would have to cross (catalogue
-entry \ent{T1}, Section~\ref{sec:catalogue}).}
-\label{fig:splash}
+\begin{subfigure}[b]{0.15\textwidth}\centering\includegraphics[width=\textwidth]{figures/problem.pdf}\caption{}\end{subfigure}
+\hspace{2em}
+\begin{subfigure}[b]{0.15\textwidth}\centering\includegraphics[width=\textwidth]{figures/solution.pdf}\caption{}\end{subfigure}
+\hspace{2em}
+\begin{subfigure}[b]{0.18\textwidth}\centering\includegraphics[width=\textwidth]{figures/cat_T1.pdf}\caption{}\end{subfigure}
+\hspace{2em}
+\begin{subfigure}[b]{0.18\textwidth}\centering\includegraphics[width=\textwidth]{figures/cat_L2.pdf}\caption{}\end{subfigure}
+\caption{(a) An instance on a $4\times 4$ grid and (b) a solution, with the cells of each path
+shaded. (c), (d) Two unsolvable instances on a $4\times 5$ grid that satisfy the parity condition
+(entries \ent{T1} and \ent{L2} of Table~\ref{tab:catalogue}). In (c) the colours alternate around
+the border. In (d) the corner cell, marked ?, lies between endpoints of different colours. In all
+figures, filled circles are endpoints, green of colour~$0$ and orange of colour~$1$ unless the
+caption says otherwise.}
+\label{fig:problem}
+\label{fig:intro}
 \end{figure}
 
-With a single pair, the problem asks for a Hamiltonian path between two given cells. Shade the
-cells of the rectangle like a checkerboard. Itai, Papadimitriou and Szwarcfiter (IPS)~\cite{ips82}
-showed that if the rectangle has an even number of cells, a Hamiltonian path between two cells
-requires them to have different shades, and if it has an odd number of cells, both must have the
-majority shade. A pair that meets this condition has a Hamiltonian path unless it belongs to one of
-three small families of exceptions, which occur only when a side has length $1$, $2$ or~$3$.
+% lean: GridHam/Main.lean:171 ips_characterization
+% lean: GridHam/Forbidden.lean:77 IsForbidden
+% lean: GridHam/Forbidden.lean:85 IsAcceptable
+% lean: GridHam/Coloring.lean:177 ColorCompatible
+% checked against primary text, 2026-11-19 (ips82, Section 3.1 and Theorem 3.2)
+With one pair the problem asks for a Hamiltonian path, a path through every cell, between two
+given cells. Give the cells the signs $+1$ and $-1$ in the pattern of a chessboard. Along a path
+the signs alternate, which constrains the signs of the two ends. For two distinct cells of a
+rectangle with both sides at least $4$, this \emph{sign condition} alone decides whether a
+Hamiltonian path joins them~\cite{ips82}.
 
-We study the case where two pairs of endpoints lie on an $R \times C$ rectangle
-(Figure~\ref{fig:splash}). The instance has endpoints $s_0, t_0$ of colour~$0$ and $s_1, t_1$ of
-colour~$1$. A solution is a pair of vertex-disjoint paths $s_0 \to t_0$ and $s_1 \to t_1$ that
-together cover every cell. In graph theory this is the \emph{paired 2-disjoint path cover}
-problem. We allow the endpoints anywhere.
+% lean: ZZN/Parity.lean:112 parity_of_solvable
+% lean: ZZN/SoundT1.lean:538 t1_sound
+% lean: ZZN/SoundLocal.lean:360 testL2_sound
+% lean: ZZN/SoundLocal.lean:634 edgeClosure_sound
+With two pairs the sign condition becomes a condition on the four endpoints, the \emph{parity
+condition}, which every solvable instance of every size satisfies. It is not sufficient, because
+the two paths block each other. At the border, two pairs whose colours alternate around the border
+cannot both be joined without a crossing (Figure~\ref{fig:intro}(c)). At a corner, an empty
+corner cell between endpoints of different colours can be covered by neither path
+(Figure~\ref{fig:intro}(d)). Along an edge, endpoints of the two colours can force both paths to
+close after three cells each, which leaves the rest of the grid uncovered. A characterization has
+to capture these interactions for grids of every size, while a computer check covers only finitely
+many.
 
-With two pairs, one path can block the other. In the right panel of Figure~\ref{fig:splash}, the
-order of the endpoints around the border rules out a solution on a rectangle of any size. Near a
-corner, a few endpoints can also force a path through the corner cells, and the forced route can
-leave the remaining endpoints in alternating order (Section~\ref{sec:catalogue}). For rectangles
-with both sides at least $11$, we show that four kinds of conditions account for every unsolvable
-instance. These are the parity of the endpoints, their order around the border, a few patterns of
-nearby endpoints, and a finite list of configurations near the corners.
-
-\begin{theorem}[Main theorem]\label{thm:main}
-Let $I$ be an instance on an $R \times C$ rectangle with $R, C \ge 11$. Then $I$ is solvable if and
-only if \pass$(I)$, i.e.\ no entry of the catalogue of Section~\ref{sec:catalogue} fires. If
-$\min(R, C) \le 10$, solvability is decided by a dynamic programming algorithm in time linear in
-$\max(R, C)$. In both cases a solution, when one exists, is constructed in polynomial time.
-\end{theorem}
-
-Since the catalogue is a finite list of patterns, checking it takes time $O(R + C)$ when both sides
-are at least $11$. When a side is at most $10$, the dynamic programming algorithm takes time
-$O(\max(R, C))$, with a constant that depends only on the short side. Together they decide the
-solvability of any instance in time $O(\max(R, C))$.
-
-\paragraph{Contributions.}
+% lean: FinalN.lean:43 passes_iff_solvable_K
+This paper gives a finite \emph{catalogue} of forbidden patterns, which includes the three above,
+and proves that an instance with both sides at least $11$ is solvable exactly when no pattern
+matches it. That each pattern rules out solutions is shown by parity, planarity and local
+arguments, together with enumerations of how two paths can cover a window at a corner.
+Sufficiency is shown by deleting pairs of adjacent lines that hold no endpoint, inserting them
+back into solutions, and settling the remaining finite set of grids by certificates. The results,
+each marked as new or known, are the following.
 \begin{itemize}
-\item A finite catalogue of forbidden patterns that characterizes solvability for both sides
-  $\ge 11$, with the endpoints anywhere in the grid (Section~\ref{sec:catalogue}).
-\item A constructive algorithm. Line deletions are undone by a \emph{band extension} lemma that
-  lifts solutions back, straight cuts (\emph{moves}) split the rectangle into pieces whose solutions
-  glue together, and thin rectangles are solved by the plug DP (Sections~\ref{sec:algorithm}
-  and~\ref{app:plugdp}).
-\item A Lean~4 formalization of both directions and of the thin case (Section~\ref{sec:lean}),
-  with the compromises made explicit.
-\item Implementations in Python, JavaScript and C, tested against each other, the Lean definitions
-  and exact solvers (Section~\ref{sec:impl}).
+% lean: ZZN/Thin/Fast.lean:163 thinBF_iff
+% lean: ZZN/Constr/ThinWit2.lean:128 thinSolveW2_sound
+% lean: ZZN/Constr/ThinWit2.lean:141 thinSolveW2_complete
+\item (Known method~\cite{chen08,jacobsen07}, new Lean proof.) A plug dynamic programming algorithm
+  decides every \emph{well-formed} instance, one whose four endpoints are distinct cells of the
+  grid, and a version that returns paths returns a solution exactly when one exists
+  (Theorem~\ref{thm:thin}). It is used when a side is at most $10$, for which the paper gives no
+  characterization.
+% lean: FinalN.lean:43 passes_iff_solvable_K
+\item (New.) A well-formed instance with both sides at least $11$, and endpoints anywhere in the
+  grid, is solvable if and only if no pattern of the catalogue matches it
+  (Theorem~\ref{thm:char}).
+% lean: ZZN/PassB.lean:118 passB
+% lean: ZZN/PassB.lean:181 passX_all
+% lean: ZZN/BandExtension.lean:319 band_extension
+% lean: ZZN/Reductions.lean:41 lift_delete
+% lean: ZZN/BoxK/Box.lean:333 theoremA_boxes
+\item (Known reduction, new conditions.) A reduction to finitely many grids that deletes two
+  lines and inserts them back into a solution is known for one path in a rectangle, where it is
+  combined with splitting the rectangle~\cite{ips82}, and for two paths on a
+  torus~\cite{makino06}. New are the conditions under which a deletion keeps an
+  instance free of matching patterns (Lemma~\ref{lem:pass}).
+% lean: ZZN/Timed/DecideR.lean:79 solvableBRT_main
+% lean: ZZN/Look/RoundTimeL.lean:97 solveZ3LT_main
+% lean: ZZN/Timed/RoundTimeR.lean:61 solveZ3RT_main
+% lean: ZZN/TimedStatement.lean:26 Monad TimeM (pure costs 0), :34 lmapT, :63 ldedupT (length squared)
+\item (New.) A decision procedure for well-formed instances takes $O(wh)$ counted steps on a
+  $w\times h$ grid (Theorems~\ref{thm:decide} and~\ref{thm:steps}). A construction returns only
+  solutions, and one for every well-formed solvable instance, within $O(M^2)$ counted steps,
+  $M=\max(w,h)$ (Theorems~\ref{thm:construct} and~\ref{thm:steps}). Counted steps charge a
+  list operation by the length of the list, or by its square for removing duplicates and testing
+  distinctness, and make arithmetic free (Section~\ref{sec:algo}), so the bounds are
+  polynomial in $w$ and $h$, not in the bit length of the input.
+\item (New.) The results of this paper listed above are proved in Lean~4~\cite{lean4} with Mathlib~\cite{mathlib20}, with
+  the finite case analyses checked by the Lean kernel.
 \end{itemize}
 
-\section{Definitions}\label{sec:defs}
+\secmark{defs}
+\subsection{Definitions}\label{sec:defs}
 
-Cells are $(r, c)$ with $0 \le r < R$ and $0 \le c < C$. Two cells are adjacent if they differ by
-one in exactly one coordinate. The instance is \emph{thin} if $\min(R, C) \le 10$, and the
-\emph{domain} $\Dom$ is the set of instances with both sides $\ge 11$. Figure~\ref{fig:defs}
-illustrates the definitions below.
+% lean: ZZN/Statement.lean:25 Coord
+% lean: ZZN/Statement.lean:29 InBounds
+% lean: ZZN/Statement.lean:33 Adjacent
+% lean: ZZN/Statement.lean:52 IsPath
+% lean: ZZN/Statement.lean:41 chainAdjacent
+A \emph{cell} is a pair $(x,y)$ of natural numbers, and a $w\times h$ \emph{grid} has the cells
+with $x<w$ and $y<h$. The figures draw $x$ as the row index, increasing downward, and $y$ as the
+column index, increasing to the right, so a $w\times h$ grid is drawn with $w$ rows and $h$
+columns. Two cells are \emph{adjacent} when they differ by $1$ in one coordinate and agree in the
+other. A \emph{path} from $s$ to $t$ is a list of distinct cells of the grid that starts at $s$,
+ends at $t$, and has adjacent consecutive cells. A \emph{chain} is a list of cells with adjacent
+consecutive cells, in which cells may repeat.
 
-\begin{figure}[t]
-\centering
-\begin{subfigure}[b]{0.17\textwidth}\centering
-  \includegraphics[height=5.2cm]{figures/def_gaps.pdf}\caption{}\label{fig:defs:gaps}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.32\textwidth}\centering
-  \includegraphics[height=3.5cm]{figures/def_sigma.pdf}\caption{}\label{fig:defs:sigma}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.22\textwidth}\centering
-  \includegraphics[height=2.9cm]{figures/def_ips_yes.pdf}\caption{}\label{fig:defs:ipsyes}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.22\textwidth}\centering
-  \includegraphics[height=2.9cm]{figures/def_ips_no.pdf}\caption{}\label{fig:defs:ipsno}
-\end{subfigure}
+% lean: ZZN/Statement.lean:59 Inst
+% lean: ZZN/Statement.lean:378 fires3 (pts gives s0, t0 colour 0 and s1, t1 colour 1)
+% lean: ZZN/Statement.lean:67 Inst.WellFormed
+% lean: ZZN/Statement.lean:74 IsSolution
+% lean: ZZN/Statement.lean:80 Solvable
+An \emph{instance} $I$ consists of $w$, $h$ and four cells, the \emph{endpoints}, $s_0,t_0$ of
+\emph{colour}~$0$ and $s_1,t_1$ of colour~$1$. It is \emph{well-formed} when the endpoints are
+four distinct cells of the grid. A \emph{solution} is a pair of paths, $p$ from $s_0$ to $t_0$ and
+$q$ from $s_1$ to $t_1$, with no common cell, such that every cell of the grid lies on $p$ or on
+$q$. The instance is \emph{solvable} when it has a solution.
+% lean: ZZN/SoundLocal.lean:141 Nb
+% lean: ZZN/SoundLocal.lean:208 end_unique
+% lean: ZZN/SoundLocal.lean:266 end_exists
+% lean: ZZN/SoundLocal.lean:249 interior
+% lean: ZZN/SoundLocal.lean:286 le_two
+A \emph{path neighbour} of a cell is a cell directly before or after it on its path. In a solution,
+every cell of the grid that is no endpoint has exactly two path neighbours. In a solution of a
+well-formed instance an endpoint has exactly one.
 
-\medskip
-\begin{subfigure}[b]{0.4\textwidth}\centering
-  \includegraphics[height=3.6cm]{figures/def_cut.pdf}\caption{}\label{fig:defs:cut}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.14\textwidth}\centering
-  \includegraphics[height=3.6cm]{figures/def_piece_left.pdf}\caption{}\label{fig:defs:top}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.36\textwidth}\centering
-  \includegraphics[height=3.6cm]{figures/def_piece_right.pdf}\caption{}\label{fig:defs:bottom}
-\end{subfigure}
-\caption{Definitions. (a) A $13 \times 7$ instance. Rows $0$--$3$ and $10$--$12$ are free and
-form edge gaps (purple), and rows $6$--$8$ form an internal gap (yellow). (b) Black cells have sign
-$\sigma = +1$ and white cells $-1$. The endpoint signs sum to $0$, which is $2 \cdot (RC \bmod 2)$
-since $RC = 24$ is even, as parity requires. (c) A one-path piece. The cells $s$ and $t$ have
-different shades on a $4 \times 5$ rectangle, so the pair is acceptable and a Hamiltonian $s$--$t$
-path exists. (d) Both cells are black on a rectangle with an even number of cells, so the pair is
-not acceptable. (e) A solution and a cut (dashed). Each colour crosses the cut once, and the two
-crossing pairs are circled. (f), (g) The pieces left and right of the cut, with the cut drawn on
-the side where they meet. Each crossing cell becomes a virtual endpoint (dashed) of its piece, and
-the pieces' solutions glue back into (e).}
-\label{fig:defs}
-\end{figure}
+% lean: ZZN/Statement.lean:496 freeLineB
+% lean: ZZN/Reductions.lean:30 Inst.FreeLine
+% lean: ZZN/Statement.lean:459 Inst.deleteAt
+% lean: ZZN/BandExtension.lean:32 Inst.insertAt
+% lean: ZZN/Statement.lean:484 Inst.transpose
+The \emph{line} $x=k$ is the set of cells with first coordinate $k$, drawn as row $k$, and the line
+$y=k$ the set with second coordinate $k$, drawn as column $k$. A line is \emph{free} when it holds
+no endpoint. \emph{Deleting} two free lines $x=d$ and $x=d+1$ gives the instance with $w-2$ in place of
+$w$ in which every endpoint with $x\ge d+2$ has its $x$-coordinate decreased by $2$.
+\emph{Inserting} two lines after the line $x=r$ gives the instance with $w+2$ in place of $w$ in
+which every endpoint with $x>r$ has its $x$-coordinate increased by $2$. The \emph{transpose} of an
+instance exchanges the two coordinates of every cell and exchanges $w$ and $h$. Every operation on
+the $x$-axis has a version on the $y$-axis, applied to the transpose.
 
-\paragraph{Lines and gaps.}
-A \emph{line} is a full row or column. It is \emph{free} if it contains no endpoint. A \emph{gap}
-is a maximal run of consecutive free lines on one axis. An \emph{edge gap} touches the border, and
-an \emph{internal gap} lies between two lines that contain endpoints (Figure~\ref{fig:defs:gaps}).
-The reductions of Section~\ref{sec:algorithm} delete two lines from a gap.
+% lean: ZZN/Skeleton.lean:37 InDom
+% lean: ZZN/Statement.lean:153 sgn
+% lean: ZZN/Statement.lean:154 parityOk
+An instance is \emph{wide} when it is well-formed and both sides are at least $11$, and
+\emph{thin} when a side is at most $10$. The \emph{sign} of a cell $v=(x,y)$ is $\sigma(v)=+1$ if
+$x+y$ is even and $\sigma(v)=-1$ otherwise. An instance satisfies the \emph{parity condition} when
+the signs of its four endpoints sum to $2\cdot(wh\bmod 2)$.
 
-\paragraph{Shades and signs.}
-A cell is \emph{black} if $r + c$ is even and \emph{white} otherwise. Its sign $\sigma(x)$ is $+1$ if
-$x$ is black and $-1$ if white (Figure~\ref{fig:defs:sigma}). We say shade rather than colour, to
-keep \emph{colour} for the two pairs. Black and white cells alternate along any path, so a path
-from $s$ to $t$ has sign sum $(\sigma(s) + \sigma(t))/2$. The whole grid has sign sum
-$RC \bmod 2$. Hence a solution requires $\sum \sigma(\text{endpoint}) = 2 \cdot (RC \bmod 2)$, which
-is the parity entry \ent{P} of the catalogue.
+% lean: GridHam/Basic.lean:59 HasHamPath
+% lean: GridHam/Coloring.lean:177 ColorCompatible
+% lean: GridHam/Forbidden.lean:77 IsForbidden
+% lean: GridHam/Forbidden.lean:85 IsAcceptable
+% lean: GridHam/Main.lean:171 ips_characterization
+% lean: ZZN/Cut/Tree.lean:117 leafOK (subtracts the corner of the rectangle before the test)
+% checked against primary text, 2026-11-19 (ips82, Section 3.1 and Theorem 3.2)
+Two distinct cells $s,t$ of a rectangle are an \emph{IPS-admissible} pair, after Itai,
+Papadimitriou and Szwarcfiter~\cite{ips82}, when the rectangle has a Hamiltonian path from $s$ to
+$t$. These pairs are the ones that satisfy the sign condition and avoid excluded cases, which
+occur only with a side of $1$, $2$ or $3$~\cite{ips82}. The sign condition is
+$\sigma(s)=\sigma(t)=\sigma(c)$ for a corner cell $c$ of the rectangle if its area is odd, and
+$\sigma(s)\ne\sigma(t)$ if its area is even. The Lean development proves this characterization.
 
-\paragraph{One-path pieces.}
-For a rectangle and two cells $s \ne t$, IPS~\cite{ips82} show that a Hamiltonian $s$--$t$ path
-exists if and only if two conditions hold. If $RC$ is even, $s$ and $t$ have different shades, and
-if $RC$ is odd, both are black. In addition, $(s, t)$ is not in one of three explicit families that
-occur when a side has length $1$, $2$ or $3$. We call such a pair \emph{acceptable}
-(Figures~\ref{fig:defs:ipsyes} and~\ref{fig:defs:ipsno}). A Hamiltonian path between an acceptable
-pair can be constructed in linear time.
-
-\paragraph{Cuts and moves.}
-A \emph{cut} is a straight line between two adjacent rows or columns. It splits the rectangle into
-two \emph{pieces}. Where a solution path crosses the cut, the two cells on either side form a
-\emph{crossing pair}, and each becomes a \emph{virtual endpoint} of its piece
-(Figures~\ref{fig:defs:cut}--\ref{fig:defs:bottom}). The part of the path inside a piece then runs
-between two endpoints, real or virtual. A piece is a \emph{one-path piece} if it holds the two
-endpoints of a single path, and a \emph{two-path piece} otherwise. A \emph{move} is a cut together
-with a choice of crossing pairs. It is \emph{valid} if every piece is OK, meaning that a one-path
-piece is acceptable and a two-path piece is either thin and solvable or in $\Dom$ and passing the
-catalogue. Solutions of the pieces then glue back along the crossing pairs.
-
+\secmark{related}
 \section{Related work}\label{sec:related}
 
-\paragraph{Hamiltonian paths in grid graphs.}
-Itai, Papadimitriou and Szwarcfiter~\cite{ips82} proved the Hamiltonian path problem NP-complete in
-general grid graphs, which are finite induced subgraphs of the infinite grid and may have holes and
-irregular boundaries. They also gave the characterization for rectangles that we use for one-path
-pieces. This paper is about rectangles only. On a rectangle, long runs of free lines can be
-shortened without changing solvability (Section~\ref{sec:algorithm}), and the remaining
-obstructions come from parity, the order of the endpoints along the border, and endpoints near the
-corners (Section~\ref{sec:catalogue}). General grid graphs have no such reduction, and for them the
-problem is NP-complete already for one pair. For one pair on a rectangle the problem is exactly the
-IPS case.
+% checked against primary text, 2026-11-19 (ips82: Theorem 2.1, Corollary 1, Theorem 3.2,
+%   Section 3.2 with Lemmas 3.2.1, 3.2.3, 3.2.4, Section 3.3)
+% lean: ZZN/Cut/Cover.lean:225 RCover.ips (uses ips_sufficiency), :215 RCover.single
+% lean: ZZN/Cut/Tree.lean:228 leaf_sound
+% lean: FinalN.lean:35 boxes_allK
+\paragraph{Hamiltonian paths in rectangles.} Itai, Papadimitriou and Szwarcfiter~\cite{ips82}
+proved the Hamiltonian path problem NP-complete in general grid graphs and characterized the
+IPS-admissible pairs of a rectangle. Their proof of sufficiency removes a strip of two lines that
+holds neither endpoint and extends a Hamiltonian path of the rest into it, or splits the rectangle
+in two at an edge of the path, down to finitely many small problems, which a case analysis solves.
+It gives a construction in time linear in the number of cells. This paper follows the same plan for
+two paths, with pair deletion and band extension (Section~\ref{sec:delete}) in the role of the
+strips and the grids with both sides from $11$ to $16$ in the role of the small problems. The cut
+trees of Section~\ref{sec:suff} also split rectangles, and use the sufficiency direction of the
+characterization at every leaf that is not a single cell.
 
-\paragraph{Numberlink.}
-Adcock et al.~\cite{adcock15} proved that Zig-Zag Numberlink is NP-complete. For a single pair the
-problem is the Hamiltonian path problem, solved on rectangles by IPS. Without the covering
-requirement, the problem is a vertex-disjoint paths problem. That problem is NP-complete for
-unbounded $k$ even in planar graphs~\cite{lynch75}, and polynomial for every fixed $k$ in general
-graphs by the Graph Minors theory of Robertson and Seymour~\cite{rs95}. With the covering
-requirement the paths must also fill the grid, so parity and corner effects become obstructions
-that do not arise for disjoint paths alone.
+% checked against primary text, 2026-11-19 (adcock15, arXiv v1: Theorem 1 and Section 4; the
+%   journal text was not opened)
+\paragraph{Numberlink and disjoint paths.} Adcock et al.~\cite{adcock15} proved Zig-Zag Numberlink
+NP-complete when the number of pairs is part of the input, and asked whether it can be solved in
+polynomial time for a constant number of pairs greater than one. For two pairs, this paper gives a
+decision procedure and a construction with step bounds polynomial in $w$ and $h$.
+% checked against primary text, 2026-11-19 (lynch75, Theorem II)
+% UNSURE: primary paper not read (rs95)
+Dropping the requirement that the paths cover every cell gives the vertex-disjoint paths problem,
+which is NP-complete for an unbounded number of pairs in planar graphs~\cite{lynch75} and solvable
+in polynomial time for every fixed number of pairs~\cite{rs95}.
+% lean: ZZN/SoundT1.lean:541 (in t1_sound), ZZN/SoundT2.lean:342 (in t2_sound): covering clause
+%   discarded. ZZN/SoundLocal.lean:707 l1_sound: uses end_exists, nb_inb, nb_adj, nb_col only.
+% lean: ZZN/Parity.lean:112 parity_of_solvable, ZZN/SoundLocal.lean:249 interior, :599 cover_le:
+%   covering clause used.
+Of the catalogue entries (Table~\ref{tab:catalogue}), only \ent{T1}, \ent{T2} and \ent{L1} are
+proved to rule out solutions without the covering requirement.
 
-\paragraph{Disjoint path covers.}
-In graph theory, Zig-Zag Numberlink is the \emph{paired many-to-many $k$-disjoint path cover}
-problem, which asks for $k$ vertex-disjoint paths that join given pairs of vertices and together
-cover every vertex. It has been studied for many interconnection networks, such as hypercubes,
-tori, and cylindrical and toroidal grids~\cite{parkihm15}. Park and Ihm~\cite{parkihm15} solved the
-case $k = 2$ on bipartite cylindrical grids, which are rectangles with wraparound along the rows.
-Above a small size, the only obstructions there are parity and three configurations of the
-endpoints, and these coincide with our entries \ent{T1}, \ent{T2} and \ent{E1}. A cylinder has no
-corners, and the rest of our catalogue concerns the corners of the rectangle.
-Keshavarz-Kohjerdi~\cite{kk24} stated a characterization for the case where all four endpoints lie on
-the border of the rectangle.
+% checked against primary text by the coordinator, 2026-11-19 (makino06: Theorem 1.1, Lemmas 3.1
+%   and 3.2, Section 4)
+\paragraph{Disjoint path covers.} Makino~\cite{makino06} showed that a toroidal grid with both
+sides even and at least $4$ has a two-path cover for every choice of four endpoints with two of
+each sign. The proof inserts two rows or two columns into a cover. It states without proof that a
+solvable instance stays solvable under such an insertion and that every instance arises by
+insertions from finitely many instances. Of these it solves the $4\times 4$ torus by a case
+analysis and states the solvability of the others without proof. Band extension
+(Lemma~\ref{lem:band}) is this insertion after a free line of a rectangle, where solvability also
+depends on the positions of the endpoints, so a deletion needs conditions that keep an instance free of matching
+patterns (Lemma~\ref{lem:pass}).
+% UNSURE: abstract read, body not read (kk24)
+Keshavarz-Kohjerdi~\cite{kk24} studied two-path covers of rectangular grids for endpoints on the
+outer face, and gave necessary conditions for such covers to exist and a linear-time algorithm to
+compute them. This paper places the endpoints anywhere in the rectangle. Its construction takes
+$O(\max(w,h)^2)$ counted steps (Section~\ref{sec:algo}), which is not linear in $wh$ when one side
+is much longer than the other.
 
-\paragraph{Frontier dynamic programming algorithms.}
-The dynamic programming algorithm we use for thin rectangles is a transfer-matrix (frontier-based)
-method over the connectivity states of a boundary. In competitive programming it is known as the
-\emph{plug DP}. The standard reference is Chen's 2008 paper~\cite{chen08}, written in Chinese and
-summarized in~\cite{oiwiki}. It introduced the bracket encoding of the frontier that we use, and it
-handles the endpoints of a path as unpaired (``independent'') plugs. In statistical physics the same
-technique enumerates Hamiltonian circuits, walks and chains on lattices of bounded
-width~\cite{jacobsen07}. Our DP is this technique with each plug labelled by the colour of its path,
-and we do not claim novelty for it. Our contribution regarding the DP is its formal verification in
-Lean (Section~\ref{sec:lean}).
+% checked against primary text, 2026-11-19 (chen08 pp. 1-4, oiwiki, jacobsen07 abstract and
+%   Sections 1, 2)
+% lean: ZZN/Statement.lean:573 stepCell
+% lean: ZZN/WinCheck.lean:57 stepCell
+\paragraph{Plug dynamic programming.} The algorithm for thin rectangles is a frontier
+(transfer-matrix) method, known in competitive programming as the plug DP~\cite{chen08,oiwiki} and
+used in statistical physics to count sets of disjoint paths that together visit every vertex of a
+square lattice~\cite{jacobsen07}. This paper uses it as the solver for thin instances and, run over
+a square window at a corner, as the enumeration behind the window certificates of
+Section~\ref{sec:cat}.
 
-\section{Overview of the approach}\label{sec:overview}
+\secmark{main}
+\section{Two-colour Zig-Zag Numberlink on rectangular grids}\label{sec:main}
 
-Thin rectangles, those with $\min(R, C) \le 10$, are handled exactly by the plug DP
-(Appendix~\ref{app:plugdp}). For rectangles with both sides at least $11$, every entry of the
-catalogue other than parity looks only at the endpoints near the four corners, at the order of the endpoints along
-the border, or at small groups of nearby endpoints. The proof has three parts.
-\begin{enumerate}
-\item \emph{Obstructions} (Theorem~B). Each entry of a catalogue of patterns is proved to prevent a
-  solution. Most proofs are short and use parity, the planarity of the two paths, or forced degrees
-  at corners. Some corner configurations are certified by exhaustive local computations.
-\item \emph{Reductions} (Theorem~A, induction step). If an axis has a long run of free lines, two of
-  them are deleted. The smaller instance passes the catalogue if the larger one does, because each
-  entry sees the same corner windows and the same cyclic order of endpoints along the border. Any
-  solution of the smaller instance extends to the larger one by \emph{band extension}.
-\item \emph{Base} (Theorem~A, base case). A side of length $\ge 23$ always admits a reduction, so
-  the irreducible instances have both sides between $11$ and $22$. For each passing irreducible
-  instance there is a valid move, a straight cut whose pieces are smaller and OK. This finite
-  statement is checked by computer.
-\end{enumerate}
-Theorems A and B together give the characterization, and the reductions and moves give the
-construction.
+This section determines which instances are solvable and how a solution is found.
+Well-formed thin instances are decided by a plug DP (Section~\ref{sec:thin}), which gives an
+algorithm and no condition. For wide instances, Section~\ref{sec:cat} lists the forbidden patterns,
+the entries of a catalogue, and proves for each entry that it rules out solutions. The converse,
+that a wide instance matched by no entry, a passing instance, is solvable, takes two steps.
+Section~\ref{sec:delete} shows that two adjacent free lines can be deleted, under conditions that
+keep a passing instance passing, and inserted back into any solution. Section~\ref{sec:suff}
+deletes lines until both sides are at most $16$, and settles the finitely many remaining instances
+by kernel-checked certificates. Section~\ref{sec:algo} turns the proof into a decision procedure
+and a construction, with step bounds.
 
-\section{The catalogue of forbidden features}\label{sec:catalogue}
+Proofs are complete where they are short. Longer ones are sketches, marked as such, whose
+remaining case analysis is in the Lean development, and the step bounds are proved only there. The
+finite facts are kernel-checked computations, named as such where they are used.
+Section~\ref{sec:thin} needs only the definitions of Section~\ref{sec:defs}. It comes first because
+Section~\ref{sec:cat} runs the plug DP on corner windows. Short names such as \ent{T1} refer to the
+catalogue entries of Table~\ref{tab:catalogue}.
 
-The catalogue is closed under the eight symmetries of the rectangle, under swapping the colours,
-and under swapping $s$ with $t$ within a colour. We list entries up to these symmetries. Corner
-entries are evaluated in the eight \emph{corner frames} (four corners, two orientations), with
-frame coordinates $(i, j)$ counted from the corner. Below, $\gamma$ is either colour and
-$\bar\gamma = 1 - \gamma$ is the other one. Entry names are set in sans-serif (\ent{R}, \ent{C}) to
-distinguish them from the side lengths $R$ and $C$.
+\secmark{thin}
+\subsection{Thin rectangles}\label{sec:thin}
 
-\begin{table}[ht]
+% lean: ZZN/Thin/Fast.lean:163 thinBF_iff
+% lean: ZZN/Statement.lean:663 thinBF
+% lean: ZZN/Statement.lean:622 cell
+The \emph{plug DP} decides every well-formed instance, of any size (Theorem~\ref{thm:thin}). With
+$h\le w$, after transposing if needed, it processes the lines $x=k$ in turn, each from $y=0$ to
+$y=h-1$, so the \emph{frontier} between processed and unprocessed cells runs along the short side
+(Figure~\ref{fig:frontier}).
+
+% lean: ZZN/Thin/Inside.lean:432 Piece
+% lean: ZZN/Thin/Inside.lean:436 doneMask
+% lean: ZZN/Statement.lean:573 stepCell
+% lean: ZZN/Statement.lean:566 closeP (different colours, a colour completed twice)
+% lean: ZZN/Statement.lean:656 noExit (leaving the grid)
+% lean: ZZN/Statement.lean:624 stage (the set of states, duplicates removed)
+% lean: ZZN/Statement.lean:657 stageF
+% lean: ZZN/Statement.lean:659 insideF (start state)
+% lean: ZZN/Statement.lean:661 dpAcceptF
+A \emph{piece} is a maximal run of a solution path within the processed cells that is not the whole
+path. A \emph{state} records the two ends of each piece, each an endpoint with its colour or a
+\emph{plug} (a crossing of the frontier into an unprocessed cell), and the set of \emph{complete}
+colours, those whose whole path is processed. Processing a cell gives it one path neighbour if it
+is an endpoint and two otherwise. The plugs of the state fix the path neighbours above and to the
+left, and each choice of the others, below and to the right, gives a successor state. A successor
+is discarded if it would close a cycle, join endpoints of different colours, complete a colour
+twice, or leave the grid. Starting from the state with no piece and no complete colour, the DP keeps the
+set of states \emph{reached} after each cell, and \emph{accepts} when the state with no piece and
+both colours complete is reached after the last cell.
+% lean: ZZN/Statement.lean:670 Wit
+% lean: ZZN/Constr/ThinWit2.lean:26 stageW2
+% lean: ZZN/Constr/ThinWit2.lean:38 thinSolveW2
+The version with paths also stores with each reached state the cells of its pieces and complete
+paths, for one way of reaching it, and returns the two paths of the accepting state. The
+supplement, section ``The plug DP encoding'', gives the state coding and the cell step as
+pseudocode.
+
+\begin{figure}[htbp]
 \centering
-\small
-\begin{tabular}{@{}lp{0.72\textwidth}@{}}
+\begin{minipage}[c]{0.11\textwidth}\includegraphics[width=\textwidth]{figures/plugdp_frontier.pdf}\end{minipage}
+\hspace{1.5em}
+\begin{minipage}[c]{0.62\textwidth}
+\caption{The plug DP after $18$ cells of a $6\times 5$ grid. Shaded cells are processed, the
+dashed line is the frontier, and $*$ is the next cell. The coloured runs are the three pieces of a
+solution, and their five ends across the frontier are plugs.}
+\label{fig:frontier}
+\end{minipage}
+\end{figure}
+
+% lean: ZZN/Thin/Fast.lean:163 thinBF_iff
+% lean: ZZN/Constr/ThinWit2.lean:128 thinSolveW2_sound
+% lean: ZZN/Constr/ThinWit2.lean:141 thinSolveW2_complete
+\begin{theorem}[plug DP]\label{thm:thin}
+The plug DP accepts a well-formed instance exactly when it is solvable, and the version with paths
+then returns a solution. The version with paths returns only solutions on every instance.
+\end{theorem}
+% lean: ZZN/Thin/Inside.lean:439 Inv
+% lean: ZZN/Thin/Fast.lean:93 insideF_complete
+% lean: ZZN/Thin/Sound.lean:50 W
+% lean: ZZN/Thin/Fast.lean:32 insideF_sound
+\begin{proof}[Proof sketch]
+After every cell, the pieces of a solution form a reached state (the \emph{run invariant}).
+Conversely a reached state is backed by disjoint runs of adjacent cells covering the processed
+cells, with matching ends and a full path per complete colour, so the accepting state gives a
+solution.
+\end{proof}
+
+% lean: ZZN/Timed/ThinNC.lean:441 fold_NC
+% lean: ZZN/Timed/ThinWord.lean:354 word_inj
+% lean: ZZN/Timed/ThinWordCount.lean:248 card_fold
+% lean: ZZN/Timed/ThinRopeCost.lean:31 Nw
+% lean: ZZN/Timed/ThinWord.lean:379 wcnt (Nw b counts at least the bracket words over the letters
+%   empty, open, close, times 4; these grow exponentially in b. Arithmetic on the definition, not a
+%   Lean theorem.)
+The pieces of a reached state do not cross, so at most $N(b)$ states are reached after any cell,
+where $b=\min(w,h)$ and $N(b)$ counts bracket words with colour marks, one letter for each of the
+$b+1$ places where a piece can cross the frontier, together with the set of complete colours
+(supplement, section ``The plug DP encoding''). $N(b)$ grows exponentially in $b$ (a
+count on its definition, not a Lean theorem), and so does the bound on the plug DP's steps per
+cell (Section~\ref{sec:algo}).
+
+\secmark{cat}
+\subsection{The catalogue and why each entry rules out solutions}\label{sec:cat}
+
+% lean: ZZN/Statement.lean:377 fires3
+% lean: ZZN/Statement.lean:385 Passes
+This subsection lists the reasons a wide instance can be unsolvable as the entries of a finite
+catalogue, in four groups, global (a sign count and planarity), local, forced-route and window. An
+entry \emph{fires} on an instance when its pattern matches, and an instance \emph{passes} the
+catalogue when no entry fires. The subsection proves the following theorem, at its end.
+
+% lean: WinKU/Facts.lean:170 theoremB_K
+% lean: ZZN/TheoremB.lean:63 theoremB
+\begin{theorem}[necessity]\label{thm:sound}
+Every solvable wide instance passes the catalogue.
+\end{theorem}
+
+% lean: ZZN/Statement.lean:157 perimIndex
+% lean: ZZN/Statement.lean:123 Frame
+% lean: ZZN/Statement.lean:129 Frame.to
+% lean: ZZN/Statement.lean:138 frames
+% lean: ZZN/Statement.lean:326 frameFires
+The \emph{border} is the set of cells on the first and last line of each axis. Its \emph{clockwise
+order} starts at $(0,0)$ and runs along $x=0$, then $y=h-1$, then $x=w-1$, then $y=0$. A
+\emph{corner frame} is one of the $8$ coordinate systems given by reversing the rows or not,
+reversing the columns or not, and then transposing or not. Cell $(x,y)$ has frame cell $(x',y')$,
+with $x'=w-1-x$ if the rows are reversed and $x'=x$ otherwise, $y'=h-1-y$ if the columns are
+reversed and $y'=y$ otherwise, and then $(y',x')$ in place of $(x',y')$ if the frame is transposed.
+Frame cell $(0,0)$ is a corner of the grid. Frame cells are written (row, column), and in the
+\emph{identity frame}, with no reversal and no transposition, the row is $x$. The frames are ordered
+lexicographically by (row reversal, column reversal, transposition), false first, so every frame
+without transposition is followed by the transposed frame at the same corner.
+Table~\ref{tab:catalogue} lists the entries. In the table, $a$ is either colour and $\bar a$ the other, and ``empty'' means that a cell holds no endpoint.
+\ent{L2}--\ent{L5}, \ent{E1}, \ent{B}, \ent{C} and \ent{D} are \emph{frame entries}, which fire
+when they match in one of the $8$ frames.
+
+% lean: ZZN/Statement.lean:154 parityOk
+% lean: ZZN/Statement.lean:296 t1Fires
+% lean: ZZN/Statement.lean:300 t2Fires
+% lean: ZZN/Statement.lean:307 l1Fires
+% lean: ZZN/Statement.lean:173 testL2
+% lean: ZZN/Statement.lean:177 testL3
+% lean: ZZN/Statement.lean:181 testL4
+% lean: ZZN/Statement.lean:186 testL5
+% lean: ZZN/Statement.lean:314 l6Closures
+% lean: ZZN/Statement.lean:323 l6Fires
+% lean: ZZN/Statement.lean:221 edgeClosure
+% lean: ZZN/Statement.lean:366 effAlt3
+% lean: ZZN/Statement.lean:239 boundaryOnly
+% lean: ZZN/Statement.lean:216 corner4
+% lean: ZZN/Statement.lean:326 frameFires (both sides at least 10 for corner4)
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.18\textwidth}>{\raggedright\arraybackslash}p{0.72\textwidth}@{}}
 \toprule
-Entry & Fires when \\
+& Long name & Fires when \\
 \midrule
-\ent{P} & $\sum \sigma(\text{endpoint}) \ne 2 \cdot (RC \bmod 2)$ (the parity of two covering paths) \\
-\ent{T1} & all endpoints are on the border and their colours alternate $0, 1, 0, 1$ around it \\
-\ent{T2} & the endpoints fill a $2\times2$ square with each colour on a diagonal \\
-\ent{L1} & an endpoint's in-grid neighbours are all endpoints of the other colour \\
-\ent{L6} & two corners are closed off, one by each colour, each being an empty corner cell whose two
-    neighbours are endpoints of one colour \\
-\ent{L2}--\ent{L5} & small corner patterns, for example \ent{L2} with $(0,1)$ of colour $\gamma$,
-    $(1,0)$ of colour $\bar\gamma$, and $(0,0)$ empty \\
-\ent{E1} & along an edge, $(0,\ell)$ and $(1,\ell{+}1)$ have colour $\gamma$ and $(1,\ell{+}2)$ and
-    $(0,\ell{+}3)$ have colour $\bar\gamma$ \\
-\ent{B} & a listed corner triple occurs ($21$ triples, or $5$ when both sides are odd), with the
-    fourth endpoint on the border outside the $6\times6$ corner window \\
-\ent{C}, \ent{D} & the four endpoints form one of $36$ listed corner configurations ($RC$ even) or
-    $3$ ($RC$ odd) within an $8\times8$ corner window \\
-\ent{R} & after forced corner routes (rules R1--R3), the effective endpoints alternate along the
-    border of the remaining region (Figure~\ref{fig:R}) \\
+\ent{P} & parity & $\sum\sigma$ over the four endpoints differs from $2\cdot(wh \bmod 2)$ \\
+\ent{T1} & border alternation & all endpoints lie on the border and alternate in colour in
+  clockwise order \\
+\ent{T2} & crossed square & the four endpoints fill a $2\times 2$ square with each colour on a
+  diagonal \\
+\ent{L1} & enclosed endpoint & all neighbours in the grid of some endpoint are endpoints of the
+  other colour \\
+\ent{L2} & split corner & $(0,1)$ and $(1,0)$ hold endpoints of different colours and $(0,0)$ is
+  empty \\
+\ent{L3} & trapped corner & $(0,2)$ and $(1,1)$ hold $a$, $(1,0)$ holds $\bar a$, and $(0,0)$,
+  $(0,1)$ are empty \\
+\ent{L4} & blocked diagonal & $(0,0)$ and $(1,1)$ hold $a$, $(0,2)$ holds $\bar a$, $(0,1)$,
+  $(1,0)$ are empty, and the frame has at least $3$ rows \\
+\ent{L5} & fenced corner & $(0,0)$ holds $a$, $(0,2)$ and $(2,0)$ hold $\bar a$, and $(0,1)$,
+  $(1,0)$, $(1,1)$ are empty \\
+\ent{L6} & two closed corners & both colours close a corner, and $wh>6$. Colour $a$ closes a
+  corner when the corner cell is empty and its two neighbours hold the endpoints of $a$ \\
+\ent{E1} & edge interlock & for some $k$, $(0,k)$ and $(1,k+1)$ hold $a$, and $(1,k+2)$ and
+  $(0,k+3)$ hold $\bar a$ \\
+\ent{R} & forced-route alternation & after forced corner routes move some endpoints, the four
+  endpoints alternate in colour along a walk around the border (both defined below) \\
+\ent{B} & corner triple & the three cells of a triple of Table~\ref{tab:lists}, from the \ent{B}
+  list for the parity of $wh$, hold $a$, $a$, $\bar a$ in this order, and the other endpoint of
+  $\bar a$ lies on the border, not in the square of frame rows and columns $0$ to $5$ \\
+\ent{C}, \ent{D} & corner quadruple & both sides are at least $10$, and the endpoints of one
+  colour are the pair $A$ and those of the other the pair $B$ of a configuration $A\mid B$ of
+  Table~\ref{tab:lists}, from the list \ent{C} if $wh$ is even and the list \ent{D} if $wh$ is
+  odd \\
 \bottomrule
 \end{tabular}
-\caption{The catalogue. The lists for \ent{B}, \ent{C} and \ent{D} are in Appendix~\ref{app:lists}.}
+\caption{The catalogue. Cells of frame entries are frame cells. The size conditions in \ent{L4},
+\ent{L6}, \ent{C}, \ent{D} and in the rules of \ent{R} hold on every wide instance.}
 \label{tab:catalogue}
 \end{table}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[height=3.3cm]{figures/cat_T1.pdf}\hfill
-\includegraphics[height=3.3cm]{figures/cat_T2.pdf}\hfill
-\includegraphics[height=3.0cm]{figures/cat_L2.pdf}
+\paragraph{Global group (\ent{P}, \ent{T1}, \ent{T2}).}
+\ent{P} is excluded by a sign count, \ent{T1} and \ent{T2} by planarity.
 
-\medskip
-\includegraphics[height=3.0cm]{figures/cat_L6.pdf}\qquad
-\includegraphics[height=4.6cm]{figures/cat_B.pdf}
-\caption{Entries \ent{T1}, \ent{T2}, \ent{L2}, \ent{L6} and \ent{B}. In \ent{T2} the endpoints fill
-a $2\times2$ square with each colour on a diagonal, so the two paths would have to cross inside the
-square. In \ent{L2} the corner cell (marked ?) can only be reached from two endpoints of different
-colours. In \ent{B} the $6\times6$ corner window is shaded.}
-\label{fig:catalogue}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\begin{subfigure}[b]{0.15\textwidth}\centering
-  \includegraphics[height=2.6cm]{figures/rule_R1.pdf}\caption{}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.15\textwidth}\centering
-  \includegraphics[height=2.6cm]{figures/rule_R2.pdf}\caption{}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.15\textwidth}\centering
-  \includegraphics[height=2.6cm]{figures/rule_R3.pdf}\caption{}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.25\textwidth}\centering
-  \includegraphics[width=\linewidth]{figures/r_example1.pdf}\caption{}
-\end{subfigure}\hfill
-\begin{subfigure}[b]{0.25\textwidth}\centering
-  \includegraphics[width=\linewidth]{figures/r_example2.pdf}\caption{}
-\end{subfigure}
-\caption{The \ent{R} entry. (a)--(c) Rules R1--R3 at the top-left corner of the grid, which
-continues to the right and below. Green is a colour $\gamma$ and orange the other colour
-$\bar\gamma$. The forced path pieces are drawn, settled cells are grey, and dashed circles are the
-effective endpoints. (d), (e) Two $11 \times 12$ instances on which \ent{R} fires and no other
-entry does. Neither has a solution. After the forced routes, the four effective endpoints lie on
-the border of the remaining region (shaded purple) and alternate in colour along it. This is the
-\ent{T1} condition for that region, so the two paths would have to cross. In (d) rule R1 applies at
-three corners, and in (e) rule R3 settles eight cells at the top-right corner and R1 settles two at
-the top-left.}
-\label{fig:R}
-\end{figure}
-
-\paragraph{The \ent{R} entry.}
-Some corner configurations force a path through the corner cells (Figure~\ref{fig:R}). The rules
-below are stated in a corner frame.
-\begin{itemize}
-\item[R1] An endpoint at $(0,1)$, with $(0,0)$ and $(1,0)$ not endpoints. The corner cell $(0,0)$
-  has only two neighbours, so the path runs $(0,1) \to (0,0) \to (1,0)$. The endpoint effectively
-  moves to $(1,0)$, and $(0,0)$ and $(0,1)$ are settled.
-\item[R2] Endpoints of one colour at $(0,0)$ and $(1,1)$, with $(0,1)$, $(1,0)$, $(0,2)$ and
-  $(2,0)$ not endpoints. The paths are forced around the $2\times2$ corner square, and the
-  endpoints effectively move to $(0,2)$ and $(2,0)$.
-\item[R3] Endpoints of different colours at $(1,2)$ and $(2,1)$, with $(0,0)$--$(0,3)$, $(1,0)$,
-  $(1,1)$, $(2,0)$ and $(3,0)$ not endpoints. The two paths fill the corner, the endpoints
-  effectively move to $(0,3)$ and $(3,0)$, and eight cells are settled.
-\end{itemize}
-The rules are applied once per corner frame in a fixed order (at each frame R3, then R2, then R1),
-skipping a rewrite that would overlap cells already settled. \ent{R} fires if at least one rewrite
-applied and the four effective endpoints are distinct cells on the boundary of the remaining region
-whose colours alternate along it. This is \ent{T1} for the remaining region.
-
-\paragraph{Where the entries come from.}
-\ent{P} and \ent{T1} are the classical obstructions. Each path alternates black and white cells,
-which gives parity, and two disjoint paths between alternating border points would cross, which
-gives planarity. \ent{T2}, \ent{L1}--\ent{L6} and \ent{E1} express forced degrees near endpoints
-and corners. \ent{B}, \ent{C} and \ent{D} are corner configurations that are unsolvable for reasons
-that are local but not short. Each was found by exhaustive search on corner windows, and each is
-certified by a window computation (Section~\ref{sec:proof}).
-
-\section{The algorithm}\label{sec:algorithm}
-
-\subsection{Reductions and band extension}
-
-On an axis of length $n \ge 13$, the following reductions delete two free lines $d$ and $d+1$.
-\begin{itemize}
-\item[(S)] A \emph{strip} applies to an edge gap of at least $4$ lines and deletes the outermost two.
-\item[(K)] A \emph{compression} applies to an internal gap of at least $10$ lines and deletes two
-  from its middle.
-\item[(I)] An \emph{interior compression} applies to an internal gap of at least $3$ lines
-  containing $d$ and $d+1$ with $8 \le d \le n - 10$.
-\end{itemize}
-
-\begin{lemma}[Band extension]\label{lem:band}
-If $I'$ is solvable and row $r$ of $I'$ is free, then inserting two empty rows directly below $r$
-gives a solvable instance $I$. A solution of $I$ is obtained from one of $I'$ in time $O(RC)$.
+% lean: ZZN/Parity.lean:112 parity_of_solvable
+% lean: ZZN/Parity.lean:157 parityOk_of_solvable
+\begin{lemma}[\ent{P}]\label{lem:parity}
+In a solution of an instance of any size, $\sum\sigma$ over the four endpoints equals
+$2\cdot(wh\bmod 2)$.
 \end{lemma}
-\begin{proof}[Construction]
-Stretch every path edge crossing below row $r$ through the two new rows. The new rows split into
-blocks between consecutive crossings, and each crossing absorbs the block on one of its sides by a
-U-shaped detour. The remaining block is absorbed by a \emph{square flip}, in which a path edge
-$(r, a)$--$(r, a{+}1)$ inside it is replaced by the block's boundary cycle. Such an edge exists by
-counting. The $m$ crossing cells of row $r$ supply at most $m$ horizontal edges, while each of the
-$m+1$ runs of non-crossing cells needs one, because its cells have degree two and no vertical edge
-downward.
+\begin{proof}
+Along a path the signs alternate, so twice the sum of $\sigma$ over a path equals the sum of
+$\sigma$ over its two ends. A solution covers each cell exactly once, and the sum of $\sigma$ over
+a $w\times h$ grid is $wh\bmod 2$. Adding the two paths gives the claim.
 \end{proof}
 
-\begin{figure}[ht]
+% lean: ZZN/Planar.lean:31 Closed
+% lean: ZZN/Planar.lean:42 ray
+% lean: ZZN/Planar.lean:48 par
+% lean: ZZN/Planar.lean:137 parP
+% lean: ZZN/Planar.lean:140 faces_around
+% lean: ZZN/Planar.lean:184 parP_chain (uses :61 par_down, :96 par_right, :162 parP_adj)
+The planarity arguments treat cells as points of $\mathbb{Z}^2$ and use one separation fact. Let
+$\Gamma$ be a closed walk of unit steps. The \emph{crossing parity} of a point not on $\Gamma$ is
+the parity of the number of steps of $\Gamma$ that an upward ray from the centre of a unit square
+with a corner at the point crosses, the same for all four such squares. All points of a chain of
+unit steps that avoids $\Gamma$ have the same crossing parity. Two unit squares that share an edge
+differ in crossing parity by the number of steps of $\Gamma$ on that edge, modulo $2$
+(supplement, section ``Proof of the separation fact'').
+
+% lean: ZZN/SoundT1.lean:411 t1_core (hAin, hQin: both chains lie in the grid)
+% lean: ZZN/SoundT1.lean:538 t1_sound
+\begin{lemma}[\ent{T1}]\label{lem:t1}
+On a grid with both sides at least $2$, two disjoint chains of cells of the grid whose four ends
+lie on the border do not have their ends alternate in clockwise order. So \ent{T1} never fires on a
+well-formed solvable instance with both sides at least $2$.
+\end{lemma}
+% lean: ZZN/SoundT1.lean:67 psi
+% lean: ZZN/SoundT1.lean:93 anc
+% lean: ZZN/SoundT1.lean:200 par_face
+% lean: ZZN/SoundT1.lean:391 face_parP
+\begin{proof}[Proof sketch]
+Close one chain $A$ into a closed walk $\Gamma$ by a connector that runs clockwise through the
+points just outside the grid, from the point next to one end of $A$ to the point next to the other
+(Figure~\ref{fig:sep}, left). A border cell not on $A$ has crossing parity $1$ exactly when the
+connector passes a point next to it. When the ends alternate, this holds for exactly one end of the
+other chain, although that chain avoids $\Gamma$, which contradicts the separation fact.
+\end{proof}
+
+% lean: ZZN/SoundT2.lean:122 t2_core
+% lean: ZZN/SoundT2.lean:334 t2_sound
+\begin{lemma}[\ent{T2}]\label{lem:t2}
+\ent{T2} never fires on a well-formed solvable instance.
+\end{lemma}
+% lean: ZZN/SoundT2.lean:26 dpath
+\begin{proof}[Proof sketch]
+Let $(r,c)$ and $(r+1,c+1)$ be the endpoints of one colour and $A$ its solution path. In
+coordinates $(2x,2y)$, $A$ with the midpoints of its steps is closed into a walk $\Gamma$ through
+the midpoint of $(r+1,c),(r+1,c+1)$, the centre of the square and the midpoint of $(r,c),(r,c+1)$
+(Figure~\ref{fig:sep}, right). The other path with its midpoints avoids
+$\Gamma$, but exactly one step of $\Gamma$, at the centre, lies between its ends $(r,c+1)$ and
+$(r+1,c)$, so their crossing parities differ.
+\end{proof}
+
+\begin{figure}[htbp]
 \centering
-\includegraphics[height=3.2cm]{figures/band_before.pdf}\qquad
-\includegraphics[height=3.8cm]{figures/band_after.pdf}
-\caption{Band extension. Two rows are inserted below row 2.}
+\begin{minipage}[c]{0.27\textwidth}\includegraphics[width=\textwidth]{figures/sep_t1.pdf}\end{minipage}
+\hspace{1em}
+\begin{minipage}[c]{0.16\textwidth}\includegraphics[width=\textwidth]{figures/sep_t2.pdf}\end{minipage}
+\hspace{1.5em}
+\begin{minipage}[c]{0.4\textwidth}
+\caption{The closed walks of Lemmas~\ref{lem:t1} (left) and~\ref{lem:t2} (right, the dot is the
+centre of the square). The dashed line closes the path of colour~$0$, and the shaded region has
+crossing parity $1$, which separates the two endpoints of colour~$1$.}
+\label{fig:sep}
+\end{minipage}
+\end{figure}
+
+\paragraph{Local group (\ent{L1}--\ent{L6}, \ent{E1}).}
+These entries contradict the count of path neighbours.
+
+% lean: ZZN/SoundLocal.lean:707 l1_sound
+% lean: ZZN/SoundLocal.lean:767 l6_sound
+% lean: ZZN/SoundLocal.lean:360 testL2_sound
+% lean: ZZN/SoundLocal.lean:395 testL3_sound
+% lean: ZZN/SoundLocal.lean:426 testL4_sound
+% lean: ZZN/SoundLocal.lean:477 testL5_sound
+% lean: ZZN/SoundLocal.lean:634 edgeClosure_sound
+% lean: ZZN/TheoremB.lean:39 frames_sound
+\begin{lemma}[local entries]\label{lem:local}
+On a wide solvable instance none of \ent{L1}--\ent{L6}, \ent{E1} fires.
+\end{lemma}
+% lean: ZZN/SoundLocal.lean:141 Nb
+% lean: ZZN/SoundLocal.lean:266 end_exists, :208 end_unique (endpoint, exactly one)
+% lean: ZZN/SoundLocal.lean:249 interior, :286 le_two (other cells, exactly two)
+\begin{proof}
+An endpoint has exactly one path neighbour and every other cell two (Section~\ref{sec:defs}).
+For \ent{L1}, the path neighbour of the enclosed endpoint would be an endpoint of the other colour.
+For \ent{L6}, an empty corner cell lies on a path through its two neighbours, so the path of each
+closing colour has three cells, and the two paths cover only $6<wh$ cells.
+\ent{L2}--\ent{L5} and \ent{E1} do not match in the identity frame, by the forced path neighbours
+shown in Figure~\ref{fig:local}. Each frame is the identity frame of a reflected or transposed
+instance, which is wide and solvable when the given instance is.
+\end{proof}
+
+% [H] keeps the figure with the local group, before the forced-route group.
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.17\textwidth}\centering\includegraphics[width=\textwidth]{figures/local_L2.pdf}\caption{\ent{L2}}\end{subfigure}
+\hfill
+\begin{subfigure}{0.17\textwidth}\centering\includegraphics[width=\textwidth]{figures/local_L3.pdf}\caption{\ent{L3}}\end{subfigure}
+\hfill
+\begin{subfigure}{0.17\textwidth}\centering\includegraphics[width=\textwidth]{figures/local_L4.pdf}\caption{\ent{L4}}\end{subfigure}
+\hfill
+\begin{subfigure}{0.17\textwidth}\centering\includegraphics[width=\textwidth]{figures/local_L5.pdf}\caption{\ent{L5}}\end{subfigure}
+\hfill
+\begin{subfigure}{0.195\textwidth}\centering\includegraphics[width=\textwidth]{figures/local_E1.pdf}\caption{\ent{E1}}\end{subfigure}
+% lean: ZZN/SoundLocal.lean:360 testL2_sound, :395 testL3_sound, :426 testL4_sound,
+%   :477 testL5_sound, :634 edgeClosure_sound (:611 both3 applied at :694, then 2 <= w and k + 3 < h)
+\caption{The local entries at the top-left corner in the identity frame, green for $a$ and orange
+for $\bar a$, with the forced path steps and a cross where a cell cannot be completed. (a) The two
+path neighbours of the corner cell have different colours. (b) $(0,1)$ has no second path
+neighbour of colour $\bar a$. (c) The neighbours of $(0,1)$ are $(0,0)$ and $(1,1)$, of colour $a$, and $(0,2)$, of colour
+$\bar a$, so $(0,1)$ lies between $(0,0)$ and $(1,1)$ on the path of $a$. Then $(1,0)$ needs two
+path neighbours and only $(2,0)$ is left. (d) If $(0,1)$ follows $(0,0)$, then $(1,0)$ lies on the path of $\bar a$ through $(2,0)$ and $(1,1)$,
+and $(0,1)$ has no second path neighbour of colour $a$ (the other case is the transpose). (e) Here $k=1$. A step between $(0,k+1)$ and $(0,k+2)$ would join the two colours, so both paths close after three
+cells, while the grid has at least $2\cdot 4$ cells.}
+\label{fig:local}
+\end{figure}
+
+\paragraph{Forced-route group (\ent{R}).}
+Some placements of endpoints at a corner force the first cells of their paths. \ent{R} is
+\ent{T1} after these forced routes. Three rules (Figure~\ref{fig:forced}) move endpoints to the
+ends of their forced routes and mark the cells that the routes fill as \emph{settled}. The paths
+between the moved endpoints avoid the settled cells (Lemma~\ref{lem:r}), and \ent{R} fires when
+the moved endpoints alternate in colour along a walk around the border that bypasses these cells.
+
+% lean: ZZN/Statement.lean:257 Rewrite
+% lean: ZZN/Statement.lean:260 rewritesAt
+% lean: ZZN/SoundR.lean:482 forced_r1
+\begin{itemize}
+\item \ent{R1}, corner turn. $(0,1)$ holds an endpoint and $(0,0)$, $(1,0)$ are empty. In a
+  solution the corner cell has its two neighbours as path neighbours, so the path of the endpoint
+  starts $(0,1)$, $(0,0)$, $(1,0)$. Move the endpoint to $(1,0)$ and settle $(0,0)$, $(0,1)$.
+\item \ent{R2}, diagonal pair. $(0,0)$ and $(1,1)$ hold endpoints of one colour and $(0,1)$,
+  $(1,0)$, $(0,2)$, $(2,0)$ are empty. Move $(0,0)$ to $(0,2)$ and $(1,1)$ to $(2,0)$, and settle
+  $(0,0)$, $(0,1)$, $(1,0)$, $(1,1)$.
+\item \ent{R3}, staircase pair. $(1,2)$ and $(2,1)$ hold endpoints of different colours and the
+  cells $(i,0)$, $(0,i)$ for $i\le 3$ and $(1,1)$ are empty. Move $(1,2)$ to $(0,3)$ and $(2,1)$
+  to $(3,0)$, and settle $(0,0)$, $(0,1)$, $(0,2)$, $(1,0)$, $(1,1)$, $(2,0)$, $(1,2)$, $(2,1)$.
+\end{itemize}
+\ent{R1}, \ent{R2}, \ent{R3} also need at least $2$, $3$, $4$ frame rows, and \ent{R2}, \ent{R3} at least $3$,
+$4$ frame columns.
+% lean: ZZN/Statement.lean:285 rwStep
+% lean: ZZN/Statement.lean:294 rewriteAll
+The \emph{effective endpoints} start as the endpoints. The frames are visited in their order, and
+in each frame only the first rule that matches the effective endpoints, in the order \ent{R3},
+\ent{R2}, \ent{R1}, is tried. It is applied unless it would settle a settled cell or move an
+endpoint onto one, in which case the frame is skipped. In the rules, a cell is empty when it holds no
+effective endpoint, settled or not.
+
+% lean: ZZN/Statement.lean:331 notchLen
+% lean: ZZN/Statement.lean:334 staircase
+% lean: ZZN/Statement.lean:345 walk3
+% lean: ZZN/PassTR.lean:1578 remShape_rewriteAll
+% lean: ZZN/PassTR.lean:1104 shapes
+% lean: ZZN/Statement.lean:366 effAlt3
+The \emph{bypass walk} follows the border in clockwise order, except that at a corner with
+settled cells it leaves the border and passes through the corner's \emph{staircase}, the cells
+that are not settled and share an edge or a corner with a settled cell. On a wide instance
+the settled cells at a corner, its \emph{shape}, are none or the cells settled by \ent{R1}, by
+\ent{R1} transposed, by \ent{R2} or by \ent{R3}, so the walk is well defined. \ent{R} fires when at least one rule was
+applied, no effective endpoint is settled, the four effective endpoints are distinct and each
+occurs once on the bypass walk, and their colours alternate along it
+(Figure~\ref{fig:forced}(d)).
+
+% generated by paper/figures/src/make_forced_figures.py from rewritesAt and staircase, and (d) by
+% paper/figures/src/make_catalogue_figures.py
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[c]{0.62\textwidth}
+\begin{subfigure}[b]{0.215\linewidth}\centering\includegraphics[width=\linewidth]{figures/forced_r1.pdf}\caption{}\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.215\linewidth}\centering\includegraphics[width=\linewidth]{figures/forced_r2.pdf}\caption{}\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.215\linewidth}\centering\includegraphics[width=\linewidth]{figures/forced_r3.pdf}\caption{}\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.3\linewidth}\centering\includegraphics[width=\linewidth]{figures/cat_R.pdf}\caption{}\end{subfigure}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.35\textwidth}
+\captionsetup{justification=raggedright,singlelinecheck=false}
+\caption{(a)--(c) \ent{R1}, \ent{R2}, \ent{R3} in the identity frame. Arrows are moves, dashed
+circles the moved endpoints, grey cells settled, and the blue line the bypass walk along the
+outlined staircase. (d) An $11\times 12$ instance on which \ent{R} fires.}
+\label{fig:forced}
+\end{minipage}
+\end{figure}
+
+% lean: ZZN/SoundR.lean:1348 endpoint_info
+% lean: ZZN/SoundR.lean:1487 coverage
+% lean: ZZN/SoundR.lean:1555 path_trim
+% lean: ZZN/SoundRMain.lean:334 r_sound
+\begin{lemma}[\ent{R}]\label{lem:forced}\label{lem:r}
+In a solution of a wide instance with no effective endpoint settled, the path of each colour
+whose two effective endpoints are distinct contains a run of consecutive cells that joins them
+and contains no settled cell. So \ent{R} never fires on a solvable wide instance.
+\end{lemma}
+% lean: ZZN/SoundR.lean:482 forced_r1
+% lean: ZZN/SoundR.lean:496 forced_r2
+% lean: ZZN/SoundR.lean:608 forced_r3
+% lean: ZZN/SoundR.lean:1711 exitTab
+% lean: ZZN/SoundR.lean:1733 safeB
+% lean: ZZN/SoundR.lean:1741 exit_facts
+% lean: ZZN/SoundR.lean:1749 exit_order
+% lean: ZZN/SoundR.lean:2484 corner_far
+% lean: ZZN/SoundR.lean:2492 exits_disj
+\begin{proof}[Proof sketch]
+At each endpoint the path starts with a forced part through settled cells that ends at an
+effective endpoint, and every settled cell lies on such a part, so the run between the forced
+parts at the two ends of a path avoids the settled cells. \ent{R1} states its forced part. For
+\ent{R2}, if $(0,1)$ is the path neighbour of $(0,0)$, then $(1,0)$ has the path
+neighbours $(1,1)$ and $(2,0)$, so the forced parts are $(0,0),(0,1),(0,2)$ and $(1,1),(1,0),(2,0)$.
+The other case is the transpose, in which the parts end at the two effective endpoints in
+exchanged order. For \ent{R3} the forced parts are $(1,2),(0,2),(0,3)$ and
+$(2,1),(1,1),(0,1),(0,0),(1,0),(2,0),(3,0)$, or their transposes.
+
+When \ent{R} fires, this gives two disjoint runs between the effective endpoints that avoid the
+settled cells. In the \emph{doubled grid}, of sides $2w-1$ and $2h-1$, in which $(2x,2y)$ stands
+for the cell $(x,y)$, each run with the midpoints of its steps is a chain. A finite table, with
+one entry per shape and staircase cell, extends it from each end to the border through settled
+cells, midpoints of steps at a settled cell or at that end, and points between four cells. A kernel-checked computation
+shows that the extensions of distinct staircase cells are disjoint, avoid every point the other
+run can use, and reach the border in the order of the bypass walk. So the extended chains are
+disjoint with alternating ends on the border, which contradicts Lemma~\ref{lem:t1}.
+\end{proof}
+
+\paragraph{Window group (\ent{B}, \ent{C}, \ent{D}).}
+These entries are the lists of configurations at a corner in Table~\ref{tab:lists}. The
+\emph{window} is the square of frame rows and columns $0$ to $5$. For \ent{B}, three endpoints lie
+in it and the fourth, $F$, lies on the border not in it. A configuration whose cells lie in the
+window is shown to rule out solutions by a certificate that enumerates how a solution can cover
+the window. The $6$ configurations of \ent{C} marked $*$ have a cell outside it and make \ent{R}
+fire (Lemma~\ref{lem:c8}).
+
+% lean: ZZN/Statement.lean:228 BOUNDARY3_EVEN
+% lean: ZZN/Statement.lean:236 BOUNDARY3_ODD
+% lean: ZZN/Statement.lean:191 CORNER4
+% lean: ZZN/Statement.lean:210 CORNER4_ODD
+% lean: ZZN/C8R.lean:29 c8q
+% lean: ZZN/B5R.lean:29 b5q
+\begin{table}[htbp]
+\centering\footnotesize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth}>{\raggedright\arraybackslash}p{0.83\textwidth}@{}}
+\toprule
+\ent{B}, $wh$ even ($21$) & 00\,11\,12, 01\,02\,11, 01\,02\,12, 01\,03\,11, 01\,04\,11,
+  01\,04\,12, 01\,05\,11$^\dagger$, 01\,12\,11, 01\,12\,13, 01\,12\,22, 01\,12\,31, 01\,13\,03,
+  01\,21\,13, 01\,21\,22, 01\,21\,31, 02\,21\,10, 03\,11\,10, 04\,11\,10, 04\,21\,10, 04\,21\,12,
+  05\,11\,10$^\dagger$ \\
+\ent{B}, $wh$ odd ($5$) & 00\,11\,12, 00\,11\,22, 01\,02\,11, 01\,04\,11, 04\,11\,10 \\
+\ent{C} ($36$) & 01\,03$\mid$11\,13, 01\,06$\mid$07\,11$^*$, 01\,06$\mid$11\,70$^*$,
+  01\,06$\mid$12\,60$^*$, 01\,07$\mid$11\,60$^*$, 01\,13$\mid$11\,12, 01\,13$\mid$12\,22,
+  01\,13$\mid$12\,31, 01\,22$\mid$11\,12, 01\,22$\mid$12\,31, 01\,22$\mid$13\,30,
+  01\,70$\mid$11\,60$^*$, 02\,11$\mid$21\,30, 02\,20$\mid$12\,21, 03\,21$\mid$31\,40,
+  06\,21$\mid$12\,60$^*$, 12\,22$\mid$13\,21, 12\,31$\mid$13\,21, 01\,12$\mid$04\,22,
+  01\,12$\mid$04\,31, 01\,12$\mid$13\,20, 01\,12$\mid$13\,40, 01\,12$\mid$20\,22,
+  01\,12$\mid$22\,40, 01\,12$\mid$31\,40, 01\,13$\mid$03\,04, 01\,13$\mid$03\,20,
+  01\,13$\mid$03\,40, 01\,21$\mid$02\,22, 01\,21$\mid$02\,31, 01\,21$\mid$04\,13,
+  01\,21$\mid$04\,22, 01\,21$\mid$04\,31, 01\,21$\mid$13\,40, 01\,21$\mid$22\,40,
+  01\,21$\mid$31\,40 \\
+\ent{D} ($3$) & 00\,01$\mid$11\,20, 00\,14$\mid$02\,13, 00\,23$\mid$02\,13 \\
+\bottomrule
+\end{tabular}
+\caption{The lists of the window group, in frame cells $ij=(i,j)$. A triple $u\,v\,z$ has $u,v$ of
+colour $a$ and $z$ of colour $\bar a$, a configuration $A\mid B$ one colour at $A$ and the other at
+$B$. A configuration marked $*$ has a cell outside the window, and a triple marked $\dagger$ a cell at
+coordinate $5$ (Lemma~\ref{lem:c8}).}
+\label{tab:lists}
+\end{table}
+
+% lean: ZZN/WinCheck.lean:18 (module docstring: exit slots)
+% lean: ZZN/WinCheck.lean:130 exitCell
+% lean: ZZN/WinCheck.lean:122 inside
+% lean: ZZN/WinOut.lean:21 WinSetup
+A \emph{window certificate} runs the plug DP over the window. A path can leave the window
+through an \emph{exit}, a step from a window cell $(i,5)$ to $(i,6)$ or from $(5,j)$ to $(6,j)$. The $12$ exits are numbered down the right side and then leftward along the
+bottom. A \emph{boundary state}, a state after the last cell, lists the pieces by their two ends,
+each an endpoint or an exit, and the colours completed inside. Its \emph{outside ends} are the
+\emph{used} exits, those at which a piece ends, and $F$ for \ent{B}.
+
+% lean: ZZN/WinCheck.lean:181 usedOf
+% lean: ZZN/WinCheck.lean:206 parOf
+% lean: ZZN/WinCheck.lean:170 structOK
+% lean: ZZN/WinCheck.lean:200 fxOf
+% lean: ZZN/WinCheck.lean:210 outsideOK
+% lean: ZZN/WinCheck.lean:220 certify
+% lean: ZZN/WinCheck.lean:133 ncm
+A boundary state satisfies the \emph{completion test} when all of the following hold.
+\begin{itemize}
+\item The number of outside ends is even and not zero.
+\item The sum of $\sigma$ over the cells just outside the used exits, plus $\sigma(F)$ for
+  \ent{B}, is $2\cdot(wh\bmod 2)$.
+\item The outside ends, in exit order with $F$ last, have a non-crossing pairing with the
+  following properties. Following the pairing and the inside pieces alternately from an endpoint
+  gives one path per colour not completed inside. Every outside end lies on one of these paths.
+  If $F$ lies just outside a used exit, it is paired with that exit.
+\end{itemize}
+A certificate states that no boundary state satisfies the test.
+
+% lean: ZZN/WinSound.lean:24 window_sound
+% lean: ZZN/WinDP.lean:105 inside_complete
+% lean: ZZN/WinPar.lean:268 window_parity
+% lean: ZZN/WinPlan.lean:835 window_nocross
+% lean: ZZN/WinOut.lean:537 f_rule
+\begin{lemma}[window certificates]\label{lem:window}
+If a wide instance matches, in the identity frame, a configuration of the window group whose cells
+lie in the window (for \ent{B}, all but $F$) and has a solution, then the boundary state of the
+solution restricted to the window satisfies the completion test. So a certificate shows that every
+such instance is unsolvable.
+\end{lemma}
+% lean: ZZN/WinPlan.lean:30 routeR
+% lean: ZZN/WinPlan.lean:84 routeEnd
+% lean: ZZN/WinPlan.lean:132 route_disj
+% lean: ZZN/WinPlan.lean:161 anc_F
+% lean: ZZN/WinPlan.lean:502 pair_ok
+\begin{proof}[Proof sketch]
+The solution restricted to the window gives a boundary state reached by the window DP, by the
+run invariant of Theorem~\ref{thm:thin}, and outside the window the paths are disjoint chains between
+the outside ends. The window has $\sum\sigma=0$, which gives the second condition as in
+Lemma~\ref{lem:parity}. In the doubled grid, a diagonal zigzag route through the window extends
+each outside chain from each of its exits to the border. The routes of distinct exits are
+disjoint and reach the border in exit order, before $F$. So a crossing pair would give disjoint
+chains with alternating ends on the border, which Lemma~\ref{lem:t1} excludes.
+\end{proof}
+
+% lean: ZZN/C8R.lean:286 c8_firesF
+% lean: ZZN/C8R.lean:267 c8_baseF
+% lean: ZZN/C8R.lean:134 c8_sound
+% lean: ZZN/PassB.lean:77 bigHit_R
+% lean: ZZN/B5Fire.lean:78 b5_all
+% lean: ZZN/PassB.lean:105 b5Hit_R
+\begin{lemma}[configurations marked $*$ and $\dagger$]\label{lem:c8}
+On a wide instance with $wh$ even, a match in any frame of one of the $6$ \ent{C} configurations
+marked $*$ or of one of the $2$ \ent{B} triples marked $\dagger$ in Table~\ref{tab:lists} makes
+\ent{R} fire.
+\end{lemma}
+% lean: ZZN/C8R.lean:55 c8_base
+% lean: ZZN/C8R.lean:160 effAlt3_redF
+% lean: ZZN/PassStrip.lean:608 effAlt3_rstrip
+% lean: ZZN/PassStrip.lean:1280 effAlt3_lstrip
+% lean: ZZN/B5R.lean:81 b5_stepR
+% lean: ZZN/PassXR.lean:874 effAlt3_comp
+% lean: ZZN/B5Base.lean:511 b5_base
+\begin{proof}[Proof sketch]
+For $*$, every endpoint has frame coordinates below $8$, so \ent{R} gives the same answer after
+the two lines of highest frame coordinate are deleted on a side of length at least $13$, and the
+kernel checks the sizes $11\times 12$, $12\times 11$ and $12\times 12$. For $\dagger$, $F$ is any
+border cell outside the window. \ent{R} gives the same answer after the lines at frame coordinates $6$, $7$ or
+$8$, $9$, a pair that does not hold $F$, are deleted on a side of length at least $15$, which
+keeps $F$ on the border outside the window, and the kernel checks the sides $11$ to $14$
+(supplement, section ``Pair deletions keep each entry passing'').
+\end{proof}
+
+% lean: ZZN/WinBCD.lean:22 winC
+% lean: ZZN/WinBCD.lean:34 fsB
+% lean: ZZN/WinBCD.lean:40 CertFacts
+% lean: ZZN/WinBCD.lean:50 solvable_swap
+% lean: ZZN/TheoremB.lean:39 frames_sound
+% lean: ZZN/TheoremB.lean:63 theoremB
+% lean: WinKU/Facts.lean:167 certFactsK
+\begin{proof}[Proof of Theorem~\ref{thm:sound}]
+On a solvable wide instance, Lemmas~\ref{lem:parity}, \ref{lem:t1}, \ref{lem:t2},
+\ref{lem:local} and~\ref{lem:r} exclude every entry outside the window group, and
+Lemmas~\ref{lem:c8} and~\ref{lem:r} a match of a configuration marked $*$. Reflection,
+transposition and exchanging the colours reduce every other match of \ent{B}, \ent{C} or \ent{D}
+to a match in the identity frame with the colours of a certificate. A certificate depends only on
+the configuration, on $wh\bmod 2$ and, for \ent{B}, on whether $F$ is $(0,6)$, $(6,0)$ or another
+cell, since $F$ has the colour of the third cell of the triple and \ent{P} fixes its sign
+(supplement, section ``Why one window certificate covers every frame, colouring and grid size'').
+The kernel checks a certificate for every \ent{B} triple with every class of $F$ that \ent{P}
+allows, for every \ent{D} configuration and for the $30$ unmarked \ent{C} configurations, and Lemma~\ref{lem:window} applies.
+\end{proof}
+
+\secmark{delete}
+\subsection{Deleting and inserting free lines}\label{sec:delete}
+
+The converse of Theorem~\ref{thm:sound} is an induction on the area, whose step deletes two
+adjacent free lines, under conditions that keep the instance passing, and inserts them back by
+band extension.
+
+% lean: ZZN/Skeleton.lean:50 RedX (strip, wide-gap and interior clauses)
+% lean: ZZN/PassB.lean:29 RedB (distant-endpoint)
+% lean: ZZN/PassX.lean:689 CompCore
+% lean: ZZN/PassX.lean:155 FarK (FarK 5 follows from 5 <= d and d + 7 <= w, Constr/Solve2.lean:168
+%   redBB_iff; so the interior clause of RedX, 8 <= d and d + 10 <= w, implies RedB. Arithmetic on
+%   the definitions, no named Lean theorem.)
+% lean: ZZN/Constr/Solve2.lean:186 findRed2
+A \emph{pair deletion} deletes two free lines $x=d$ and $x=d+1$ of an axis of length $w\ge 13$, so
+that the side stays at least $11$, in one of three kinds (Figure~\ref{fig:deletions}).
+\begin{itemize}
+\item \emph{Edge strip.} $d=0$ and lines $0$ to $3$ are free, or $d+2=w$ and the last four are free.
+\item \emph{Wide-gap compression.} Lines $d$, $d+1$ are among $10$ consecutive free lines, with an
+  endpoint on a line before these $10$ and an endpoint on a line after them.
+\item \emph{Distant-endpoint compression.} $5\le d$, $d+7\le w$, lines $d$, $d+1$ and one of $d-1$,
+  $d+2$ are free, and there are endpoints with $x<d$ and with $x>d+1$.
+\end{itemize}
+
+% generated by paper/figures/src/make_proof_figures.py, which checks each panel against RedX, RedB
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[c]{0.45\textwidth}
+\begin{subfigure}[b]{0.31\linewidth}\centering\includegraphics[width=\linewidth]{figures/del_strip.pdf}\caption{}\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.31\linewidth}\centering\includegraphics[width=\linewidth]{figures/del_gap.pdf}\caption{}\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.31\linewidth}\centering\includegraphics[width=\linewidth]{figures/del_distant.pdf}\caption{}\end{subfigure}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.52\textwidth}
+\caption{Pair deletions of the dark rows on $13\times 11$ grids. Light rows are the further free
+lines the kind requires. (a) Edge strip, $d=0$. (b) Wide-gap compression, $d=3$, in the run of
+lines $1$ to $10$. (c) Distant-endpoint compression, $d=5$, with line $4$ free. No other
+kind allows these deletions.}
+\label{fig:deletions}
+\end{minipage}
+\end{figure}
+
+% lean: ZZN/Skeleton.lean:116 inDom_deleteAt
+% lean: ZZN/PassB.lean:31 inDom_deleteB
+% lean: ZZN/PassB.lean:181 passX_all
+% lean: ZZN/PassB.lean:118 passB
+% lean: ZZN/PassTR.lean:1802 passT
+\begin{lemma}[deletions keep passing]\label{lem:pass}
+A pair deletion turns a wide instance into a wide instance, and a passing wide instance into a
+passing wide instance. Transposition keeps a wide instance passing.
+\end{lemma}
+% lean: ZZN/PassXAssemble.lean:20 comp_canonical (same smaller instance at lines lo + 4, lo + 5)
+% lean: ZZN/PassXAssemble.lean:40 passX_comp (Lean proves the wide-gap case through agreement up to
+%   frame coordinate 7, PassX.lean:177 far_of_redX. The sketch goes through comp_canonical and
+%   passB instead, which is valid because the clause of RedX at lo + 4 implies RedB.)
+% lean: ZZN/PassStrip.lean:1541 passStrip
+% lean: ZZN/PassX.lean:40 parityOk_deleteAt
+% lean: ZZN/PassX.lean:1305 t1_comp
+% lean: ZZN/PassX.lean:895 t2_comp
+% lean: ZZN/PassX.lean:1117 l1_comp
+% lean: ZZN/PassX.lean:980 l6_comp
+% lean: ZZN/PassStrip.lean:1314 t1_lstrip
+% lean: ZZN/PassStrip.lean:1382 l1_lstrip
+% lean: ZZN/PassStrip.lean:1399 l6_lstrip
+% lean: ZZN/PassStrip.lean:268 frames_any_strip
+% lean: ZZN/PassStrip.lean:82 boundary_lists_local
+% lean: ZZN/PassStrip.lean:89 corner4_lists_local
+% lean: ZZN/PassStrip.lean:204 edgeClosure_flip
+% lean: ZZN/PassX5.lean:180 frames_any_of5
+% lean: ZZN/PassX5.lean:112 boundaryOnly_of5
+% lean: ZZN/PassX.lean:836 comp_line_after
+% lean: ZZN/PassX.lean:848 e1_comp
+% lean: ZZN/PassB.lean:77 bigHit_R
+% lean: ZZN/PassB.lean:105 b5Hit_R
+% lean: ZZN/PassXR.lean:874 effAlt3_comp
+% lean: ZZN/PassStrip.lean:1280 effAlt3_lstrip
+% lean: ZZN/PassStrip.lean:608 effAlt3_rstrip
+% lean: ZZN/PassStrip.lean:68 rewritesAt_near
+% lean: ZZN/PassT.lean:306 fires3_transpose
+% lean: ZZN/PassTR.lean:1755 effAlt3_transpose
+\begin{proof}[Proof sketch]
+Let $I'$ be the smaller instance. An entry that fires on $I'$ makes one fire on $I$, as follows.
+\ent{P}, \ent{T1}, \ent{T2}, \ent{L1} and \ent{L6} read only $wh\bmod 2$, the signs, the border
+endpoints in clockwise order, which endpoints are adjacent, and which cells at or next to a corner hold
+endpoints, and a deletion keeps all of these.
+After an edge strip no endpoint of $I'$ lies on the two lines next to the stripped edge. Every
+frame entry other than \ent{E1} needs an endpoint in frame rows $0$, $1$ and one in frame columns
+$0$, $1$, and \ent{E1} needs endpoints in frame rows $0$, $1$, so in a frame with its corner on the stripped edge only \ent{E1} in a transposed frame
+can match, and it then also matches in the frame at the other end of its border line. In a frame
+with its corner on the other edge every endpoint keeps its frame cell.
+
+A wide-gap compression gives the same $I'$ as the distant-endpoint compression at the fifth and
+sixth lines of its run. After a compression with $5\le d$ and $d+7\le w$, every endpoint keeps
+its distance to each border line of the deleted axis or is at distance at least $5$ from it in
+$I$ and in $I'$, and $I'$ has a free line with endpoints on both sides. So \ent{E1} in a
+transposed frame, which needs endpoints on four consecutive lines of the deleted axis, does not
+match on $I'$. \ent{L2}--\ent{L5}, \ent{E1} in a frame that is not transposed, and the unmarked
+configurations of Table~\ref{tab:lists} read only cells at distance below $5$ from such a border
+line, so they match on $I$ when they match on $I'$ (for \ent{B}, $F$ stays on the border outside
+the window). A marked configuration is in a list for even $wh$, so a match on $I'$ makes \ent{R}
+fire on $I'$ (Lemma~\ref{lem:c8}).
+\ent{R} gives the same answer on $I$ and $I'$, and every entry gives the same answer on the
+transpose. The supplement, sections ``Pair deletions keep each entry passing'' and ``The
+forced-route test under transposition'', gives the reasons for these two facts and the remaining
+cases.
+\end{proof}
+
+% lean: ZZN/BandExtension.lean:319 band_extension
+% lean: ZZN/BandExtension.lean:41 LineFree
+% lean: ZZN/Statement.lean:432 bandExtE
+% lean: ZZN/Constr/Band.lean:364 bandExtE_sol
+% lean: ZZN/Skeleton.lean:207 lift_redX
+% lean: ZZN/PassB.lean:50 lift_redB
+% lean: ZZN/Statement.lean:510 liftE
+% lean: ZZN/Constr/Solve2.lean:46 liftE_solF
+\begin{lemma}[band extension]\label{lem:band}\label{lem:lift}
+Let $I$ be a solvable instance, well-formed or not, with $r<w$ and the line $x=r$ free. Then the
+instance obtained by inserting two lines after $x=r$ is solvable, and the construction in the
+proof turns every solution of $I$ into a solution of it. So an instance $J$ is solvable when a
+pair deletion of $J$ gives a solvable instance, and the construction turns every solution of
+that instance into one of $J$.
+\end{lemma}
+
+% lean: ZZN/Statement.lean:114 Cross
+% lean: ZZN/Statement.lean:95 shiftAt
+% lean: ZZN/Statement.lean:103 stretch
+% lean: ZZN/Statement.lean:399 absorbE
+% lean: ZZN/Statement.lean:404 flipE
+% lean: ZZN/Statement.lean:409 sweepLeftE
+% lean: ZZN/Statement.lean:415 sweepRightE
+% lean: ZZN/Statement.lean:425 SeedAt
+% lean: ZZN/BandExtension.lean:225 seed_or_flip
+% lean: ZZN/Reductions.lean:41 lift_delete
+% lean: ZZN/Reductions.lean:74 lift_delete'
+\begin{proof}
+Let $p,q$ be a solution of $I$. A column $y$ is a \emph{crossing} when a path steps between
+$(r,y)$ and $(r+1,y)$, and \emph{non-crossing} otherwise. Move the cells with $x>r$ to $x+2$,
+which leaves a \emph{band} of two new lines $x=r+1$ and $x=r+2$, and \emph{stretch} each step at a crossing through
+the two new cells of its column, which gives the column a \emph{middle step} between them. A
+\emph{detour} covers a non-crossing column $y$ from a neighbouring column $y'$ with a middle step,
+by replacing that step by the run $(r+1,y')$, $(r+1,y)$, $(r+2,y)$, $(r+2,y')$. Column $y$ gets a
+middle step and $y'$ loses its own, so the construction starts from two neighbouring columns with
+middle steps, one for the columns to their left and one for those to their right, or from one
+such column at an edge of the grid. A \emph{gap seed}, a position between two neighbouring
+crossings or between an edge of the grid and a crossing next to it, has them. A \emph{step seed},
+a step of a path along $x=r$ between neighbouring non-crossing columns $y$, $y+1$, gets them when
+it is replaced by the run $(r,y)$, $(r+1,y)$, $(r+2,y)$, $(r+2,y+1)$, $(r+1,y+1)$, $(r,y+1)$. From
+the leftmost seed, the non-crossing columns to its left are covered in order away from the seed by detours from their
+right neighbour, and those to its right from their left neighbour (Figure~\ref{fig:band}). Each
+replacement swaps a step for a run with the same two ends that adds only uncovered new cells, and
+every new cell gets covered, so the result is a solution.
+
+A seed exists. Otherwise columns $0$ and $h-1$ are non-crossing, no two neighbouring columns are
+both crossings, and no step along $x=r$ joins two neighbouring non-crossing columns. Let $y$ be
+non-crossing. The cell $(r,y)$ is no endpoint and has no path neighbour at $(r+1,y)$, so one of
+its two path neighbours lies on $x=r$, in a neighbouring column $c$, which is a crossing. The
+cell $(r,c)$ has the path neighbour $(r+1,c)$ and so at most one on $x=r$. So $y\mapsto c$ is
+injective, and so is $c\mapsto c-1$ from the crossings to the non-crossing columns other than
+$h-1$. The non-crossing columns are then at most as many as the crossings and at least one more,
+a contradiction.
+
+For the last statement, every kind of pair deletion of lines $x=d$, $x=d+1$ leaves a free line
+$x=d+2$ or $x=d-1$ next to the pair. Inserting two lines after it in the smaller instance (after
+its line $x=d$ in the first case, after $x=d-1$ in the second) gives back $J$. When both lines are
+free the lift uses $x=d+2$.
+\end{proof}
+
+% generated by docs/figures/make_figures.py (section 5), with reduce2.band_ext, the port of bandExtE
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[c]{0.42\textwidth}
+\raisebox{-\height}{\includegraphics[width=0.48\linewidth]{figures/band_before.pdf}}\hfill
+\raisebox{-\height}{\includegraphics[width=0.48\linewidth]{figures/band_after.pdf}}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.54\textwidth}
+\caption{Band extension with $r=2$ on a $6\times 9$ grid, before (left, the dashed line marks
+where the two lines are inserted) and after (right, the new lines shaded). Every column except
+$y=0$ is a crossing, the position between columns~$1$ and~$2$ is the leftmost seed, and
+column $0$ is covered by a detour from column~$1$.}
 \label{fig:band}
+\end{minipage}
 \end{figure}
 
-\subsection{Moves}
+\secmark{suff}
+\subsection{Sufficiency}\label{sec:suff}
 
-\begin{figure}[ht]
+This subsection proves the converse of Theorem~\ref{thm:sound} by induction on the area. A pair
+deletion shrinks a passing wide instance and keeps it passing (Section~\ref{sec:delete}). An
+instance that admits none has both sides at most $16$ (Lemma~\ref{lem:wide}), and kernel-checked
+grid certificates settle the finitely many such instances (Lemma~\ref{lem:small}).
+
+% lean: FinalN.lean:43 passes_iff_solvable_K
+% lean: ZZN/PassB.lean:195 theoremA_B
+% lean: ZZN/BoxK/Box.lean:333 theoremA_boxes
+\begin{theorem}[characterization]\label{thm:char}
+A wide instance is solvable if and only if it passes the catalogue.
+\end{theorem}
+
+% lean: ZZN/Skeleton.lean:154 redX_of_wide
+% lean: ZZN/BoxK/None.lean:27 none_all
+% lean: ZZN/BoxK/Rows.lean:141 noneOK
+% lean: ZZN/BoxK/Rows.lean:143 noneOK_sound
+% lean: ZZN/FiniteB.lean:60 axBB_of_noRed
+% lean: ZZN/Constr/Solve2.lean:272 leaf16
+% lean: ZZN/PassB.lean:29 RedB (the compressions at d = 8, 10, 13 satisfy RedB: 5 <= d, d + 7 <= w
+%   since w >= 23, and CompCore, PassX.lean:689, holds with FarK 5, PassX.lean:155)
+\begin{lemma}[long sides]\label{lem:wide}
+An axis of length at least $17$ admits a pair deletion, whatever the four endpoint coordinates on
+it.
+\end{lemma}
+\begin{proof}
+For lengths $17$ to $22$ the kernel checks all placements. Let $w\ge 23$. If lines $0$ to $3$, or
+the last four lines, are free, an edge strip applies. Otherwise some endpoint has $x\le 3$ and some
+has $x\ge w-4\ge 19$. If lines $7$ to $9$ are free, a distant-endpoint compression applies at
+$d=8$, and if lines $10$ to $12$ or $13$ to $15$ are free, at $d=10$ or $d=13$. Otherwise each of
+these three ranges holds an endpoint line, which with the lines at $x\le 3$ and $x\ge 19$ makes
+five endpoint lines for four endpoints.
+\end{proof}
+
+% lean: ZZN/Cut/Tree.lean:40 Kind
+% lean: ZZN/Cut/Tree.lean:46 CTree
+% lean: ZZN/Cut/Tree.lean:81 split
+% lean: ZZN/Cut/Tree.lean:101 inside
+% lean: ZZN/Cut/Tree.lean:117 leafOK
+% lean: ZZN/Cut/Tree.lean:125 check
+% lean: ZZN/Cut/Tree.lean:291 rootPiece
+% lean: ZZN/Cut/Tree.lean:267 check_sound
+% count: grep '^noncomputable def d[0-9]* : CData' BoxKGen/*/S*.lean: 788 of the 16477 records
+%   have a non-empty list of explicit paths (last component)
+\paragraph{Cut trees.}\phantomsection\label{lem:cut} The grid certificates solve an instance by
+recursive splits, recorded as a cut tree, or, for some instances, by explicit paths. A \emph{cut
+tree} is read top-down against a rectangle and a list of \emph{terminal pairs}, pairs of cells, possibly
+equal, to be joined by disjoint paths that cover the rectangle. The root is read against the grid with the
+two endpoint pairs. A leaf records nothing. A cut node records an axis, a position at which it cuts
+its rectangle between two adjacent lines into two parts, and for each terminal pair the part of its
+first end and one of three types (Figure~\ref{fig:cut}(a) shows the second).
+\begin{itemize}
+\item The pair stays in one part, which gets it.
+\item The path crosses the cut at a position $i$. Each part gets the pair of one old end and its
+  cell next to the cut at $i$.
+\item Both ends lie in one part, and the path leaves it at position $i$ and returns at $j$. That
+  part gets the pairs (first end, its cell at $i$) and (its cell at $j$, second end), and the other
+  part gets the pair of its cells at $i$ and $j$.
+\end{itemize}
+A leaf is \emph{valid} when its rectangle has one pair, either a single cell that is the whole
+$1\times 1$ rectangle or an IPS-admissible pair of the rectangle. A tree \emph{checks} when every
+cut lies strictly inside its rectangle, every cut node gives a type to each of its pairs, and every
+leaf is valid. By induction on the tree, a tree that checks gives disjoint paths that join the
+pairs and cover the rectangle. A valid leaf is covered by its cell or by a Hamiltonian path, and at a cut the paths of the two
+parts are joined across the two adjacent cells at each crossing position.
+
+% lean: ZZN/Cut/Template.lean:27 TPos
+% lean: ZZN/Cut/Template.lean:30 offN
+% lean: ZZN/Cut/Template.lean:44 inst
+% lean: ZZN/Cut/Template.lean:62 anchors
+% lean: ZZN/Cut/Template.lean:68 tcheck
+% lean: ZZN/Cut/Template.lean:72 solvable_of_tcheck
+A \emph{template} is a cut tree whose positions are given relative to the instance. Each cut and
+crossing position is an anchor plus a fixed integer offset, with a negative result taken as $0$.
+The anchor is $0$, the side length, or one of the four endpoint coordinates, on the axis along
+which the position is measured. A template \emph{checks} on an instance when the tree obtained by
+evaluating its positions there checks, and the instance is then solvable. One template solves many
+instances (Figure~\ref{fig:template}(b) and~(c)).
+
+% figure: docs/figures/make_figures.py (template_same_a, template_same_b: the template that
+%   lib/python/zzn/look.py returns for the final instance of the example figure, drawn on the image
+%   of that instance on which it checks, and on the same instance with t0 at (3,9)),
+%   paper/figures/src/make_paper_figures.py (def_cut)
+\begin{figure}[htbp]
 \centering
-\includegraphics[height=4.3cm]{figures/move_strip.pdf}\hfill
-\includegraphics[height=4.3cm]{figures/move_13.pdf}\hfill
-\includegraphics[height=4.3cm]{figures/move_cross.pdf}\hfill
-\includegraphics[height=4.3cm]{figures/move_same.pdf}\hfill
-\includegraphics[height=4.3cm]{figures/move_exc.pdf}
-\caption{The five move types. Each cuts the rectangle along the dashed line, and the dashed circles
-mark crossing pairs, whose cells become virtual endpoints of the pieces. In a \emph{strip} all four
-endpoints lie on one side, and the other side is an empty block of even area, spliced into a path
-that runs along the cut. In a \emph{1/3} move one endpoint is alone on its side. Its path crosses
-the cut once, so that side is a one-path piece from the endpoint to its crossing cell, and the
-other side is a two-path piece. In a \emph{2/2 cross} each side holds one endpoint of each colour.
-Each path crosses once, and both sides are two-path pieces. In a \emph{2/2 same} move each side
-holds both endpoints of one colour. No path crosses, and both sides are one-path pieces. In an
-\emph{excursion} each side holds one whole pair as in 2/2 same, but one path (here colour~$0$)
-leaves its side and returns, crossing twice.}
-\label{fig:moves}
+\begin{subfigure}{0.19\textwidth}\centering\includegraphics[width=\textwidth]{figures/def_cut.pdf}\caption{}\end{subfigure}
+\hspace{2em}
+\begin{subfigure}{0.28\textwidth}\centering\includegraphics[width=\textwidth]{figures/template_same_a.pdf}\caption{}\end{subfigure}
+\hspace{2em}
+\begin{subfigure}{0.28\textwidth}\centering\includegraphics[width=\textwidth]{figures/template_same_b.pdf}\caption{}\end{subfigure}
+\caption{Dashed lines are cuts. (a) A cut that both paths cross. Each crossing gives each part a
+new terminal, drawn as a dashed circle. (b), (c) One template on two $11\times 12$ instances, the
+second with $t_0$ two columns to the right. At the first cut, before column $9$ in (b), the path
+from $s_1$ to $t_1$ leaves the left part and returns, and the left part, with three pairs, is cut
+again. The cuts anchored on the column of $t_0$ move with it.}
+\label{fig:template}
+\label{fig:cut}
 \end{figure}
 
-A move cuts the rectangle between rows $p-1$ and $p$, up to symmetry. The five types differ in how
-the endpoints fall (Figure~\ref{fig:moves}). In a \emph{strip} all endpoints are on one side, and
-the other side is empty, has even area and at least two lines. Its block is spliced into a path
-running along the cut. In a \emph{1/3} move one endpoint is alone, and its piece is a one-path
-piece to its crossing. A \emph{2/2 cross} has one endpoint of each colour on each side and two
-crossings. In a \emph{2/2 same} move each side holds one whole pair, giving two one-path pieces. An
-\emph{excursion} also has one whole pair on each side, and one colour crosses the cut twice. The
-pieces' solutions glue along the crossing edges.
+% lean: ZZN/Moves.lean:173 Sym
+% lean: ZZN/BoxK/Box.lean:25 rowsOf
+% lean: ZZN/BoxK/Box.lean:26 colsOf
+% lean: ZZN/BoxK/Slice.lean:191 keyR
+% lean: ZZN/BoxK/Box.lean:54 Gbox
+% lean: ZZN/BoxK/Box.lean:94 key2
+\paragraph{Grid certificates.} The certificates treat one instance of each symmetry class, its
+canonical image. The \emph{symmetries} of an instance are generated by reflecting either axis,
+transposing, exchanging $s_0$ with $t_0$ or $s_1$ with $t_1$, and exchanging the colours. The
+\emph{row tuple} of an instance lists the $x$-coordinates of $s_0,t_0,s_1,t_1$, and the
+\emph{column tuple} their $y$-coordinates. For $w\le h$, the \emph{canonical image} of an instance
+is its image, under the symmetries without transposition, or all symmetries when $w=h$, with the
+lexicographically least row tuple and, among those, the least column tuple.
 
-\subsection{Pseudocode}
+% lean: ZZN/BoxK/Box.lean:160 finite_le
+% lean: FinalN.lean:35 boxes_allK
+% lean: ZZN/BoxK/Box.lean:142 BoxCert
+% lean: ZZN/BoxK/Box.lean:130 SliceGood
+% lean: ZZN/BoxK/Rows.lean:60 rowsOK
+% lean: ZZN/BoxK/Rows.lean:117 rowsOK_sound
+% lean: ZZN/BoxK/SliceC.lean:138 sliceCOK
+% lean: ZZN/BoxK/SliceC.lean:44 validM (the checked column tuples satisfy parityV)
+% lean: ZZN/BoxK/Slice.lean:161 passImgB_of_parity
+% lean: ZZN/BoxK/FireW.lean:57 failW
+% lean: ZZN/Finite.lean:411 passImgB
+% lean: ZZN/FiniteB.lean:242 SBB_apply
+% lean: ZZN/Orbit.lean:211 inv_exists
+% lean: ZZN/Moves.lean:252 Sym.solvable
+% lean: ZZN/Orbit.lean:249 passes_lab
+% lean: ZZN/Orbit.lean:274 passes_transpose_iff
+% lean: ZZN/Orbit.lean:282 passes_refl_of_image
+% lean: ZZN/PassSym.lean:853 passes_rev0
+% lean: ZZN/PassSym.lean:858 passes_rev1
+% lean: ZZN/PassSym.lean:863 passes_swapColors
+% count: grep -c '^noncomputable def d[0-9]* : CData' BoxKGen/*/S*.lean (sum 16477)
+\begin{lemma}[small passing instances]\label{lem:small}\label{lem:boxes}
+A passing wide instance with both sides at most $16$, on which no pair deletion applies on either
+axis, is solvable.
+\end{lemma}
+\begin{proof}
+Let $I$ be such an instance, with $w\le h$ after transposing if needed, which keeps it wide and
+passing (Lemma~\ref{lem:pass}) and maps solutions to solutions. Let $J$ be the canonical image of
+$I$. Every symmetry keeps the absence of pair deletions, so $J$ admits none.
 
-Algorithm~\ref{alg:decide} decides an instance, Algorithm~\ref{alg:solve} constructs a solution, and
-Algorithm~\ref{alg:band} is the band extension used to undo a reduction. The catalogue test
-\textsc{Fires} is written out in Appendix~\ref{app:fires} (Algorithm~\ref{alg:fires}). Each entry's
-test is a constant-size pattern check (Table~\ref{tab:catalogue} and Appendix~\ref{app:lists}),
-except for \ent{T1}, \ent{E1} and \ent{R}, which scan the border. The test takes time $O(R + C)$.
+For each of the $21$ sizes $11\le w\le h\le 16$ the kernel checks a grid certificate (supplement,
+section ``Certificate formats and the programs that found them''). The certificates list
+$16\,477$ row tuples in all, among them the row tuple of every canonical image that admits no pair
+deletion on the $x$-axis, and for each row tuple templates with symmetries, failing column tuples
+and explicit paths. The check shows that every well-formed canonical image of such a size that
+admits no pair deletion on either axis, and on which \ent{P} does not fire, has a template that
+checks on its image under a recorded symmetry, or recorded explicit paths that solve it, or a
+failing record. A failing record names, for the instance and for each of its three reflections, in
+$x$, in $y$ and in both, an entry that fires on it. When \ent{P} fires on an instance, it fires on
+its three reflections.
 
-\begin{algorithm}[tb]
-\caption{Decision}\label{alg:decide}
+So $J$ is solvable, or neither $J$ nor any of its three reflections passes. The instance $I$ is an
+image of $J$ and passes, and on wide instances passing is kept by
+transposition (Lemma~\ref{lem:pass}) and by the exchanges, since no entry depends on the order of
+the two endpoints of a colour or on which colour is $0$ (checked entry by entry in the Lean
+development). So $J$ or one of its three reflections passes, which is why a failing record covers
+all four. Hence $J$ is solvable, and the inverse symmetry maps a solution of $J$ to one of $I$.
+\end{proof}
+% source: certgen/src/chain3.c:292-297 (iterative deepening), certgen/src/slicehyb.c:1-9 (greedy
+%   cover, chain search for the rest), :348-351 (explicit paths mode). How the certificates were
+%   found is in the supplement section named in the proof; Section 4 points to the same section.
+
+\begin{proof}[Proof of Theorem~\ref{thm:char}]
+Theorem~\ref{thm:sound} gives one direction. For the other, let $I$ be a passing wide instance and
+argue by induction on the area. If a pair deletion applies on the $x$-axis, the smaller instance is
+wide and passes (Lemma~\ref{lem:pass}), so it is solvable, and Lemma~\ref{lem:lift} gives a
+solution of $I$. A pair deletion on the $y$-axis is handled on the transpose, which is wide and
+passes (Lemma~\ref{lem:pass}). Otherwise both sides are at most $16$ by Lemma~\ref{lem:wide}, and
+Lemma~\ref{lem:small} applies.
+\end{proof}
+% The Lean induction (PassB.lean:195 theoremA_B) also has a same-colour-split branch
+% (PassB.lean:237, Skeleton.lean:215 glueQ). The paper's route does not use it: finite_le
+% (Box.lean:160) needs only the absence of pair deletions (its no-split hypothesis is unused,
+% Box.lean:168-171).
+
+\secmark{algo}
+\subsection{Algorithm}\label{sec:algo}
+
+% lean: ZZN/Constr/RoundCount.lean:143 phi_le
+% lean: ZZN/Constr/RoundCount.lean:90 w_le_of_none
+% lean: ZZN/Timed/RoundTime.lean:672 liftBTT_time (a block lift costs at most 77 (M+1)^2 steps)
+Deciding (Algorithm~\ref{alg:decide}) applies the catalogue or the plug DP. Constructing
+(Algorithm~\ref{alg:construct}) follows the proof of Theorem~\ref{thm:char}. It deletes free lines
+while it can. The instance that remains is the \emph{final instance}. SolveDirect solves it by the
+plug DP with paths or by a lookup in the grid certificates, and the solution is lifted back through
+the deletions. Each lift is a pass over both paths, and deleting one pair at a time needs
+a number of lifts that grows with $M=\max(w,h)$. BlockLayer therefore first deletes \emph{blocks}, each
+of many free lines. On a wide instance it deletes at most $36$ blocks, after which both sides are at
+most $37$ (proof of Theorem~\ref{thm:steps}), and PairLayer deletes the remaining pairs, each time
+at the least $d$ among $0,\ldots,w-2$ at which a pair deletion applies. The
+\emph{transpose} of a pair of paths exchanges the two coordinates of every cell. SelectBlock, the
+lift of a block and TableLookup are defined after the algorithms. The supplement has pseudocode for
+them (section ``Block selection, block lifts and table lookup'') and the recursion that builds the
+Hamiltonian paths of the leaves (section ``Building a Hamiltonian path in a rectangle'').
+
+% lean: ZZN/Statement.lean:763 solvableB
+% lean: ZZN/Thin/Decide.lean:26 solvableB_iff
+\begin{algorithm}[htbp]
+\caption{Decide$(I)$}\label{alg:decide}
 \begin{algorithmic}[1]
-\Require instance $I = (R, C, s_0, t_0, s_1, t_1)$ with four distinct endpoints
-\Ensure whether $I$ is solvable
-\If{$\min(R, C) \le 10$} \Return \Call{PlugDPFeasible}{$I$} \Comment{Appendix~\ref{app:plugdp}}
-\Else\ \Return \textbf{not} \Call{Fires}{$I$} \Comment{Section~\ref{sec:catalogue}}
+\Require a well-formed instance $I$ with sides $w,h$
+\If{$w\ge 11$ \textbf{and} $h\ge 11$} \Return true if no entry of the catalogue fires on $I$,
+  else false
+\Else\ \Return the answer of the plug DP on $I$
 \EndIf
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}[tb]
-\caption{Construction}\label{alg:solve}
+\begin{theorem}[decision procedure]\label{thm:decide}
+For every well-formed instance, Decide returns true if and only if the instance is solvable.
+\end{theorem}
+\begin{proof}
+Theorem~\ref{thm:char} for wide instances and Theorem~\ref{thm:thin} for the others.
+\end{proof}
+
+% lean: ZZN/Constr/Round.lean:420 solveR
+% lean: ZZN/Constr/Round.lean:440 solveZ3
+% lean: ZZN/Constr/Solve2.lean:186 findRed2
+% lean: ZZN/Constr/Solve2.lean:214 solveRec2
+% lean: ZZN/Constr/Solve2.lean:234 solveZ2
+% lean: ZZN/Look/Complete.lean:141 leafL
+% lean: ZZN/Statement.lean:519 checkE
+% lean: ZZN/Statement.lean:510 liftE
+% (solveR and solveRec2 recurse on the deleted transpose when the deletion is on the y-axis, and
+%   transpose the lifted solution back: Round.lean:431-436, Solve2.lean:225-230. With no deletion
+%   on either axis they pass on I itself, not its transpose.)
+\begin{algorithm}[htbp]
+\caption{Construct$(I)$, returning a solution or none}\label{alg:construct}
 \begin{algorithmic}[1]
-\Function{Solve}{$I$}
-  \If{$\min(R, C) \le 10$} \Return \Call{PlugDPSolve}{$I$} \EndIf
-  \If{\Call{Fires}{$I$}} \Return \textsc{None} \EndIf
-  \If{$(\mathit{axis}, d) \gets$ \Call{FindReduction}{$I$} succeeds}
-    \State $I' \gets I$ with lines $d, d+1$ on $\mathit{axis}$ deleted
-    \State $S' \gets$ \Call{Solve}{$I'$}
-    \State \Return \Call{BandExtend}{$S'$, $\mathit{axis}$, $d$} \Comment{Lemma~\ref{lem:band}}
-  \EndIf
-  \If{a cut separates the two pairs and both one-path pieces are acceptable}
-    \State \Return the two Hamiltonian paths (IPS construction)
-  \EndIf
-  \State $M \gets$ \Call{FindMove}{$I$} \Comment{exists by Theorem~A, and here $R, C \le 22$}
-  \State solve each piece of $M$ (by IPS, the plug DP, or \Call{Solve}{})
-  \State \Return the pieces' solutions glued along $M$'s crossings
-\EndFunction
+\Require an instance $I$
+\If{$I$ is not well-formed} \Return none \EndIf
+\State \Return \Call{BlockLayer}{$I$}
 \Statex
-\Function{FindReduction}{$I$}
-  \For{$\mathit{axis} \in \{\text{rows}, \text{columns}\}$ with length $n \ge 13$}
-    \If{lines $0..3$ are free} \Return $(\mathit{axis}, 0)$ \EndIf
-    \If{lines $n{-}4..n{-}1$ are free} \Return $(\mathit{axis}, n-2)$ \EndIf
-    \If{lines $\ell..\ell{+}9$ are free, with endpoints on both sides} \Return $(\mathit{axis}, \ell+4)$ \EndIf
-    \If{$8 \le d \le n{-}10$, lines $d, d{+}1$ and $d{-}1$ or $d{+}2$ free, endpoints on both sides}
-      \State \Return $(\mathit{axis}, d)$
-    \EndIf
-  \EndFor
-  \State \Return \textsc{None}
+\Function{BlockLayer}{$I$}
+  \If{a side of $I$ is at most $10$} \Return \Call{PairLayer}{$I$} \EndIf
+  \State $J\gets I$ if SelectBlock returns a block for $I$, else the transpose of $I$
+  \State $\beta\gets$ SelectBlock$(J)$
+  \If{$\beta$ is none} \Return \Call{PairLayer}{$I$} \EndIf
+  \State $S\gets$ \Call{BlockLayer}{$J$ with $\beta$ deleted}
+  \If{$S$ is none} \Return none \EndIf
+  \State $S'\gets$ the lift of $\beta$ applied to $S$, a solution of $J$
+  \State \Return $S'$ if $J=I$, else the transpose of $S'$
 \EndFunction
-\Statex
-\Function{FindMove}{$I$}
-  \For{$m = 0, 1, \dots, 10$} \Comment{width of the widest thin piece, $0$ for none}
-    \For{each move type, each of the 8 orientations, each endpoint relabelling}
-      \For{each cut position $p$ and crossing choice whose widest thin piece has width $m$}
-        \If{every piece is OK (narrower piece checked first)} \Return the move \EndIf
-      \EndFor
-    \EndFor
-  \EndFor
+\Function{PairLayer}{$I$}
+  \If{a side of $I$ is at most $10$} \Return \Call{SolveDirect}{$I$} \EndIf
+  \State $J\gets I$ if a pair deletion applies on the $x$-axis of $I$, else the transpose of $I$
+  \State $d\gets$ the least $d\ge 0$ at which a pair deletion of any kind applies on the $x$-axis of $J$
+  \If{there is none} \Return \Call{SolveDirect}{$I$} \EndIf
+  \State $S\gets$ \Call{PairLayer}{$J$ with the lines $x=d$, $x=d+1$ deleted}
+  \If{$S$ is none} \Return none \EndIf
+  \State $S'\gets$ $S$ lifted as in Lemma~\ref{lem:lift}, a solution of $J$
+  \State \Return $S'$ if $J=I$, else the transpose of $S'$
+\EndFunction
+\Function{SolveDirect}{$I$}
+  \State $S\gets$ the plug DP with paths on $I$ if a side of $I$ is at most $10$, else
+    TableLookup$(I)$\label{line:final}
+  \State \Return $S$ if $S$ is a solution of $I$, else none
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}[tb]
-\caption{Band extension (Lemma~\ref{lem:band}), rows}\label{alg:band}
-\begin{algorithmic}[1]
-\Require a solution $P$ of $I'$ and a free row $r$
-\Ensure a solution of $I'$ with two empty rows $n_1 = r{+}1$, $n_2 = r{+}2$ inserted
-\State shift every cell below row $r$ down by two
-\State $X \gets$ columns $c$ where $P$ uses the edge $(r, c)$--$(r{+}3, c)$ \Comment{crossings}
-\For{$c \in X$} replace the edge by $(r,c), (n_1,c), (n_2,c), (r{+}3,c)$ \EndFor
-\State let $B_0, \dots, B_{|X|}$ be the column blocks of rows $n_1, n_2$ between crossings
-\State $j \gets$ an index with $B_j = \emptyset$, or else one whose block contains a path edge
-       $(r,a)$--$(r,a{+}1)$
-\For{the $i$-th crossing $c$} absorb $B_{i-1}$ if $i \le j$, else $B_i$, by a U-detour replacing
-     $(n_1,c)$--$(n_2,c)$ \EndFor
-\If{$B_j \ne \emptyset$} replace $(r,a)$--$(r,a{+}1)$ by the boundary cycle of $B_j$ opened at
-     $(n_1,a)$--$(n_1,a{+}1)$ \EndIf
-\end{algorithmic}
-\end{algorithm}
+% lean: ZZN/Constr/Round.lean:271 xmin
+% lean: ZZN/Constr/Round.lean:275 leftK
+% lean: ZZN/Constr/Round.lean:277 rightK
+% lean: ZZN/Constr/Round.lean:279 innerK
+% lean: ZZN/Constr/Round.lean:282 gapOK
+% lean: ZZN/Constr/Round.lean:286 innerPair
+% lean: ZZN/Constr/Round.lean:290 blkX
+% lean: ZZN/Constr/Round.lean:50 Inst.dropIn
+% lean: ZZN/Constr/Round.lean:322 leftK_spec
+% lean: ZZN/Constr/Round.lean:329 rightK_spec
+% lean: ZZN/Constr/Round.lean:336 innerK_spec
+\paragraph{Blocks.} A \emph{block} is a run of $2k\ge 2$ free lines of one axis, deleted at once.
+Deleting the block of lines $x=c,\ldots,c+2k-1$ lowers $w$ by $2k$ and lowers by $2k$ the
+$x$-coordinate of every endpoint with $x\ge c+2k$. SelectBlock chooses a block on the $x$-axis of a
+wide instance. BlockLayer calls it only on wide instances, since it reaches SelectBlock only with
+both sides at least $11$, and deleting free lines and transposing keep an instance well-formed. Let $x_{\min}$ and $x_{\max}$ be the least and the greatest $x$-coordinate of
+an endpoint. A block \emph{admits} $k$ when $k$ satisfies the condition of that block and $2k+11\le w$. The last
+inequality keeps the side at least $11$. SelectBlock tries the top block, then the bottom block,
+then the middle blocks, takes the first that admits some $k\ge 1$, and uses the largest $k$ that it
+admits. The \emph{top block},
+lines $0$ to $2k-1$, leaves at least $2$ free lines before the line $x=x_{\min}$, so its condition
+is $2k+2\le x_{\min}$. The \emph{bottom block}, the last $2k$ lines, leaves at least $2$ free lines
+after the line $x=x_{\max}$, so its condition is $x_{\max}+2k+3\le w$. A \emph{middle block}, lines
+$a+2$ to $a+1+2k$, lies between endpoint lines $x=a$ and $x=b$ with $a<b$ and no endpoint on a line
+strictly between them, and leaves at least $8$ free lines between them, so its condition is
+$a+2k+9\le b$. Every other pair $(a,b)$ admits no $k$. The pairs $(a,b)$ are tried with $a$ running over the $x$-coordinates of
+$s_0,t_0,s_1,t_1$ in this order and, for each $a$, $b$ running over them in the same order, and the
+first pair that admits some $k\ge 1$ is taken. If no case admits a $k$, SelectBlock returns none. A returned block is given by its kind, its $k$
+and, for a middle block, $a$.
 
-\subsection{Complexity}
-Each reduction removes two lines, so at most $(R + C)/2$ reductions occur. Each costs a catalogue
-check ($O(R + C)$) and a band extension ($O(RC)$). Moves occur only on rectangles with both sides
-at most $22$, in constant time. The total is $O((R + C)\,RC)$ for $R, C \ge 11$, plus the plug DP,
-which is linear in the long side for a fixed short side.
+% lean: ZZN/Constr/EdgeBlock.lean:33 colSnake
+% lean: ZZN/Constr/EdgeBlock.lean:181 edgeBlock
+% lean: ZZN/Constr/EdgeBlock.lean:300 findV
+% lean: ZZN/Constr/EdgeBlock.lean:339 blkE
+% lean: ZZN/Constr/EdgeBlock.lean:374 edgeLift
+% lean: ZZN/Constr/EdgeBlock.lean:383 exists_vert
+% lean: ZZN/Constr/EdgeBlock.lean:572 edgeLiftL
+A \emph{snake} over a list of columns runs along the list on the first new line, along the reversed
+list on the second, and so on through all $2k$ new lines, taken in increasing order of $x$. A step
+is \emph{along} a line when both its cells are on the line. \emph{EdgeSplice} puts back
+a bottom block into a solution $p,q$ of the smaller instance. Let $n=w-2k$ be the number of lines of
+the smaller instance, so that the new lines are $x=n,\ldots,w-1$. EdgeSplice takes the first step in
+path order of $p$ along the line $x=n-1$, or of $q$ if $p$ has none, between columns $y$ and $y+1$.
+Between the two cells of the step it inserts the snake over $y,y-1,\ldots,0$ followed by the
+reverse of the snake over $y+1,\ldots,h-1$, and it reverses the inserted run as a whole when the
+step goes from column $y+1$ to column $y$. Such a step exists when $h\ge 5$, since the line $x=n-1$
+then has a cell that is not an endpoint, and at most one of the two path neighbours of that cell
+lies off the line. If neither path has such a step, EdgeSplice returns $p,q$ unchanged.
+% lean: ZZN/Constr/WideBand.lean:300 wideExt
+% lean: ZZN/Constr/Round.lean:202 seedW
+% lean: ZZN/Constr/Round.lean:208 cvW
+% lean: ZZN/Constr/Round.lean:212 innerLift
+% lean: ZZN/Constr/WideBand.lean:278 attW
+% lean: ZZN/Constr/WideBand.lean:281 grpW
+% lean: ZZN/Constr/WideBand.lean:288 flipW
+% lean: ZZN/Constr/Round.lean:266 Blk.lift
+\emph{MiddleSplice} puts back a middle block after the free line $x=r$, where $r=a+1$, as band
+extension does (Lemma~\ref{lem:band}) from the leftmost seed, with the $2k$ new lines
+$x=r+1,\ldots,r+2k$ in place of two (Figure~\ref{fig:blocks}). The cells with $x>r$ move to $x+2k$.
+Let the leftmost seed lie between columns $R-1$ and $R$, with $R=0$ when it lies before column $0$
+and $R=h$ when it lies after column $h-1$. The \emph{group} of a column $y$ is $y$
+followed by the non-crossing columns next to it going away from the seed, $y-1,y-2,\ldots$ when
+$y<R$ and $y+1,y+2,\ldots$ otherwise, up to the next crossing column or the edge of the grid. A crossing step in column $y$ gets, between its two cells,
+the snake over the group of $y$, reversed when the step goes toward smaller $x$. If the leftmost seed
+is a step seed, its step gets the snake over the group of $R-1$ followed by the reverse of the snake
+over the group of $R$, the whole reversed when the step goes from $R$ to $R-1$. A gap seed needs no
+replacement of its own. The \emph{lift} of a bottom block is EdgeSplice.
+The lift of a top block reflects the solution by $x\mapsto n-1-x$, applies EdgeSplice and reflects
+the result by $x\mapsto w-1-x$. The lift of a middle block is MiddleSplice.
 
-\subsection{A worked example}
-
-\begin{figure}[ht]
+% figure: docs/figures/make_figures.py (blk_edge_before, blk_edge_after, blk_inner_before,
+%   blk_inner_after: lib/python/zzn/blocks.py lift on a 6 x 9 solution, r = 2)
+\begin{figure}[htbp]
 \centering
-\includegraphics[height=4.4cm]{figures/ex_0.pdf}\hfill
-\includegraphics[height=4.0cm]{figures/ex_4.pdf}\hfill
-\includegraphics[height=4.4cm]{figures/ex_final.pdf}
-\caption{A $16 \times 13$ instance, the $12\times11$ core with its 2/2-cross move, and the
-solution.}
-\label{fig:example}
+\begin{subfigure}{0.2\textwidth}\centering\includegraphics[width=\textwidth]{figures/blk_edge_before.pdf}\end{subfigure}
+\begin{subfigure}{0.2\textwidth}\centering\includegraphics[width=\textwidth]{figures/blk_edge_after.pdf}\end{subfigure}%
+\hspace{1.5em}%
+\begin{subfigure}{0.2\textwidth}\centering\includegraphics[width=\textwidth]{figures/blk_inner_before.pdf}\end{subfigure}
+\begin{subfigure}{0.2\textwidth}\centering\includegraphics[width=\textwidth]{figures/blk_inner_after.pdf}\end{subfigure}
+\caption{EdgeSplice (left pair, before and after) and MiddleSplice at the dashed line (right pair),
+each of $4$ new lines, which are shaded, on a grid smaller than a wide instance. Colour $0$ is
+green and runs along the top row. Colour $1$ is orange. EdgeSplice goes into the first step of the
+orange path along the bottom row, from its endpoint $s_1$ at the bottom left to the cell right of
+it, marked $*$.}
+\label{fig:blocks}
 \end{figure}
 
-Consider the $16\times13$ instance of Figure~\ref{fig:example}. Rows $0$--$3$ are free, so the strip
-reduction deletes rows $0$ and $1$. The $14\times13$ result has no reduction, and strip moves cut
-off a $2\times13$ block below and a $12\times2$ block on the right. The $12\times11$ core is split by
-a horizontal 2/2-cross move into two thin $6\times11$ pieces, which the plug DP solves. The blocks
-are spliced back, and the two deleted rows are reinserted by band extension.
+% lean: ZZN/Constr/Round.lean:28 Chain
+% lean: ZZN/Constr/Round.lean:32 chain_pass
+% lean: ZZN/Constr/Round.lean:344 blkX_ok
+% lean: ZZN/Constr/Round.lean:246 innerLift_sol
+% lean: ZZN/Constr/EdgeBlock.lean:413 edgeLift_sol
+% lean: ZZN/Constr/EdgeBlock.lean:577 edgeLiftL_sol
+\begin{lemma}[blocks]\label{lem:blocks}
+If SelectBlock returns a block for a wide instance $I$, deleting it is a sequence of pair
+deletions, and its lift turns every solution of the smaller instance into a solution of $I$.
+\end{lemma}
+\begin{proof}[Proof sketch]
+By the free lines that remain and the side of at least $11$, deleting a top or bottom block is a
+sequence of edge strips, and deleting a middle block a sequence of wide-gap compressions. Each
+splice replaces steps by runs through new cells with the same two ends, and the snakes pass
+through every new cell once.
+\end{proof}
 
-\section{Proof outline}\label{sec:proof}
+% lean: ZZN/Look/Complete.lean:141 leafL
+% lean: ZZN/Look/Leaf.lean:46 entryP
+% lean: ZZN/Look/Leaf.lean:96 lookK
+% lean: ZZN/Look/Leaf.lean:136 lookLe
+% lean: ZZN/Look/Leaf.lean:141 lookJ
+% lean: ZZN/Look/Leaf.lean:157 lookJ_sound
+% lean: ZZN/Constr/WideBand.lean:143 runDn, :153 runUp, :278 attW, :281 grpW
+% lean: ZZN/Constr/EdgeBlock.lean:383 exists_vert (5 <= h)
+Line~\ref{line:final} of Algorithm~\ref{alg:construct} is the \emph{final solver}. As printed it is
+the \emph{table variant}. The \emph{plug-DP variant} runs the plug DP with paths on every final
+instance. The plug DP with paths and TableLookup each return a pair of paths or none, and on a well-formed
+instance a pair that either returns is a solution. TableLookup maps the instance, transposed if $w>h$, to its canonical image, tries the
+templates and then the explicit paths that the grid certificates store for its row tuple, each
+template on the image under its recorded symmetry, and maps a solution back by the inverse
+symmetries.
 
-\begin{theorem}[Theorem B, soundness of the catalogue]
-If an entry fires on an instance in $\Dom$, the instance is unsolvable.
+% lean: ZZN/Look/Leaf.lean:136 lookLe
+% lean: ZZN/Look/Leaf.lean:141 lookJ
+% lean: ZZN/Look/Table.lean:64 tabAll
+% lean: ZZN/Look/Main.lean:24 solveZ3L_main (table variant)
+% lean: ZZN/Constr/Round.lean:528 solveZ3_sound
+% lean: ZZN/Look/Complete.lean:133 solveZ3_completeL
+% lean: ZZN/Look/Complete.lean:145 leafL_ok
+% lean: ZZN/Look/Table.lean:67 tabAll_ok
+% lean: ZZN/Constr/Solve2.lean:272 leaf16
+% lean: ZZN/Constr/Round.lean:534 solveZ3_complete (plug-DP variant)
+% lean: ZZN/Timed/Construct.lean:40 thinOK16 (plug-DP variant)
+% lean: ZZN/Timed/RoundTimeR.lean:61 solveZ3RT_main (plug-DP variant, counted)
+\begin{theorem}[construction]\label{thm:construct}
+Whenever Construct returns paths, they are a solution of its input, for every input. Construct
+returns a solution for every well-formed solvable instance. Both hold for both variants of the final
+solver.
 \end{theorem}
-\ent{P}, \ent{T1}, \ent{T2}, \ent{L1}--\ent{L6}, \ent{E1} and \ent{R} have direct proofs, using
-parity, the fact that two disjoint paths between alternating border points of a disc must cross,
-and forced degrees. \ent{B}, \ent{C} and \ent{D} are certified by \emph{window certificates}. A
-dynamic programming algorithm over the corner window enumerates all ways a solution can look inside
-it, and an outside test shows that none of them can be completed outside the window, for any
-rectangle in $\Dom$. The outside test uses parity, a non-crossing perfect matching of the boundary
-crossings, and the structure of the paths.
+\begin{proof}
+Each recursive call lowers $w+h$, so Construct ends. Soundness holds because SolveDirect checks the
+result of the final solver and every lift maps solutions to solutions
+(Lemmas~\ref{lem:lift} and~\ref{lem:blocks}). For completeness, the plug DP with paths solves every
+well-formed solvable instance (Theorem~\ref{thm:thin}), which covers a thin input and, in the
+plug-DP variant, every final instance. A solvable wide instance passes (Theorem~\ref{thm:sound}),
+deletions keep it wide and passing (Lemmas~\ref{lem:blocks} and~\ref{lem:pass}) and so solvable
+(Theorem~\ref{thm:char}), and the final instance has sides $11$ to $16$ (Lemma~\ref{lem:wide}). As
+in the proof of Lemma~\ref{lem:small}, TableLookup solves its canonical image by a template or by
+explicit paths, since the final instance passes (Figure~\ref{fig:example} shows a run).
+\end{proof}
 
-\begin{theorem}[Theorem A, completeness of the catalogue]
-Every instance in $\Dom$ that passes the catalogue is solvable.
-\end{theorem}
-The proof is by induction on the area. If a reduction applies, the smaller instance passes because
-each entry's view is unchanged, so it is solvable by induction, and band extension lifts its
-solution. Otherwise both sides are at most $22$, since a side $\ge 23$ always has a reduction. For
-these finitely many instances a computer check shows that a valid move exists. Its thin pieces are
-solvable, its other two-path pieces are smaller passing instances in $\Dom$ and solvable by
-induction, and the pieces glue.
+% figure: docs/figures/make_figures.py (ex_final). Run of lib/python/zzn (solver.solve with trace,
+%   look.look_k) on Instance(16, 13, (5,2), (12,10), (6,9), (13,3)), 2026-11-20: block ('left', 1);
+%   RedB at d = 5 on the 14 x 13 instance; RedB at d = 5 on the transpose of the 12 x 13 instance;
+%   leaf 11 x 12 (the transpose of the 12 x 11 instance); canonical image under (rx, ry, r0); table
+%   entry ('pair', 8) with symmetry (r1, sw); its image is the instance of template_same_a.
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[c]{0.18\textwidth}\includegraphics[width=\textwidth]{figures/ex_final.pdf}\end{minipage}
+\hspace{1.5em}
+\begin{minipage}[c]{0.7\textwidth}
+\caption{Construct on a $16\times 13$ instance, with the deleted lines shaded. The least endpoint
+$x$-coordinate is $5$, so SelectBlock returns the top block of two lines, rows $0$ and $1$. The
+$14\times 13$ instance that remains admits no block, and distant-endpoint compressions delete its
+lines $x=5,6$, rows $7$ and $8$ of the grid shown, and then the columns $y=5,6$. TableLookup solves
+the final instance, $12\times 11$ in the orientation shown (Algorithm~\ref{alg:construct} holds its
+transpose), by the template of Figure~\ref{fig:template}, where panel (b)
+shows the image of that instance on which the template checks. Band extension and EdgeSplice put
+the lines back, giving the solution shown.}
+\label{fig:example}
+\end{minipage}
+\end{figure}
 
-\section{Implementations}\label{sec:impl}
+% lean: ZZN/TimedStatement.lean:23 TimeM
+% lean: ZZN/TimedStatement.lean:34 lmapT
+% lean: ZZN/TimedStatement.lean:46 lflatMapT
+% lean: ZZN/TimedStatement.lean:63 ldedupT
+% lean: ZZN/Timed/RoundT.lean:597 solveZ3T_ret
+% lean: ZZN/Look/RoundTimeL.lean:30 leafLT_ret
+% lean: ZZN/Timed/DecideR.lean:26 solvableBRT (the catalogue on a wide instance, else
+%   thinSolveWRT, the plug DP with paths, answering o.isSome; not a counted copy of solvableB)
+% lean: ZZN/Timed/DecideR.lean:37 solvableBRT_iff (ret = true iff Solvable, under WellFormed)
+\paragraph{Step counting.} The bounds are proved on \emph{counted} procedures, which return a result
+together with a number of steps. The model charges a
+list operation by the length of the list, or its square for removing duplicates and testing
+distinctness, and the cost of the function it applies, and does not
+charge arithmetic on natural numbers of any size (supplement, section ``The counted model and the
+step accounting''). The counted Construct returns the answers of Construct. The counted Decide takes every instance. It
+runs the catalogue when both sides are at least $11$
+and otherwise the counted plug DP with paths, answering whether it returns a solution, so
+on a well-formed instance it answers as Decide does.
 
-We provide libraries in Python (the reference), JavaScript and C, each with a command-line program,
-in the repository \url{https://github.com/zzyzek/R2K2ZZN}.
-All three implement Algorithms~\ref{alg:decide}--\ref{alg:band} and the plug DP with the same
-iteration orders, and produce byte-identical output, including the paths. They were tested as
-follows.
-\begin{itemize}
-\item The catalogue of each implementation agrees with the Lean definition on $60{,}000$ random
-  instances with sides $2$--$24$ and endpoints clustered near corners.
-\item The three implementations agree on $450$ random instances with sides $3$--$45$, and every
-  reported solution is verified.
-\item The C implementation solves $20{,}000$ random instances with sides $11$--$60$ in about
-  $8$ seconds, with \textsc{Decide} and \textsc{Solve} agreeing on every instance.
-\item On $300$ random instances with sides $11$--$12$, \textsc{Decide} agrees with an independent
-  exact solver.
-\end{itemize}
-Each library also offers an optimized solver for thin instances. It cuts long thin rectangles into
-pieces at guessed splits and falls back to the plug DP when a guess fails. It is exact, and on
-random $10$-wide instances it is typically three orders of magnitude faster.
+% lean: ZZN/Timed/ThinRopeCost.lean:31 Nw
+% lean: ZZN/Timed/ThinRopeCost.lean:34 LgW
+% lean: ZZN/Timed/ThinRopeCost.lean:37 KsR
+% lean: ZZN/Timed/ThinRopeCost.lean:41 KwR
+% lean: ZZN/Timed/ThinRopeCost.lean:393 thinSolveWRT_time
+% (K_s = O(N b log N) is read off the definition KsR with LgW = log2(2 Nw) + 1. It is arithmetic on
+%   the definition, not a Lean theorem.)
+On a $w\times h$ grid the counted plug DP with paths takes at most $(wh+1)\,K(\min(w,h))$ steps.
+Here $K(b)=K_s(b)+2N(b)+30$, $N(b)$ is the bound on the number of states of
+Section~\ref{sec:thin}, and $K_s(b)$, the cost of processing one cell for all states, including
+removing duplicates by a merge sort, is $O(N(b)\,b\log N(b))$ by its definition in the supplement.
 
-\section{Verification in Lean}\label{sec:lean}
-
-The development is about $27{,}000$ lines of Lean~4~\cite{lean4} with Mathlib~\cite{mathlib20}.
-The trusted statement is a short file defining instances, paths and solutions. The main results
-are the following.
-\begin{itemize}
-\item \texttt{passes\_iff\_solvable} states that for $R, C \ge 11$ and a well-formed instance,
-  $\pass(I) \leftrightarrow \mathrm{Solvable}(I)$.
-\item \texttt{thinBF\_iff} states that the proof-oriented plug DP accepts if and only if the
-  instance is solvable, for every rectangle. It uses only the standard axioms.
-\item \texttt{solvableB\_iff} states that a decision procedure for every rectangle is correct.
-\end{itemize}
-Here \pass is a computable Boolean function. The theorem is about it as defined, so no informal
-transcription of the catalogue needs to be trusted. The IPS characterization is formalized as well
-and used for one-path pieces.
-
-\paragraph{Compromises.}
+% lean: ZZN/Timed/DecideR.lean:35 CdecR
+% lean: ZZN/Timed/DecideR.lean:52 solvableBRT_time
+% lean: ZZN/Timed/DecideR.lean:79 solvableBRT_main
+% lean: ZZN/Look/RoundTimeL.lean:97 solveZ3LT_main
+% lean: ZZN/Timed/RoundTimeR.lean:61 solveZ3RT_main
+\begin{theorem}[step bounds]\label{thm:steps}
+Let $M=\max(w,h)$. On every instance,
 \begin{enumerate}
-\item \emph{Computation by \nd.} The window certificates ($10$ theorems) and the base case
-  ($144$ theorems, one per box of sides $11$--$22$) are evaluated by the Lean compiler rather than
-  the kernel. This adds $154$ axioms that trust the compiler and the generated native code. Kernel
-  evaluation is not practical. On a $6\times6$ window the kernel exceeded $16$\,GB after
-  $20$~minutes on a computation the compiled code does in $3$~seconds, and an $8\times8$ window
-  reaches $2.3\times10^5$ states.
-\item \emph{Symmetry handling.} The base case checks one representative per orbit of the
-  $64$-element symmetry group (geometric symmetries, colour swap, reversing either path). Instead
-  of proving that the catalogue is invariant under reflections, the computation checks that the
-  representative or one of its reflections passes. Invariance under the other symmetries is
-  proved. The search region is about $2.8\times10^{10}$ instances, and the check takes about
-  $16$ CPU-hours ($4$ hours on $4$ threads).
-\item \emph{Checked search instead of verified search.} The move search is a Boolean function
-  proved sound, so a move it finds is valid. Thin pieces are solved by an unverified solver, and the
-  solutions are checked by a verified checker.
-\item \emph{Precompiled modules.} Without \texttt{precompileModules}, \nd interprets the
-  project's functions and is about $400\times$ slower.
-\item \emph{Running time.} The polynomial bound is not formalized, since Lean has no standard cost
-  model short of Turing machines. The theorems certify what is computed, and the running-time
-  analysis is on paper.
-\item \emph{Thin case.} The verified plug DP uses a proof-friendly state encoding, with sorted lists
-  of pieces coded by their ends, rather than the bracket encoding of the implementations.
+\item the counted Decide takes at most $(K(10)+300\,000)(wh+w+h+1)$ steps, and
+\item the counted Construct takes at most $37\,(80(M+1)^2+400) + (10M+1)\,K(10) + 3(10M+1)^2 + 10$
+  steps plus a constant, $B_L = 74\cdot 700\cdot 38^2 + 371\,K(10) + 28\,000\,000 + 3\cdot 593^2 +
+  10$ for the table variant and $B_R = 74\cdot 700\cdot 38^2 + 593\,K(16) + 3\cdot 593^2 + 10$ for
+  the plug-DP variant.
 \end{enumerate}
+\end{theorem}
+% lean: ZZN/Timed/CatalogueCost.lean:628 fires3T_time (300000 (w + h + 1))
+% lean: ZZN/Constr/RoundCount.lean:130 phiX
+% lean: ZZN/Constr/RoundCount.lean:135 phi
+% lean: ZZN/Constr/RoundCount.lean:137 phiX_le (18 = 1 + 1 + 16)
+% lean: ZZN/Constr/RoundCount.lean:143 phi_le
+% lean: ZZN/Constr/RoundCount.lean:350 phi_del
+% lean: ZZN/Constr/RoundCount.lean:357 phi_delT
+% lean: ZZN/Constr/RoundCount.lean:90 w_le_of_none
+% lean: ZZN/Timed/RoundTime.lean:695 solveRT_time ((phi I + 1) (80 (M+1)^2 + 400) + L)
+% lean: ZZN/Timed/Solve.lean:221 solveZT_time ((w + h) 700 (M+1)^2 + B + 3 (16 M + 1)^2 + 10)
+% lean: ZZN/Timed/RoundTimeR.lean:28 solveZT_thinR_time
+% lean: ZZN/Timed/RoundTimeR.lean:44 solveZT_boxR_time
+% lean: ZZN/Look/RoundTimeL.lean:75 solveZT_boxL_time
+% lean: ZZN/Timed/ThinRopeCost.lean:454 KwR_mono
+% lean: ZZN/Look/LeafT.lean:476 lookJT_time (28000000)
+\begin{proof}
+The inequalities are proved in the Lean development. The reasons are as follows. In (1) the
+counted Decide runs one of two branches. The catalogue takes at most $300\,000\,(w+h+1)$ steps, and
+the plug DP, run only when a side is at most $10$, at most $(wh+1)\,K(10)$. The stated bound is at
+least each of the two. In (2), the terms with
+$10M+1$ bound the plug DP and the check of its answer on a thin input, of area at most $10M$. On a
+wide input, the \emph{open gaps} of an axis are the top block, the bottom block and the $16$ ordered
+pairs $(a,b)$ of endpoint coordinates, each counted when it admits some $k\ge 1$. The two axes have at most $2\,(1+1+16)=36$ open gaps, and deleting a block lowers their
+number, so BlockLayer is called at most $37$ times, at most $80(M+1)^2+400$ steps each. An axis
+of length $n\ge 13$ that admits no block has $x_{\min}\le 3$, $x_{\max}\ge n-4$ and consecutive
+endpoint lines at most $10$ apart, so $n\le 3+3\cdot 10+4=37$. PairLayer then makes at most $w+h\le 74$
+calls at $700\cdot 38^2$ steps each. $K$ is nondecreasing. In $B_L$ the sum
+$371\,K(10)+28\,000\,000$ bounds the final solver on every instance with sides at most $37$, the
+first term for the plug DP when a side is at most $10$, on an area of at most $10\cdot 37$, and the
+second for TableLookup otherwise. In $B_R$ the term $593\,K(16)$ bounds the plug DP on a final
+instance, which has a side at most $16$ and the other at most $37$. The term $3\cdot 593^2+10$
+bounds the check of the result (supplement, section ``The counted model and the step accounting'', subsection
+``Construction'').
+\end{proof}
 
-\section{Discussion}
+\secmark{results}
+\section{Results and implementation}\label{sec:results}
 
-The characterization gives a linear-time decision procedure for two pairs on rectangles with both
-sides at least $11$, while the problem is NP-complete for an unbounded number of pairs. Open
-questions include three or more pairs on rectangles, where corner interactions multiply, and two
-pairs on other regions such as solid grid graphs. The corner configurations of the catalogue
-(\ent{B}, \ent{C}, \ent{D}) were found by computer. A conceptual description of them would shorten
-the proof and might allow kernel-checked certificates.
+% repository: URL as given by the author. Directories as in this tree: proof/, proof/WinKU/
+%   (WinKU/Facts.lean:167 certFactsK), proof/BoxKGen/ (FinalN.lean:35 boxes_allK,
+%   BoxKGen/Templates.lean), certgen/ (src/slicehyb.c, src/chain3.c, tools/WinGenU.lean), lib/,
+%   paper/supplement.tex
+The repository \url{https://github.com/zzyzek/R2K2ZZN} holds the Lean proof (\lean{proof/}), the
+window and grid certificates (\lean{proof/WinKU/}, \lean{proof/BoxKGen/}), the programs that
+produced them (\lean{certgen/}, supplement, section ``Certificate formats and the programs that
+found them''), the reference implementations (\lean{lib/}) and the supplement (\lean{paper/}).
 
-\paragraph{Code and proofs.}
-The Lean development, the libraries in Python, JavaScript and C, a prose account of the proof, and
-the source of this paper are available at \url{https://github.com/zzyzek/R2K2ZZN}. They are
-dedicated to the public domain under CC0 1.0 Universal.
+% lean: lean-toolchain
+% lean: lake-manifest.json:8 (mathlib rev)
+% lean: Axioms.lean:19 (#print axioms)
+% axioms: `lake env lean Axioms.lean` run 2026-11-17 on the identical proof/ tree in
+%   R2K2ZZN-palomar-rt: all ten listed theorems depend on [propext, Classical.choice, Quot.sound].
+% decide +kernel: e.g. WinKU/Bundle0.lean:116, BoxKGen/N16x16/S0.lean:19, ZZN/C8R.lean:57,
+%   ZZN/B5Base.lean:488. Side conditions in the generated files use plain `decide`.
+% lean: FinalN.lean:43 passes_iff_solvable_K
+% lean: ZZN/Look/Main.lean:24 solveZ3L_main
+% lean: ZZN/Constr/Round.lean:528 solveZ3_sound, :534 solveZ3_complete
+% lean: ZZN/Timed/Construct.lean:40 thinOK16 (the hypothesis of solveZ3_complete for the plug DP)
+% lean: ZZN/Timed/DecideR.lean:79 solvableBRT_main
+% lean: ZZN/Timed/RoundTimeR.lean:61 solveZ3RT_main
+% lean: ChallengeDecide.lean:7, ChallengeConstruct.lean:7 (the only import is Mathlib)
+% lean: ChallengeDecide.lean:790 solvableBRT_main
+% lean: ChallengeDecide.lean:797 fires3T_iff_solvable
+% lean: ChallengeConstruct.lean:894 solveZ3RT_main
+% lean: SolutionDecide.lean:10-11 (imports ZZN.Timed.DecideR, ZZN.Timed.Main)
+% lean: SolutionConstruct.lean:10 (imports ZZN.Timed.RoundTimeR)
+% lean: ZZN/Timed/Main.lean:95 fires3T_iff_solvable
+% lean: comparator_decide.json, comparator_construct.json (challenge_module, solution_module,
+%   theorem_names, permitted_axioms). No comparator has been run on them.
+\paragraph{Lean.} The proof is a Lake project for Lean~4 (toolchain \lean{v4.35.0-rc2}) with
+Mathlib (revision \lean{3b2fec7}). Its main theorems use only the axioms \lean{propext},
+\lean{Classical.choice} and \lean{Quot.sound}, and the certificates and enumerations are checked
+with \lean{decide +kernel}. Theorem~\ref{thm:char} is \lean{passes\_iff\_solvable\_K}.
+Theorem~\ref{thm:construct} is \lean{solveZ3L\_main} for the table variant, and
+\lean{solveZ3\_sound} with \lean{solveZ3\_complete} for the plug-DP variant. The supplement,
+section ``Lean name map'', maps the other names. The \emph{challenge files}
+\lean{ChallengeDecide.lean} and \lean{ChallengeConstruct.lean} import only Mathlib, contain every
+definition they use, and state, with the proofs left out, the correctness and step bound of the
+counted Decide (\lean{solvableBRT\_main}) and of the counted Construct with the plug-DP variant
+(\lean{solveZ3RT\_main}), and Theorem~\ref{thm:char} for the counted catalogue
+(\lean{fires3T\_iff\_solvable}). \lean{SolutionDecide.lean} and \lean{SolutionConstruct.lean}
+import the modules that prove them. The files \lean{comparator\_*.json} name the challenge and solution
+modules, the theorems and the three axioms for a comparator, a program that checks that a solution module
+proves a challenge file's statements from the named axioms only.
+
+% values: paper/tools/kwr.py (a transcription of Nw, LgW, KsR, KwR; not evaluated in Lean at
+%   b = 10 or 16)
+\paragraph{Constants.} The values $K(10)=944\,986\,668$ and $K(16)=2\,553\,788\,426\,148$ are
+computed outside Lean by \lean{paper/tools/kwr.py}, a transcription of the definitions. With them
+the table-variant bound of Theorem~\ref{thm:steps} is at most
+$3\,260\,M^2+9.45\cdot 10^{9}M+3.52\cdot 10^{11}$.
+
+% source: lib/python/zzn/solver.py:44-48 (decide), :82-118 (solve: catalogue first on a wide
+%   instance, then blocks, pair deletions, leafL, lifts), :56 (check of the returned paths)
+% source: lib/js/zzn.js:734-738 (decide), :1550-1587 (solveTop, leafL, solve)
+% source: lib/c/zzn.c:1321-1326 (zzn_decide), :1656-1730 (solve_top), :1746 (check_sol)
+% source: lib/tools/export_look.py:5-18 (reads proof/ZZN/LookGen, proof/BoxKGen, GridHam/PrimeTable)
+% The implementations check the paths they return on the input instance (solver.py:56), where
+%   Algorithm 2 checks the final solver's answer.
+\paragraph{Reference implementations.} The implementations in Python, JavaScript and C decide by
+Algorithm~\ref{alg:decide} and construct by Algorithm~\ref{alg:construct} with the table variant,
+applied to a wide instance only if it passes the catalogue. Their table
+\lean{lib/data/look.json.gz} is exported from the Lean sources.
+
+\secmark{concl}
+
+\section{Conclusion}\label{sec:conclusion}
+
+% lean: FinalN.lean:43 passes_iff_solvable_K
+% lean: ZZN/Timed/DecideR.lean:79 solvableBRT_main
+% lean: ZZN/Look/RoundTimeL.lean:97 solveZ3LT_main
+% lean: ZZN/Timed/RoundTimeR.lean:61 solveZ3RT_main
+A wide instance of two-colour Zig-Zag Numberlink is solvable if and only if no entry of a finite
+catalogue of forbidden patterns fires on it. Every well-formed instance is decided within $O(wh)$
+counted steps and solved, when solvable, within $O(M^2)$ counted steps, $M=\max(w,h)$, all proved in Lean~4. New
+are the characterization on rectangles with the endpoints anywhere, the conditions under which a
+pair deletion keeps a passing instance passing, the $O(wh)$ decision procedure, the $O(M^2)$
+construction, and the Lean proof.
+% prior work: ips82 (one path) and makino06 (two paths on a torus), as stated in Related work by
+%   E1 and the coordinator from the primary texts; bib key makino06 is added on E1's branch
+The reduction by deleting and inserting two lines is known for one path~\cite{ips82} and for two
+paths on a torus~\cite{makino06}.
+
+% lean: ZZN/Timed/ThinRopeCost.lean:41 KwR (an upper bound per cell, :393 thinSolveWRT_time)
+% lean: WinKU/Facts.lean:167 certFactsK; FinalN.lean:35 boxes_allK; ZZN/C8R.lean:267 c8_baseF
+% lean: ZZN/C8R.lean:286 c8_firesF (InDom, even area); ZZN/B5Fire.lean:78 b5_all (sides at least
+%   11, even area); ZZN/PassB.lean:77 bigHit_R, :105 b5Hit_R
+% lean: ZZN/TimedStatement.lean:23 TimeM, :51-63 (list operations cost the length plus one,
+%   ldedupT and lnodupT the square of the length plus one; arithmetic is not charged)
+\paragraph{Limitations.} The constants are large. The bound on the counted steps per cell of the
+plug DP at frontier width $10$ is $K(10)\approx 9.45\cdot 10^{8}$. Sufficiency on sides $11$ to
+$16$, the pair deletion on an axis of length $17$ to $22$ and the necessity of \ent{B}, \ent{C}
+and \ent{D} rest on kernel-checked per-case computations, and the paper gives no uniform argument for these cases. The catalogue is not
+minimal. On a wide instance with $wh$ even, the configurations marked $*$ and $\dagger$ in
+Table~\ref{tab:lists} make \ent{R} fire whenever they match. The step model counts list
+operations, as set out in Section~\ref{sec:algo}, and makes arithmetic on natural numbers of any
+size free.
+
+\paragraph{Not shown.} The paper gives no forbidden-pattern condition for instances with a side at
+most $10$, which the plug DP decides, and does not determine whether the bound $11$ of
+Theorem~\ref{thm:char} can be lowered. It does not say how the lists of Table~\ref{tab:lists} and
+the rules \ent{R1} to \ent{R3} were found. It gives no decision procedure polynomial in the bit
+length of the input and no construction linear in the output size $wh$. It does not treat more
+than two pairs or grids other than rectangles.
+\secmark{end}
+
 
 \bibliographystyle{plain}
 \bibliography{references}
-
-\appendix
-
-\section{The plug DP}\label{app:plugdp}
-
-Transpose so that the grid has $W \le L$ rows. Cells are processed column by column, top to bottom.
-The \emph{frontier} after some cells consists of $W + 1$ edges between processed and unprocessed
-cells, one per row plus the edge below the current cell (Figure~\ref{fig:frontier}). A state
-assigns each frontier edge a 3-bit code. The edge is unused, or it is an \emph{anchor} of colour $0$
-or $1$, which is a piece ending at an endpoint, or it is an \emph{open} or \emph{close} bracket of
-colour $0$ or $1$. A bracket pair is a piece with both ends on the frontier, and the pairs match like
-parentheses because pieces cannot cross. This is the bracket encoding of Chen~\cite{chen08}, with
-each plug labelled by its colour.
-
-\begin{figure}[H]
-\centering
-\includegraphics[height=3.2cm]{figures/plugdp_frontier.pdf}
-\caption{Processed cells (shaded) and the next cell ($*$).}
-\label{fig:frontier}
-\end{figure}
-
-\begin{algorithm}[H]
-\caption{Plug DP (decision)}\label{alg:plugdp}
-\begin{algorithmic}[1]
-\Function{PlugDPFeasible}{$I$} \Comment{$W \le L$ after transposition}
-  \State $S \gets \{\text{all-empty}\}$
-  \For{column $c = 0, \dots, L-1$}
-    \If{$c > 0$} shift every state by one slot \EndIf
-    \For{row $r = 0, \dots, W-1$}
-      \State $S \gets \bigcup_{s \in S} \Call{Step}{s, r, c}$
-    \EndFor
-  \EndFor
-  \State \Return all-empty $\in S$
-\EndFunction
-\Statex
-\Function{Step}{$s, r, c$} \Comment{slot $r$ is the plug from above, $r{+}1$ the plug from the left}
-  \State $b \gets 1$ if $(r, c)$ is an endpoint of colour $\gamma$, else $2$
-  \State $h \gets$ the number of incoming plugs
-  \If{$h > b$ or $b - h$ exceeds the free directions (right, down)} \Return $\emptyset$ \EndIf
-  \If{$h = 0$}
-    \State at an endpoint, start a new anchor of colour $\gamma$, going right or down
-    \State otherwise start a new bracket pair of either colour, going right and down
-  \ElsIf{$h = 1$}
-    \State continue the plug right or down, or end it if $(r, c)$ is an endpoint of its colour
-    \State (ending an anchor completes its path, and ending a bracket makes its partner an anchor)
-  \Else \Comment{join two plugs of the same colour}
-    \State two anchors complete the path, and an anchor and a bracket make the partner an anchor
-    \State a close then an open merge the pieces, and an open then a close form a cycle (rejected)
-    \State two opens or two closes change the bracket type of the outer partner
-  \EndIf
-  \State \Return the resulting states, with outgoing plugs in slot $r$ (right) and $r{+}1$ (down)
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
-
-\paragraph{Construction.} The forward pass stores one checkpoint, the state set, per column. A
-backward pass re-runs each column from its checkpoint, recording predecessors and keeping only
-states whose processed slots agree with the known end-of-column state. It then traces back the
-chosen edges. The number of states is bounded by the number of valid frontiers (about $10^5$ for
-$W = 10$), so the running time is $O(L \cdot W \cdot \#\text{states})$.
-
-\paragraph{Correctness.} By induction over the cells, the reachable states are exactly the
-signatures of partial solutions on the processed cells. A signature records the used frontier
-edges, their pairing, and the colours of pieces ending at endpoints. Hence the empty final state is
-reachable if and only if a solution exists. Lean verifies this for an equivalent DP with a different encoding.
-
-\section{The catalogue test}\label{app:fires}
-
-Algorithm~\ref{alg:fires} tests the entries of Table~\ref{tab:catalogue} in the order used by the
-implementations and the Lean definition, and returns the first one that fires.
-
-\begin{algorithm}[H]
-\caption{The catalogue test}\label{alg:fires}
-\begin{algorithmic}[1]
-\Function{Fires}{$I$} \Comment{the first entry that fires, or \textsc{None}}
-  \If{$\sum \sigma(\text{endpoint}) \ne 2 \cdot (RC \bmod 2)$} \Return \ent{P} \EndIf
-  \If{all endpoints are on the border and their colours alternate around it} \Return \ent{T1} \EndIf
-  \If{the endpoints fill a $2\times2$ square, each colour on a diagonal} \Return \ent{T2} \EndIf
-  \If{an endpoint's neighbours are all endpoints of the other colour} \Return \ent{L1} \EndIf
-  \If{two corners are closed off by endpoints, one corner by each colour} \Return \ent{L6} \EndIf
-  \For{each of the $8$ corner frames $f$}
-    \If{a pattern \ent{L2}--\ent{L5} occurs at the corner, or \ent{E1} along the frame's first edge}
-      \State \Return that entry
-    \EndIf
-    \If{a listed \ent{B} triple occurs in $f$ and the fourth endpoint is on the border outside the
-        $6\times6$ window} \Return \ent{B} \EndIf
-    \If{$R, C \ge 10$ and the endpoints form a listed \ent{C} ($RC$ even) or \ent{D} ($RC$ odd)
-        configuration in $f$} \Return it \EndIf
-  \EndFor
-  \State apply rules R1--R3 at each corner frame (R3, R2, R1, without overlaps), giving
-         effective endpoints $E'$ and settled cells $S$
-  \If{a rule applied and $E'$ are four distinct cells on the boundary of the grid minus $S$, with
-      colours alternating along it} \Return \ent{R} \EndIf
-  \State \Return \textsc{None}
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
-
-
-\section{The listed corner configurations}\label{app:lists}
-
-Cells are written $ij$ for frame coordinates $(i, j)$.
-
-\noindent\ent{\textbf{B}}, for $RC$ even. Each triple $(p\,q\,r)$ has colour $\gamma$ at $p$ and $q$
-and colour $\bar\gamma$ at $r$.\\
-(00 11 12), (01 02 11), (01 02 12), (01 03 11), (01 04 11), (01 04 12), (01 05 11), (01 12 11),
-(01 12 13), (01 12 22), (01 12 31), (01 13 03), (01 21 13), (01 21 22), (01 21 31), (02 21 10),
-(03 11 10), (04 11 10), (04 21 10), (04 21 12), (05 11 10).
-
-\noindent\ent{\textbf{B}}, for $R$ and $C$ odd.\\
-(00 11 12), (00 11 22), (01 02 11), (01 04 11), (04 11 10).
-
-\noindent\ent{\textbf{C}}, for $RC$ even. Each entry is $\{$one pair $\mid$ the other pair$\}$.\\
-\{01 03 $\mid$ 11 13\}, \{01 06 $\mid$ 07 11\}, \{01 06 $\mid$ 11 70\}, \{01 06 $\mid$ 12 60\},
-\{01 07 $\mid$ 11 60\}, \{01 13 $\mid$ 11 12\}, \{01 13 $\mid$ 12 22\}, \{01 13 $\mid$ 12 31\},
-\{01 22 $\mid$ 11 12\}, \{01 22 $\mid$ 12 31\}, \{01 22 $\mid$ 13 30\}, \{01 70 $\mid$ 11 60\},
-\{02 11 $\mid$ 21 30\}, \{02 20 $\mid$ 12 21\}, \{03 21 $\mid$ 31 40\}, \{06 21 $\mid$ 12 60\},
-\{12 22 $\mid$ 13 21\}, \{12 31 $\mid$ 13 21\}, \{01 12 $\mid$ 04 22\}, \{01 12 $\mid$ 04 31\},
-\{01 12 $\mid$ 13 20\}, \{01 12 $\mid$ 13 40\}, \{01 12 $\mid$ 20 22\}, \{01 12 $\mid$ 22 40\},
-\{01 12 $\mid$ 31 40\}, \{01 13 $\mid$ 03 04\}, \{01 13 $\mid$ 03 20\}, \{01 13 $\mid$ 03 40\},
-\{01 21 $\mid$ 02 22\}, \{01 21 $\mid$ 02 31\}, \{01 21 $\mid$ 04 13\}, \{01 21 $\mid$ 04 22\},
-\{01 21 $\mid$ 04 31\}, \{01 21 $\mid$ 13 40\}, \{01 21 $\mid$ 22 40\}, \{01 21 $\mid$ 31 40\}.
-
-\noindent\ent{\textbf{D}}, for $RC$ odd.\\
-\{00 01 $\mid$ 11 20\}, \{00 14 $\mid$ 02 13\}, \{00 23 $\mid$ 02 13\}.
 
 \end{document}

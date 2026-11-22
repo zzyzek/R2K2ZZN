@@ -1,7 +1,7 @@
 #!/bin/bash
 # Regenerate the certificate modules of proof/ (BoxKGen, WinKU, FinalN) and its Palomar files
-# (Challenge.lean, Solution.lean, comparator.json) from the committed certificates, without
-# rerunning the certificate search.
+# (Challenge{Decide,Construct}.lean, Solution{Decide,Construct}.lean, comparator_{decide,construct}.json)
+# from the committed certificates, without rerunning the certificate search.
 #
 # Theorem A: certs/c{W}x{H}.txt.xz (slice certificates with fire witnesses, after FireGen) and
 # certs/b{W}x{H}.txt.xz (stabiliser classes and base masks, from BaseGen) -> BoxKGen/N{W}x{H}.

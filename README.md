@@ -13,14 +13,14 @@ Solutions are constructed in polynomial time. Lean 4 verifies both directions of
 the correctness of the decision procedure and of the construction, and polynomial bounds on the
 number of steps of both. The kernel checks every proof: the results depend only on `propext`,
 `Classical.choice` and `Quot.sound`. The constants in the step bounds are
-astronomically large.
+large.
 
 | Path | Contents |
 |---|---|
 | [`paper/`](paper/) | The paper (LaTeX; `make` builds `build/zzn.pdf`) |
-| [`docs/`](docs/) | The proof in prose ([`PROOF.md`](docs/PROOF.md)), the algorithm ([`ALGORITHM.md`](docs/ALGORITHM.md)) and the plug DP ([`PLUGDP.md`](docs/PLUGDP.md)), with figures |
+| [`docs/`](docs/) | A map of the Lean theorems ([`PROOF.md`](docs/PROOF.md)), the algorithm ([`ALGORITHM.md`](docs/ALGORITHM.md)) and the plug DP ([`PLUGDP.md`](docs/PLUGDP.md)), with figures |
 | [`lib/`](lib/) | Libraries and command-line programs in Python, JavaScript and C |
-| [`proof/`](proof/) | The kernel-checked Lean 4 proof, a self-contained Lake project ([`proof/README.md`](proof/README.md)); also the Palomar registry entry |
+| [`proof/`](proof/) | The kernel-checked Lean 4 proof, a self-contained Lake project ([`proof/README.md`](proof/README.md)); also two prepared Palomar registrations |
 | [`certgen/`](certgen/) | The certificate search and the certificates the proof checks |
 | [`LICENSE`](LICENSE) | CC0 1.0 Universal |
 
@@ -44,11 +44,13 @@ The results rest on the Lean proof in [`proof/`](proof/). To check them:
 
    ```bash
    lake exe cache get
-   LEAN_NUM_THREADS=2 lake build Results Challenge Solution
+   LEAN_NUM_THREADS=2 lake build
    ```
 
-   `lake exe cache get` downloads a prebuilt Mathlib. A clean build takes about 5.4 CPU-hours
-   (2.6 hours with two Lean processes) and up to about 13 GB of memory per process.
+   `lake exe cache get` downloads a prebuilt Mathlib. A clean build took about 5.4 CPU-hours
+   (2.6 hours with two Lean processes) and up to about 13 GB of memory per process, measured on
+   2026-11-02, before the step-count and lookup modules were added; the current tree has not been
+   timed from clean.
 3. **Check the axioms**, from `proof/`:
 
    ```bash
@@ -60,11 +62,14 @@ The results rest on the Lean proof in [`proof/`](proof/). To check them:
    instances, paths and solutions, the forbidden-pattern catalogue, the decision procedure
    `solvableB` and the construction `solveZZN`. The main theorems are `solvableB_iff`
    (`ZZN/Thin/Decide.lean`), `passes_iff_solvable` (`ZZN/Main.lean`) and `solveZZN_sound` /
-   `solveZZN_complete` (`ZZN/Constr/Main.lean`). Everything else is checked by Lean against these
+   `solveZZN_complete` (`ZZN/Constr/Main.lean`). The construction the libraries run is
+   `solveZ3 (leafL thinSolveW2 tabAll)`, sound and complete by `solveZ3L_main`
+   (`ZZN/Look/Main.lean`), with step bound `solveZ3LT_main`. Everything else is checked by Lean against these
    definitions, so these are the parts a reader has to trust, together with Lean and Mathlib's
-   axioms. The Palomar registration ([PALOMAR-2026-11-04-000002 v1](https://palomar-registry.org/entry?id=PALOMAR-2026-11-04-000002&version=1), `proof/Challenge.lean`) states the same results on the
-   procedures with a step counter, with their step bounds: `solvableBT_main`,
-   `fires3T_iff_solvable` and `solveZZNT_main`, using `proof/ZZN/TimedStatement.lean`.
+   axioms. The two Palomar registrations prepared in `proof/` (not yet submitted) state the results
+   on the procedures with a step counter, with their step bounds: `proof/ChallengeDecide.lean` (`solvableBRT_main`, `fires3T_iff_solvable`)
+   and `proof/ChallengeConstruct.lean` (`solveZ3RT_main`); see
+   [`proof/README.md`](proof/README.md).
 
 The finite cases of the characterization are certificates checked by the kernel: 21 boxes of
 slice certificates (Theorem A) and the window certificates of Theorem B. [`certgen/`](certgen/)

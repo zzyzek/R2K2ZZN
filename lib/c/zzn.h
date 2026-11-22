@@ -42,11 +42,12 @@ int zzn_well_formed(const zzn_instance *in);
 int zzn_decide(const zzn_instance *in);
 
 /* ZZN_SOLVED (out filled; free with zzn_solution_free), ZZN_UNSOLVABLE, ZZN_INVALID, or
- * ZZN_INTERNAL. The solution is checked before it is returned. */
+ * ZZN_INTERNAL. The solution is checked before it is returned. ZZN_INTERNAL also when the lookup
+ * table (look.h) is needed and cannot be loaded. */
 int zzn_solve(const zzn_instance *in, zzn_solution *out);
 
 /* As zzn_solve; if trace is not NULL, *trace receives a malloc'd text listing the steps
- * (reductions, moves, thin solves), one per line. */
+ * (blocks, two-line reductions, the leaf lookup, thin solves), one per line. */
 int zzn_solve_trace(const zzn_instance *in, zzn_solution *out, char **trace);
 
 void zzn_solution_free(zzn_solution *sol);

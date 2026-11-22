@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="268" height="248" viewBox="0 0 268 248" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="white"/>
+<rect x="14" y="14" width="20" height="20" fill="#9aa0a6" fill-opacity="0.55"/>
+<rect x="34" y="14" width="20" height="20" fill="#9aa0a6" fill-opacity="0.55"/>
+<rect x="234" y="14" width="20" height="20" fill="#9aa0a6" fill-opacity="0.55"/>
+<rect x="234" y="34" width="20" height="20" fill="#9aa0a6" fill-opacity="0.55"/>
+<rect x="234" y="214" width="20" height="20" fill="#9aa0a6" fill-opacity="0.55"/>
+<rect x="234" y="194" width="20" height="20" fill="#9aa0a6" fill-opacity="0.55"/>
+<line x1="14" y1="14" x2="254" y2="14" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="34" x2="254" y2="34" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="54" x2="254" y2="54" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="74" x2="254" y2="74" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="94" x2="254" y2="94" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="114" x2="254" y2="114" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="134" x2="254" y2="134" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="154" x2="254" y2="154" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="174" x2="254" y2="174" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="194" x2="254" y2="194" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="214" x2="254" y2="214" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="234" x2="254" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="14" x2="14" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="34" y1="14" x2="34" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="54" y1="14" x2="54" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="74" y1="14" x2="74" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="94" y1="14" x2="94" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="114" y1="14" x2="114" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="134" y1="14" x2="134" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="154" y1="14" x2="154" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="174" y1="14" x2="174" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="194" y1="14" x2="194" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="214" y1="14" x2="214" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="234" y1="14" x2="234" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="254" y1="14" x2="254" y2="234" stroke="#c8c8c8" stroke-width="0.6"/>
+<rect x="14" y="14" width="240" height="220" fill="none" stroke="#333" stroke-width="1.4"/>
+<polygon points="24,44 44,44 64,44 64,24 84,24 104,24 124,24 144,24 164,24 184,24 204,24 224,24 224,44 224,64 244,64 244,84 244,104 244,124 244,144 244,164 244,184 224,184 224,204 224,224 204,224 184,224 164,224 144,224 124,224 104,224 84,224 64,224 44,224 24,224 24,204 24,184 24,164 24,144 24,124 24,104 24,84 24,64" fill="none" stroke="#3b5bdb" stroke-width="2" stroke-opacity="0.7" stroke-linejoin="round"/>
+<circle cx="224.0" cy="24.0" r="7.199999999999999" fill="white" stroke="#1D9E75" stroke-width="2" stroke-dasharray="3 2"/>
+<circle cx="224.0" cy="224.0" r="7.199999999999999" fill="white" stroke="#1D9E75" stroke-width="2" stroke-dasharray="3 2"/>
+<circle cx="24.0" cy="44.0" r="7.199999999999999" fill="white" stroke="#D85A30" stroke-width="2" stroke-dasharray="3 2"/>
+<circle cx="244.0" cy="44.0" r="7.199999999999999" fill="#1D9E75"/>
+<text x="244.0" y="47.5" font-size="7" font-weight="700" fill="white" text-anchor="middle">s0</text>
+<circle cx="244.0" cy="204.0" r="7.199999999999999" fill="#1D9E75"/>
+<text x="244.0" y="207.5" font-size="7" font-weight="700" fill="white" text-anchor="middle">t0</text>
+<circle cx="224.0" cy="44.0" r="7.199999999999999" fill="#D85A30"/>
+<text x="224.0" y="47.5" font-size="7" font-weight="700" fill="white" text-anchor="middle">s1</text>
+<circle cx="44.0" cy="24.0" r="7.199999999999999" fill="#D85A30"/>
+<text x="44.0" y="27.5" font-size="7" font-weight="700" fill="white" text-anchor="middle">t1</text>
+</svg>

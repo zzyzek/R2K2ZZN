@@ -24,7 +24,7 @@ explain(bad)                # 'catalogue entry T1 fires'
 
 trace = []
 solve(Instance(16, 13, (5, 2), (12, 10), (6, 9), (13, 3)), trace)
-for step in trace: print(step)   # reductions, moves and thin solves, as tuples
+for step in trace: print(step)   # blocks, reductions, the leaf lookup or a thin solve, as tuples
 ```
 
 | Function | |
@@ -79,13 +79,17 @@ bbbbbb
 BbbbbB
 ```
 
-`--trace` lists the steps (reductions, moves with their cuts, thin solves). Sizes of pieces are
-given in the orientation in which they were solved (possibly transposed).
+`--trace` lists the steps: deleted blocks, two-line reductions, and the leaf answered by the lookup
+(or a thin solve). Block and reduction lines give the instance in the input's orientation; the leaf
+is given in the orientation in which it was solved (possibly transposed).
 
 ## Performance
 
-Instances with both sides ≥ 11 take milliseconds to a fraction of a second (reductions are linear
-in size; moves happen on boxes with sides ≤ 22). Thin instances use the plug DP, which in pure
+Instances with both sides ≥ 11 take time proportional to R·C: block deletion leaves an instance
+with sides ≤ 37, two-line reductions leave both sides in 11–16, and the leaf is a table lookup
+(`lib/README.md`). Median times are 0.9–1.0 s at 320 × 320, 3.0–4.3 s at 1280 × 1280 and
+10.0–14.6 s at 2560 × 2560. Loading the table takes about 0.3 s, once per process. Thin instances
+use the plug DP, which in pure
 Python is slow for widths 9–10 (tens of seconds to minutes; about 40 s for a 10 × 20 instance),
 about 30× slower than the C library. Thin instances that fail the parity check are rejected at once.
 The optimized solver (`zzn.optimized`) takes 0.01–0.25 s on such instances (10 × 20 and 10 × 80)

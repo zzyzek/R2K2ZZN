@@ -1,0 +1,8 @@
+{
+  "challenge_module": "ChallengeDecide",
+  "solution_module": "SolutionDecide",
+  "theorem_names": ["ZZN.T.solvableBRT_main", "ZZN.T.fires3T_iff_solvable"],
+  "definition_names": [],
+  "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "enable_nanoda": true
+}

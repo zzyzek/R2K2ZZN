@@ -6,14 +6,14 @@
  * Exhaustive test of zzn_solve on one box: every passing instance of an R x C rectangle, one per
  * symmetry class, is solved, and its solution checked (zzn_solve checks it before returning).
  * Classes: unordered pairs {s0,t0}, {s1,t1}, colours interchangeable, and the rectangle's
- * geometric symmetries (4, or 8 if square). Prints how the top level was solved (same-colour
- * split, move, or the exact fallback) and every instance that fails.
+ * geometric symmetries (4, or 8 if square). Prints how many were answered by the certificate
+ * lookup (`leaf` in the trace), how many otherwise, and every instance that fails.
  *
- * No reduction applies with both sides at most 12, so on 11x11, 11x12 and 12x12 every passing
- * instance reaches the same-colour split or the move search. These are the boxes where the proof
- * shows each instance solvable directly rather than by a move (docs/PROOF.md, section 5.1).
+ * No block and no RedX or RedB reduction applies with both sides at most 12, so on 11x11, 11x12
+ * and 12x12 every passing instance is a leaf answered by the lookup (lookJ, look.c).
  *
- * build: cc -O2 -std=c11 -I../c -o boxes boxes.c ../c/zzn.c
+ * build: cc -O2 -std=c11 -I../c -o boxes boxes.c ../c/zzn.c ../c/look.c -lz
+ *        -DZZN_LOOK_DATA_DEFAULT='"<path of lib/data/look.json.gz>"'
  * usage: ./boxes R C [shard nshards]          (boxes.sh runs all three boxes)
  */
 #include <stdio.h>
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
   R_ = atoi(argv[1]); C_ = atoi(argv[2]);
   int shard = (argc > 4) ? atoi(argv[3]) : 0, nsh = (argc > 4) ? atoi(argv[4]) : 1;
   int N = R_ * C_;
-  long ncanon = 0, nfire = 0, nsame = 0, nmove = 0, nexact = 0, nfail = 0, nother = 0;
+  long ncanon = 0, nfire = 0, nleaf = 0, nfail = 0, nother = 0;
   time_t t0 = time(NULL);
 
   /* a < b is the first pair, c < d the second, with a < c (pairs ordered by first cell) */
@@ -92,10 +92,8 @@ int main(int argc, char **argv) {
           int st = zzn_solve_trace(&in, &sol, &tr);
           if (st == ZZN_SOLVED) {
             zzn_solution_free(&sol);
-            if      (tr && strstr(tr, "  same ")) { nsame++; }
-            else if (tr && strstr(tr, "  move ")) { nmove++; }
-            else if (tr && strstr(tr, "  exact ")) { nexact++; }
-            else                                  { nother++; }
+            if (tr && strstr(tr, "  leaf ")) { nleaf++; }
+            else                            { nother++; }
           }
           else {
             nfail++;
@@ -110,7 +108,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%dx%d shard %d a=%d/%d canon %ld fails %ld %lds\n", R_, C_, shard, a, N,
             ncanon, nfail, (long)(time(NULL) - t0));
   }
-  printf("DONE %dx%d shard %d canon %ld fired %ld passing %ld same %ld move %ld exact %ld other %ld fail %ld secs %ld\n",
-         R_, C_, shard, ncanon, nfire, ncanon - nfire, nsame, nmove, nexact, nother, nfail, (long)(time(NULL) - t0));
+  printf("DONE %dx%d shard %d canon %ld fired %ld passing %ld leaf %ld other %ld fail %ld secs %ld\n",
+         R_, C_, shard, ncanon, nfire, ncanon - nfire, nleaf, nother, nfail, (long)(time(NULL) - t0));
   return 0;
 }

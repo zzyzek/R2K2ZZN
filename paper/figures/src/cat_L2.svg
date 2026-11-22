@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="158" height="132" viewBox="0 0 158 132" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="white"/>
+<line x1="14" y1="14" x2="144" y2="14" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="40" x2="144" y2="40" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="66" x2="144" y2="66" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="92" x2="144" y2="92" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="118" x2="144" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="14" y1="14" x2="14" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="40" y1="14" x2="40" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="66" y1="14" x2="66" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="92" y1="14" x2="92" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="118" y1="14" x2="118" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<line x1="144" y1="14" x2="144" y2="118" stroke="#c8c8c8" stroke-width="0.6"/>
+<rect x="14" y="14" width="130" height="104" fill="none" stroke="#333" stroke-width="1.4"/>
+<circle cx="53.0" cy="27.0" r="9.36" fill="#1D9E75"/>
+<text x="53.0" y="30.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">s0</text>
+<circle cx="79.0" cy="79.0" r="9.36" fill="#1D9E75"/>
+<text x="79.0" y="82.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">t0</text>
+<circle cx="27.0" cy="53.0" r="9.36" fill="#D85A30"/>
+<text x="27.0" y="56.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">s1</text>
+<circle cx="105.0" cy="105.0" r="9.36" fill="#D85A30"/>
+<text x="105.0" y="108.5" font-size="9" font-weight="700" fill="white" text-anchor="middle">t1</text>
+<text x="27.0" y="31.0" font-size="13" font-weight="700" fill="#333" text-anchor="middle">?</text>
+</svg>

@@ -6,6 +6,7 @@ module
 
 public import ZZN.TimedStatement
 public import ZZN.Timed.ThinCount
+public import ZZN.Timed.ThinGood2
 
 @[expose] public section
 
@@ -72,19 +73,30 @@ lemma foldT_succ (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (n : ℕ) :
     foldT a b tm (n + 1) = (stageT a b tm (foldT a b tm n) n).ret := by
   simp [foldT, List.range_succ, List.foldl_append]
 
+/-- A state reached under `W`, past the exit filter, with sorted pieces, is `Good2`. -/
+lemma good2_of_W {n : ℕ} (hn : n ≤ a * b) {s : St} (hW : W a b J n s) (hx : noExit a b s = true)
+    (hs : SInv s) : Good2 a b s :=
+  ⟨good_of_W hW hx, hs.1, fun z hz => lt_of_le_of_ne (hs.2 z hz) (lo_ne_hi_of_W hW z hz),
+    plugDisj_of_W hn hW⟩
+
 theorem foldT_good {tm : List ((ℕ × ℕ) × ℕ)}
     (htm : ∀ y : Coord, y.1 < a → y.2 < b → termAt tm y = endCol J y) (n : ℕ) (hn : n ≤ a * b) :
-    (foldT a b tm n).Nodup ∧ ∀ s ∈ foldT a b tm n, Good a b s := by
+    (foldT a b tm n).Nodup ∧ ∀ s ∈ foldT a b tm n, Good2 a b s := by
   cases n with
-  | zero => exact ⟨by simp [foldT], fun s hs => by simp [foldT] at hs; subst hs; simp [Good]⟩
+  | zero =>
+    refine ⟨by simp [foldT], fun s hs => ?_⟩
+    simp [foldT] at hs; subst hs
+    refine ⟨by simp [Good], List.Pairwise.nil, by simp, fun z hz => by simp at hz⟩
   | succ n =>
     refine ⟨?_, fun s hs => ?_⟩
     · rw [foldT_succ]
       simp only [stageT, ret_bind, lfilterT, ldedupT]
       exact (List.nodup_dedup _).filter _
-    · have hW := fold_W (J := J) htm (n + 1) hn s ((insideT_mem a b tm (n + 1) s).1 hs)
+    · have hp := (insideT_mem a b tm (n + 1) s).1 hs
+      have hW := fold_W (J := J) htm (n + 1) hn s hp
+      have hS := fold_SInv a b tm (n + 1) s hp
       rw [foldT_succ, mem_stageT] at hs
-      exact good_of_W hW hs.1
+      exact good2_of_W hn hW hs.1 hS
 
 /-! ### Step lengths -/
 
@@ -276,8 +288,8 @@ lemma insideT_time (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (htm4 : tm.leng
       intro hn
       rw [List.range_succ, lfoldlT_time_append]
       obtain ⟨hnd, hg⟩ := foldT_good (J := J) htm n (by omega)
-      have hS := card_good _ hnd hg
-      have := stageT_time a b tm htm4 (foldT a b tm n) hS (fun s hs => good_len (hg s hs)) n
+      have hS := card_good2 _ hnd hg
+      have := stageT_time a b tm htm4 (foldT a b tm n) hS (fun s hs => good_len (hg s hs).1) n
       simp only [lfoldlT]
       have h2 := ih (by omega)
       simp only [foldT] at this
@@ -290,7 +302,7 @@ lemma insideT_time (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (htm4 : tm.leng
     have := key (a * b) le_rfl
     nlinarith
   · simp only [insideT, ret_bind, rangeT, ret_lfoldlT]
-    exact card_good _ hnd hg
+    exact card_good2 _ hnd hg
 
 lemma dpAcceptT_time (J : Inst) :
     (dpAcceptT J).time ≤ (J.w * J.h + 1) * (Kst J.h + 2) + Nst J.h + 1 := by

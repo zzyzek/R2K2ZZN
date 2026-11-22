@@ -8,6 +8,7 @@
  * so the three implementations return identical paths.
  */
 #include "zzn.h"
+#include "look.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -95,62 +96,6 @@ static int check_sol(const inst_t *I, const path_t *a, const path_t *b) {
            a->n + b->n == I->R * I->C;
   free(seen);
   return ok;
-}
-
-/* geometric symmetry g = (tr, fr, fc): transpose, then flip rows, then flip columns */
-typedef struct { int tr, fr, fc; } geo_t;
-static const geo_t GEOS[8] = {{0,0,0},{0,0,1},{0,1,0},{0,1,1},{1,0,0},{1,0,1},{1,1,0},{1,1,1}};
-
-static zzn_cell geo_cell(geo_t g, int R, int C, zzn_cell x) {
-  int r = x.r, c = x.c;
-  if (g.tr) { int t = r; r = c; c = t; t = R; R = C; C = t; }
-  if (g.fr) r = R - 1 - r;
-  if (g.fc) c = C - 1 - c;
-  return C2(r, c);
-}
-static zzn_cell geo_inv(geo_t g, int R, int C, zzn_cell x) {
-  int R2 = g.tr ? C : R, C2_ = g.tr ? R : C, r = x.r, c = x.c;
-  if (g.fc) c = C2_ - 1 - c;
-  if (g.fr) r = R2 - 1 - r;
-  if (g.tr) { int t = r; r = c; c = t; }
-  return C2(r, c);
-}
-static inst_t apply_geo(geo_t g, const inst_t *I) {
-  return mk(g.tr ? I->C : I->R, g.tr ? I->R : I->C, geo_cell(g, I->R, I->C, I->s0), geo_cell(g, I->R, I->C, I->t0),
-            geo_cell(g, I->R, I->C, I->s1), geo_cell(g, I->R, I->C, I->t1));
-}
-typedef struct { int r0, r1, sw; } lab_t;
-static inst_t relabel(lab_t l, const inst_t *I) {
-  zzn_cell s0 = I->s0, t0 = I->t0, s1 = I->s1, t1 = I->t1, t;
-  if (l.r0) { t = s0; s0 = t0; t0 = t; }
-  if (l.r1) { t = s1; s1 = t1; t1 = t; }
-  if (l.sw) { t = s0; s0 = s1; s1 = t; t = t0; t0 = t1; t1 = t; }
-  return mk(I->R, I->C, s0, t0, s1, t1);
-}
-
-/* orient: two paths joining the endpoint pairs in some order/direction -> (s0..t0, s1..t1); the
- * inputs are consumed */
-static int orient(const inst_t *I, path_t in[2], path_t out[2]) {
-  path_t o[2]; pinit(&o[0]); pinit(&o[1]);
-  int got[2] = {0, 0};
-  for (int k = 0; k < 2; k++) {
-    path_t *p = &in[k];
-    zzn_cell f = p->v[0], l = p->v[p->n - 1];
-    for (int col = 0; col < 2; col++) {
-      zzn_cell s = col ? I->s1 : I->s0, t = col ? I->t1 : I->t0;
-      if (ceq(f, s) && ceq(l, t)) { pfree(&o[col]); pcopy(&o[col], p); got[col] = 1; }
-      else if (ceq(f, t) && ceq(l, s)) { pfree(&o[col]); pcopy(&o[col], p); prev_(&o[col]); got[col] = 1; }
-    }
-  }
-  pfree(&in[0]); pfree(&in[1]);
-  if (!got[0] || !got[1]) { g_err = 1; pfree(&o[0]); pfree(&o[1]); return 0; }
-  out[0] = o[0]; out[1] = o[1];
-  return 1;
-}
-
-static int map_back(geo_t g, const inst_t *I, path_t img[2], path_t out[2]) {
-  for (int k = 0; k < 2; k++) for (int i = 0; i < img[k].n; i++) img[k].v[i] = geo_inv(g, I->R, I->C, img[k].v[i]);
-  return orient(I, img, out);
 }
 
 /* --------------------------------------------------------------- catalogue ---------- */
@@ -878,22 +823,6 @@ static void extend(int R, int C, path_t *ps, int np, int axis, int k) {
   tp_paths(ps, np);
 }
 
-static void add_block(int R, int C, path_t *ps, int np, int w) {
-  int a = -1;
-  for (int q = 0; q < np && a < 0; q++)
-    for (int i = 0; i + 1 < ps[q].n; i++) {
-      zzn_cell x = ps[q].v[i], y = ps[q].v[i + 1];
-      if (x.r == R - 1 && y.r == R - 1 && iabs(x.c - y.c) == 1) { a = imin(x.c, y.c); break; }
-    }
-  if (a < 0) { g_err = 1; return; }
-  path_t cyc, fp;
-  block_cycle(w, C, &cyc);
-  for (int i = 0; i < cyc.n; i++) cyc.v[i].r += R;
-  flip_path(&cyc, a, &fp);
-  splice(ps, np, C2(R - 1, a), C2(R - 1, a + 1), fp.v, fp.n);
-  pfree(&cyc); pfree(&fp);
-}
-
 /* --------------------------------------------------------------------- IPS ---------- */
 
 static int par(zzn_cell v) { return (v.r + v.c) % 2; }
@@ -1010,285 +939,18 @@ static void sb_add(sbuf_t *b, const char *s) {
   memcpy(b->buf + b->n, s, k + 1); b->n += k;
 }
 
-typedef struct { int key[10]; int val; } fe_t;
 typedef struct {
-  fe_t *tab; size_t cap, cnt;      /* feasibility cache for thin pieces */
-  sbuf_t *trace; int nested;       /* trace lines; moves are inserted before their pieces */
+  sbuf_t *trace;                   /* trace lines */
 } solver_t;
-
-static size_t fe_hash(const int *k) {
-  uint64_t h = 1469598103934665603ULL;
-  for (int i = 0; i < 10; i++) { h ^= (uint64_t)(unsigned)k[i]; h *= 1099511628211ULL; }
-  return (size_t)h;
-}
-static void inst_key(const inst_t *J, int *k) {
-  k[0] = J->R; k[1] = J->C; k[2] = J->s0.r; k[3] = J->s0.c; k[4] = J->t0.r; k[5] = J->t0.c;
-  k[6] = J->s1.r; k[7] = J->s1.c; k[8] = J->t1.r; k[9] = J->t1.c;
-}
-static int fe_get(solver_t *S, const inst_t *J, int *val) {
-  if (!S->tab) return 0;
-  int k[10]; inst_key(J, k);
-  for (size_t i = fe_hash(k) & (S->cap - 1);; i = (i + 1) & (S->cap - 1)) {
-    if (S->tab[i].val < 0) return 0;
-    if (!memcmp(S->tab[i].key, k, sizeof(k))) { *val = S->tab[i].val; return 1; }
-  }
-}
-static void fe_put(solver_t *S, const inst_t *J, int val) {
-  if (!S->tab || (S->cnt + 1) * 2 > S->cap) {
-    size_t oc = S->cap; fe_t *old = S->tab;
-    S->cap = oc ? oc * 2 : 1024; S->tab = xmalloc(sizeof(fe_t) * S->cap);
-    for (size_t i = 0; i < S->cap; i++) S->tab[i].val = -1;
-    S->cnt = 0;
-    for (size_t i = 0; i < oc; i++) if (old[i].val >= 0) {
-      size_t j = fe_hash(old[i].key) & (S->cap - 1);
-      while (S->tab[j].val >= 0) j = (j + 1) & (S->cap - 1);
-      S->tab[j] = old[i]; S->cnt++;
-    }
-    free(old);
-  }
-  int k[10]; inst_key(J, k);
-  size_t i = fe_hash(k) & (S->cap - 1);
-  while (S->tab[i].val >= 0) i = (i + 1) & (S->cap - 1);
-  memcpy(S->tab[i].key, k, sizeof(k)); S->tab[i].val = val; S->cnt++;
-}
 
 static void tlog(solver_t *S, const char *line) { if (S->trace) { sb_add(S->trace, line); sb_add(S->trace, "\n"); } }
 
-static int tw(int w, int h) { return (w <= THIN || h <= THIN) ? imin(w, h) : 0; }
-static int parity_ok_i(const inst_t *J) {
-  zzn_cell e[4]; ends4(J, e);
-  int s = 0;
-  for (int i = 0; i < 4; i++) s += ((e[i].r + e[i].c) % 2 == 0) ? 1 : -1;
-  return s == 2 * ((J->R * J->C) % 2);
-}
-
-static int find_reduction(const inst_t *I, int *axis_out, int *d_out) {
-  zzn_cell e[4]; ends4(I, e);
-  for (int axis = 0; axis < 2; axis++) {
-    int n = axis == 0 ? I->R : I->C, lines[4];
-    if (n < 13) continue;
-    for (int i = 0; i < 4; i++) lines[i] = axis == 0 ? e[i].r : e[i].c;
-#define FREE(k) (lines[0] != (k) && lines[1] != (k) && lines[2] != (k) && lines[3] != (k))
-#define BELOW(k) (lines[0] < (k) || lines[1] < (k) || lines[2] < (k) || lines[3] < (k))
-#define ABOVE(k) (lines[0] > (k) || lines[1] > (k) || lines[2] > (k) || lines[3] > (k))
-    if (FREE(0) && FREE(1) && FREE(2) && FREE(3)) { *axis_out = axis; *d_out = 0; return 1; }
-    if (FREE(n - 4) && FREE(n - 3) && FREE(n - 2) && FREE(n - 1)) { *axis_out = axis; *d_out = n - 2; return 1; }
-    for (int lo = 0; lo < n - 9; lo++) {
-      int all = 1;
-      for (int k = lo; k < lo + 10; k++) if (!FREE(k)) all = 0;
-      if (all && BELOW(lo) && ABOVE(lo + 9)) { *axis_out = axis; *d_out = lo + 4; return 1; }
-    }
-    for (int d = 8; d < n - 9; d++)
-      if (FREE(d) && FREE(d + 1) && ((d >= 1 && FREE(d - 1)) || FREE(d + 2)) && BELOW(d) && ABOVE(d + 1)) {
-        *axis_out = axis; *d_out = d; return 1;
-      }
-#undef FREE
-#undef BELOW
-#undef ABOVE
-  }
-  return 0;
-}
-
-static inst_t delete_lines(const inst_t *I, int axis, int d) {
-  zzn_cell e[4]; ends4(I, e);
-  for (int i = 0; i < 4; i++) {
-    int *v = axis == 0 ? &e[i].r : &e[i].c;
-    if (*v > d + 1) *v -= 2;
-  }
-  return mk(axis == 0 ? I->R - 2 : I->R, axis == 0 ? I->C : I->C - 2, e[0], e[1], e[2], e[3]);
-}
-
-static int solve_rec(solver_t *S, const inst_t *I, path_t out[2]);
-
-static int piece_ok(solver_t *S, const inst_t *J) {
-  if (!well_formed(J)) return 0;
-  if (J->R <= THIN || J->C <= THIN) {
-    if (!parity_ok_i(J)) return 0;
-    int v;
-    if (!fe_get(S, J, &v)) { v = dp_feasible(J); fe_put(S, J, v); }
-    return v;
-  }
-  return fires_i(J) == NULL;
-}
-
-static int piece_solve(solver_t *S, const inst_t *J, path_t out[2]) {
-  if (solve_rec(S, J, out) != 1) { g_err = 1; return 0; }
-  return 1;
-}
-
-static const lab_t LABS0[1] = {{0,0,0}}, LABS1[2] = {{0,0,0},{0,0,1}}, LABS2[4] = {{0,0,0},{1,0,0},{0,0,1},{0,1,1}},
-                   LABS3[4] = {{0,0,0},{1,0,0},{0,1,0},{1,1,0}}, LABS4[2] = {{0,0,0},{0,0,1}};
-static const lab_t *LABS[5] = {LABS0, LABS1, LABS2, LABS3, LABS4};
-static const int NLABS[5] = {1, 2, 4, 4, 2};
-static const char *MOVE_NAMES[5] = {"strip", "2/2 same", "1/3", "2/2 cross", "excursion"};
-
-static zzn_cell shr(zzn_cell x, int p) { return C2(x.r - p, x.c); }
-static void up_shift(path_t *p, int k) { for (int i = 0; i < p->n; i++) p->v[i].r += k; }
-
-/* canonical move of type t (cut between rows p-1 and p) with widest thin piece of width m;
- * returns 1 with sol (labelling of J) and *pcut, or 0 */
-static int canon(solver_t *S, int t, int m, const inst_t *J, path_t sol[2], int *pcut) {
-  int R = J->R, C = J->C;
-  zzn_cell s0 = J->s0, t0 = J->t0, s1 = J->s1, t1 = J->t1;
-  for (int p = 1; p < R; p++) {
-    *pcut = p;
-    if (t == 0) {
-      if (imax(imax(s0.r, t0.r), imax(s1.r, t1.r)) < p && R - p >= 2 && ((R - p) * C) % 2 == 0 && C >= 5 && tw(p, C) == m) {
-        inst_t L = mk(p, C, s0, t0, s1, t1);
-        if (piece_ok(S, &L)) {
-          if (!piece_solve(S, &L, sol)) return 0;
-          add_block(p, C, sol, 2, R - p);
-          return 1;
-        }
-      }
-    } else if (t == 1) {
-      if (m == 0 && s0.r < p && t0.r < p && s1.r >= p && t1.r >= p && zzn_acceptable(p, C, s0, t0) &&
-          zzn_acceptable(R - p, C, shr(s1, p), shr(t1, p))) {
-        ham(p, C, s0, t0, &sol[0]);
-        ham(R - p, C, shr(s1, p), shr(t1, p), &sol[1]);
-        up_shift(&sol[1], p);
-        return 1;
-      }
-    } else if (t == 2) {
-      if (s0.r < p && t0.r >= p && s1.r >= p && t1.r >= p && tw(R - p, C) == m) {
-        for (int y = 0; y < C; y++) {
-          if (!zzn_acceptable(p, C, s0, C2(p - 1, y))) continue;
-          inst_t Rr = mk(R - p, C, C2(0, y), shr(t0, p), shr(s1, p), shr(t1, p));
-          if (piece_ok(S, &Rr)) {
-            path_t r2[2];
-            ham(p, C, s0, C2(p - 1, y), &sol[0]);
-            if (!piece_solve(S, &Rr, r2)) return 0;
-            up_shift(&r2[0], p); up_shift(&r2[1], p);
-            pappend(&sol[0], &r2[0]); pfree(&r2[0]);
-            sol[1] = r2[1];
-            return 1;
-          }
-        }
-      }
-    } else if (t == 3) {
-      if (s0.r < p && s1.r < p && t0.r >= p && t1.r >= p && imax(tw(p, C), tw(R - p, C)) == m) {
-        for (int y0 = 0; y0 < C; y0++)
-          for (int y1 = 0; y1 < C; y1++) {
-            inst_t L = mk(p, C, s0, C2(p - 1, y0), s1, C2(p - 1, y1));
-            inst_t Rr = mk(R - p, C, C2(0, y0), shr(t0, p), C2(0, y1), shr(t1, p));
-            const inst_t *first = p <= R - p ? &L : &Rr, *second = p <= R - p ? &Rr : &L;
-            if (piece_ok(S, first) && piece_ok(S, second)) {
-              path_t r2[2];
-              if (!piece_solve(S, &L, sol)) return 0;
-              if (!piece_solve(S, &Rr, r2)) return 0;
-              up_shift(&r2[0], p); up_shift(&r2[1], p);
-              pappend(&sol[0], &r2[0]); pappend(&sol[1], &r2[1]);
-              pfree(&r2[0]); pfree(&r2[1]);
-              return 1;
-            }
-          }
-      }
-    } else {
-      if (s0.r < p && t0.r < p && s1.r >= p && t1.r >= p && imax(tw(p, C), tw(R - p, C)) == m) {
-        for (int ya = 0; ya < C; ya++)
-          for (int yb = 0; yb < C; yb++) {
-            inst_t N = mk(p, C, s0, C2(p - 1, ya), C2(p - 1, yb), t0);
-            inst_t F = mk(R - p, C, shr(s1, p), shr(t1, p), C2(0, ya), C2(0, yb));
-            const inst_t *first = p <= R - p ? &N : &F, *second = p <= R - p ? &F : &N;
-            if (piece_ok(S, first) && piece_ok(S, second)) {
-              path_t nn[2], ff[2];
-              if (!piece_solve(S, &N, nn)) return 0;
-              if (!piece_solve(S, &F, ff)) return 0;
-              up_shift(&ff[0], p); up_shift(&ff[1], p);
-              pinit(&sol[0]);
-              pappend(&sol[0], &nn[0]); pappend(&sol[0], &ff[1]); pappend(&sol[0], &nn[1]);
-              pfree(&nn[0]); pfree(&nn[1]); pfree(&ff[1]);
-              sol[1] = ff[0];
-              return 1;
-            }
-          }
-      }
-    }
-  }
-  return 0;
-}
-
-static void cut_back(geo_t g, const inst_t *I, int p, int *axis, int *k) {
-  int R2 = g.tr ? I->C : I->R;
-  *k = g.fr ? R2 - p : p;
-  *axis = g.tr ? 1 : 0;
-}
-
-static int solve_rec(solver_t *S, const inst_t *I, path_t out[2]) {
+/* thin instances (a side <= 10): the plug DP algorithm */
+static int solve_thin(solver_t *S, const inst_t *I, path_t out[2]) {
   char line[160];
-  if (imin(I->R, I->C) <= THIN) {
-    snprintf(line, sizeof line, "  thin %dx%d", I->R, I->C); tlog(S, line);
-    int r = dp_solve(I, out);
-    return r == 1 ? 1 : (r == 0 ? 0 : -1);
-  }
-  const char *f = fires_i(I);
-  if (f) { snprintf(line, sizeof line, "  fires %dx%d: %s", I->R, I->C, f); tlog(S, line); return 0; }
-  int axis, d;
-  if (find_reduction(I, &axis, &d)) {
-    snprintf(line, sizeof line, "  reduce %dx%d: delete %s %d,%d", I->R, I->C, axis == 0 ? "rows" : "columns", d, d + 1);
-    tlog(S, line);
-    inst_t Ir = delete_lines(I, axis, d);
-    path_t s[2];
-    if (solve_rec(S, &Ir, s) != 1) { g_err = 1; return -1; }
-    extend(Ir.R, Ir.C, s, 2, axis, d);
-    return orient(I, s, out) ? 1 : -1;
-  }
-  /* same-colour split */
-  geo_t gs[2] = {{0,0,0},{1,0,0}};
-  for (int gi = 0; gi < 2; gi++) {
-    inst_t J0 = apply_geo(gs[gi], I);
-    lab_t sw = {0, 0, 1};
-    inst_t Js[2] = {J0, relabel(sw, &J0)};
-    for (int ji = 0; ji < 2; ji++) {
-      inst_t *J = &Js[ji];
-      for (int p = 1; p < J->R; p++) {
-        if (J->s0.r < p && J->t0.r < p && J->s1.r >= p && J->t1.r >= p && zzn_acceptable(p, J->C, J->s0, J->t0) &&
-            zzn_acceptable(J->R - p, J->C, shr(J->s1, p), shr(J->t1, p))) {
-          snprintf(line, sizeof line, "  same %dx%d: cut between %s %d and %d", I->R, I->C, gs[gi].tr ? "columns" : "rows", p - 1, p);
-          tlog(S, line);
-          path_t s[2];
-          ham(p, J->C, J->s0, J->t0, &s[0]);
-          ham(J->R - p, J->C, shr(J->s1, p), shr(J->t1, p), &s[1]);
-          up_shift(&s[1], p);
-          return map_back(gs[gi], I, s, out) ? 1 : -1;
-        }
-      }
-    }
-  }
-  /* moves; ZZN_SKIP_MOVES=1 skips them, for testing */
-  const char *skip = getenv("ZZN_SKIP_MOVES");
-  if (!(skip && strcmp(skip, "1") == 0))
-  for (int m = 0; m <= THIN; m++)
-    for (int t = 0; t < 5; t++)
-      for (int gi = 0; gi < 8; gi++)
-        for (int li = 0; li < NLABS[t]; li++) {
-          inst_t G = apply_geo(GEOS[gi], I);
-          inst_t J = relabel(LABS[t][li], &G);
-          size_t mark = S->trace ? S->trace->n : 0;
-          path_t s[2];
-          int p;
-          if (canon(S, t, m, &J, s, &p)) {
-            if (S->trace) {
-              int ax, k;
-              cut_back(GEOS[gi], I, p, &ax, &k);
-              snprintf(line, sizeof line, "  move %dx%d: %s, cut between %s %d and %d\n", I->R, I->C, MOVE_NAMES[t],
-                       ax == 0 ? "rows" : "columns", k - 1, k);
-              size_t k2 = strlen(line), tail = S->trace->n - mark;
-              if (S->trace->n + k2 + 1 > S->trace->cap) { S->trace->cap = (S->trace->n + k2 + 1) * 2; S->trace->buf = xrealloc(S->trace->buf, S->trace->cap); }
-              memmove(S->trace->buf + mark + k2, S->trace->buf + mark, tail + 1);
-              memcpy(S->trace->buf + mark, line, k2);
-              S->trace->n += k2;
-            }
-            return map_back(GEOS[gi], I, s, out) ? 1 : -1;
-          }
-          if (g_err) return -1;
-        }
-  /* The proof checks single moves in every box except 11x11, 11x12 and 12x12, where it shows each
-     instance solvable directly; if no move is found, solve it exactly. */
-  snprintf(line, sizeof line, "  exact %dx%d", I->R, I->C); tlog(S, line);
+  snprintf(line, sizeof line, "  thin %dx%d", I->R, I->C); tlog(S, line);
   int r = dp_solve(I, out);
-  if (r != 1) { g_err = 1; return -1; }
-  return 1;
+  return r == 1 ? 1 : (r == 0 ? 0 : -1);
 }
 
 /* ------------------------------------------------------------------- public ---------- */
@@ -1673,6 +1335,400 @@ const char *zzn_explain(const zzn_instance *in) {
   return buf;
 }
 
+/* ------------------------------------------------------------------ blocks ---------- */
+/* Block deletion: the outer layer of the Lean construction `solveR`. Same definitions and
+ * choices as lib/python/zzn/blocks.py (see its docstring): Lean's cell (x, y) on a w x h grid is
+ * (r, c) on an R x C grid, x = r, w = R, y = c, h = C. */
+
+typedef struct { int kind, r, k; } blk_t;   /* kind 0 left (k), 1 right (k), 2 inner (r, k) */
+typedef struct { blk_t b; inst_t J; int tr; } bstep_t;
+
+static void xs_of(const inst_t *I, int xs[4]) { xs[0] = I->s0.r; xs[1] = I->t0.r; xs[2] = I->s1.r; xs[3] = I->t1.r; }
+static int left_k(const inst_t *I) {
+  int xs[4]; xs_of(I, xs);
+  return imin(ns(imin(imin(xs[0], xs[1]), imin(xs[2], xs[3])), 2) / 2, ns(I->R, 11) / 2);
+}
+static int right_k(const inst_t *I) {
+  int xs[4]; xs_of(I, xs);
+  return imin(ns(ns(I->R, 3), imax(imax(xs[0], xs[1]), imax(xs[2], xs[3]))) / 2, ns(I->R, 11) / 2);
+}
+static int inner_k(const inst_t *I, int a, int b) { return imin(ns(ns(b, a), 9) / 2, ns(I->R, 11) / 2); }
+
+static int blk_x(const inst_t *I, blk_t *b) {
+  int k = left_k(I);
+  if (k >= 1) { b->kind = 0; b->r = 0; b->k = k; return 1; }
+  k = right_k(I);
+  if (k >= 1) { b->kind = 1; b->r = 0; b->k = k; return 1; }
+  int xs[4]; xs_of(I, xs);
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 4; j++) {
+      int a = xs[i], c = xs[j], ok = a < c;
+      for (int m = 0; m < 4 && ok; m++) if (a < xs[m] && xs[m] < c) ok = 0;
+      if (ok && inner_k(I, a, c) >= 1) { b->kind = 2; b->r = a + 1; b->k = inner_k(I, a, c); return 1; }
+    }
+  return 0;
+}
+
+static zzn_cell blk_del_cell(const blk_t *b, zzn_cell v) {
+  if (b->kind == 0) return C2(v.r - 2 * b->k, v.c);
+  if (b->kind == 1) return v;
+  return v.r <= b->r ? v : C2(v.r - 2 * b->k, v.c);
+}
+static inst_t blk_delete(const blk_t *b, const inst_t *I) {
+  return mk(I->R - 2 * b->k, I->C, blk_del_cell(b, I->s0), blk_del_cell(b, I->t0), blk_del_cell(b, I->s1),
+            blk_del_cell(b, I->t1));
+}
+static zzn_cell swc(zzn_cell v) { return C2(v.c, v.r); }
+static inst_t transpose_i(const inst_t *I) { return mk(I->C, I->R, swc(I->s0), swc(I->t0), swc(I->s1), swc(I->t1)); }
+
+/* colSnake(x, A, k), appended to out */
+static void col_snake(path_t *out, int x, const int *A, int n, int k) {
+  for (int i = 0; i < k; i++) {
+    for (int j = 0; j < n; j++) ppush(out, C2(x + 2 * i, A[j]));
+    for (int j = n - 1; j >= 0; j--) ppush(out, C2(x + 2 * i + 1, A[j]));
+  }
+}
+
+/* edgeBlock(w, h, y, k), appended to out */
+static void edge_block(path_t *out, int w, int h, int y, int k) {
+  int *A = xmalloc(sizeof(int) * (h + 1)), n = 0;
+  for (int z = y; z >= 0; z--) A[n++] = z;
+  col_snake(out, w, A, n, k);
+  n = 0;
+  for (int z = y + 1; z < h; z++) A[n++] = z;
+  path_t t; pinit(&t);
+  col_snake(&t, w, A, n, k);
+  prev_(&t); pappend(out, &t); pfree(&t); free(A);
+}
+
+static int find_v(int x, const path_t *L) {
+  for (int i = 0; i + 1 < L->n; i++) {
+    zzn_cell u = L->v[i], v = L->v[i + 1];
+    if (u.r == x && v.r == x && iabs(u.c - v.c) == 1) return i;
+  }
+  return -1;
+}
+
+static void edge_lift(int w, int h, int k, path_t ps[2]) {
+  for (int which = 0; which < 2; which++) {
+    path_t *p = &ps[which];
+    int i = find_v(w - 1, p);
+    if (i < 0) continue;
+    zzn_cell a = p->v[i], b = p->v[i + 1];
+    path_t X; pinit(&X);
+    if (a.c < b.c) edge_block(&X, w, h, a.c, k);
+    else { edge_block(&X, w, h, b.c, k); prev_(&X); }
+    pinsert(p, i, X.v, X.n);
+    pfree(&X);
+    return;
+  }
+}
+
+static void refl_paths(path_t ps[2], int W) {
+  for (int j = 0; j < 2; j++) for (int i = 0; i < ps[j].n; i++) ps[j].v[i].r = W - 1 - ps[j].v[i].r;
+}
+static void edge_lift_l(int w, int h, int k, path_t ps[2]) {
+  refl_paths(ps, w);
+  edge_lift(w, h, k, ps);
+  refl_paths(ps, w + 2 * k);
+}
+
+typedef struct { int r, k, h, R, flip; const char *cross; int *buf; } wide_t;
+
+static int wide_cv(const wide_t *W, int y) { return W->cross[y] || (W->flip && (y + 1 == W->R || y == W->R)); }
+
+/* snW(a), appended to out (reversed when rev) */
+static void wide_sn(const wide_t *W, int a, int rev, path_t *out) {
+  int n = 0;
+  W->buf[n++] = a;
+  if (a < W->R) { for (int y = a - 1; y >= 0 && !wide_cv(W, y); y--) W->buf[n++] = y; }
+  else { for (int y = a + 1; y < W->h && !wide_cv(W, y); y++) W->buf[n++] = y; }
+  if (!rev) { col_snake(out, W->r + 1, W->buf, n, W->k); return; }
+  path_t t; pinit(&t);
+  col_snake(&t, W->r + 1, W->buf, n, W->k);
+  prev_(&t); pappend(out, &t); pfree(&t);
+}
+
+static void inner_lift(const inst_t *J, int r, int k, path_t ps[2]) {
+  int h = J->C;
+
+  /* seedW: crossings between lines r and r + 1, and steps (r, y - 1) - (r, y) */
+  char *cross = calloc(h + 1, 1), *vert = calloc(h + 1, 1);
+  if (!cross || !vert) { fprintf(stderr, "zzn: out of memory\n"); abort(); }
+  for (int j = 0; j < 2; j++)
+    for (int i = 0; i + 1 < ps[j].n; i++) {
+      zzn_cell u = ps[j].v[i], v = ps[j].v[i + 1];
+      if (u.c == v.c && ((u.r == r && v.r == r + 1) || (u.r == r + 1 && v.r == r))) cross[u.c] = 1;
+      else if (u.r == r && v.r == r && iabs(u.c - v.c) == 1) vert[imax(u.c, v.c)] = 1;
+    }
+  int R = 0, flip = 0;
+  for (int R0 = 0; R0 <= h; R0++) {
+    int a = (R0 == 0 || cross[R0 - 1]) && (R0 == h || cross[R0]);
+    int b = R0 >= 1 && R0 < h && !cross[R0 - 1] && !cross[R0] && vert[R0];
+    if (a || b) { R = R0; flip = !a; break; }
+  }
+  wide_t W = {r, k, h, R, flip, cross, xmalloc(sizeof(int) * (h + 1))};
+  int Wd = 2 * k;
+  path_t fw; pinit(&fw);
+  if (flip) { wide_sn(&W, R - 1, 0, &fw); wide_sn(&W, R, 1, &fw); }
+  for (int j = 0; j < 2; j++) {
+    path_t *L = &ps[j], out; pinit(&out);
+    for (int i = 0; i < L->n; i++) if (L->v[i].r > r) L->v[i].r += Wd;
+    for (int i = 0; i < L->n; i++) {
+      zzn_cell u = L->v[i];
+      ppush(&out, u);
+      if (i + 1 == L->n) break;
+      zzn_cell v = L->v[i + 1];
+      if (u.r == r && v.r == r + Wd + 1 && u.c == v.c) wide_sn(&W, u.c, 0, &out);
+      else if (u.r == r + Wd + 1 && v.r == r && u.c == v.c) wide_sn(&W, u.c, 1, &out);
+      else if (flip && u.r == r && u.c == R - 1 && v.r == r && v.c == R) pappend(&out, &fw);
+      else if (flip && u.r == r && u.c == R && v.r == r && v.c == R - 1) {
+        path_t t; pcopy(&t, &fw); prev_(&t); pappend(&out, &t); pfree(&t);
+      }
+    }
+    pfree(L);
+    *L = out;
+  }
+  pfree(&fw); free(W.buf); free(cross); free(vert);
+}
+
+static void blk_lift(const blk_t *b, const inst_t *J, path_t ps[2]) {
+  if (b->kind == 0) edge_lift_l(J->R, J->C, b->k, ps);
+  else if (b->kind == 1) edge_lift(J->R, J->C, b->k, ps);
+  else inner_lift(J, b->r, b->k, ps);
+}
+
+/* ----------------------------------------------------------------- reduce2 ---------- */
+/* Two-line reductions: the inner layer of the Lean construction, `solveZ2`. Same definitions and
+ * choices as lib/python/zzn/reduce2.py (see its docstring). */
+
+static int free_line2(const inst_t *I, int k) { return I->s0.r != k && I->t0.r != k && I->s1.r != k && I->t1.r != k; }
+static int end_below2(const inst_t *I, int k) { return I->s0.r < k || I->t0.r < k || I->s1.r < k || I->t1.r < k; }
+static int end_above2(const inst_t *I, int k) { return k < I->s0.r || k < I->t0.r || k < I->s1.r || k < I->t1.r; }
+
+static int red_x2(const inst_t *I, int d) {
+  int w = I->R;
+  if (!(13 <= w)) return 0;
+  if (d == 0) { int ok = 1; for (int k = 0; k < 4; k++) if (!free_line2(I, k)) ok = 0; if (ok) return 1; }
+  if (d + 2 == w) { int ok = 1; for (int k = 0; k < w; k++) if (w <= k + 4 && !free_line2(I, k)) ok = 0; if (ok) return 1; }
+  for (int lo = 0; lo <= d; lo++) {
+    if (d + 1 <= lo + 9 && lo + 10 <= w && end_below2(I, lo) && end_above2(I, lo + 9)) {
+      int ok = 1;
+      for (int j = 0; j < 10; j++) if (!free_line2(I, lo + j)) ok = 0;
+      if (ok) return 1;
+    }
+  }
+  return 8 <= d && d + 10 <= w && free_line2(I, d) && free_line2(I, d + 1) &&
+         ((1 <= d && free_line2(I, d - 1)) || free_line2(I, d + 2)) && end_below2(I, d) && end_above2(I, d + 1);
+}
+
+static int red_b2(const inst_t *I, int d) {
+  return 13 <= I->R && 5 <= d && d + 7 <= I->R && free_line2(I, d) && free_line2(I, d + 1) &&
+         ((1 <= d && free_line2(I, d - 1)) || free_line2(I, d + 2)) && end_below2(I, d) && end_above2(I, d + 1);
+}
+
+static int find_red2(const inst_t *I) {
+  for (int d = 0; d < I->R; d++) if (red_x2(I, d) || red_b2(I, d)) return d;
+  return -1;
+}
+
+static zzn_cell del_at2(int d, zzn_cell v) { return v.r < d ? v : C2(v.r - 2, v.c); }
+static inst_t delete_at2(const inst_t *I, int d) {
+  return mk(I->R - 2, I->C, del_at2(d, I->s0), del_at2(d, I->t0), del_at2(d, I->s1), del_at2(d, I->t1));
+}
+
+static void stretch2(int r, const path_t *L, path_t *out) {
+  pinit(out);
+  for (int i = 0; i < L->n; i++) {
+    zzn_cell a = L->v[i];
+    ppush(out, a.r <= r ? a : C2(a.r + 2, a.c));
+    if (i + 1 < L->n) {
+      zzn_cell b = L->v[i + 1];
+      if (a.r == r && b.r == r + 1 && a.c == b.c) { ppush(out, C2(r + 1, a.c)); ppush(out, C2(r + 2, a.c)); }
+      else if (a.r == r + 1 && b.r == r && a.c == b.c) { ppush(out, C2(r + 2, a.c)); ppush(out, C2(r + 1, a.c)); }
+    }
+  }
+}
+
+static int edge_at2(const path_t *L, zzn_cell a, zzn_cell b) {
+  for (int i = 0; i + 1 < L->n; i++) if (ceq(L->v[i], a) && ceq(L->v[i + 1], b)) return i;
+  return -1;
+}
+
+/* spliceE: insert X after the first a, b in P if P has that edge, else in Q (if it has it) */
+static void splice2(path_t ps[2], zzn_cell a, zzn_cell b, const zzn_cell *X, int k) {
+  int i = edge_at2(&ps[0], a, b);
+  if (i >= 0) { pinsert(&ps[0], i, X, k); return; }
+  i = edge_at2(&ps[1], a, b);
+  if (i >= 0) pinsert(&ps[1], i, X, k);
+}
+
+static void absorb2(int r, int y, int y2, path_t ps[2]) {
+  zzn_cell u = C2(r + 1, y2), v = C2(r + 2, y2);
+  if (edge_at2(&ps[0], u, v) >= 0 || edge_at2(&ps[1], u, v) >= 0) {
+    zzn_cell X[2] = {C2(r + 1, y), C2(r + 2, y)}; splice2(ps, u, v, X, 2);
+  } else {
+    zzn_cell X[2] = {C2(r + 2, y), C2(r + 1, y)}; splice2(ps, v, u, X, 2);
+  }
+}
+
+static void flip2(int r, int y, path_t ps[2]) {
+  zzn_cell u = C2(r, y), v = C2(r, y + 1);
+  if (edge_at2(&ps[0], u, v) >= 0 || edge_at2(&ps[1], u, v) >= 0) {
+    zzn_cell X[4] = {C2(r + 1, y), C2(r + 2, y), C2(r + 2, y + 1), C2(r + 1, y + 1)}; splice2(ps, u, v, X, 4);
+  } else {
+    zzn_cell X[4] = {C2(r + 1, y + 1), C2(r + 2, y + 1), C2(r + 2, y), C2(r + 1, y)}; splice2(ps, v, u, X, 4);
+  }
+}
+
+/* sweepLeftE r n U; U is a 0/1 array over columns (copied, not changed) */
+static void sweep_left2(int r, int n, const char *U0, int h, path_t ps[2]) {
+  char *U = xmalloc(h + 2); memcpy(U, U0, h + 2);
+  while (n > 0) {
+    int L = n - 1;
+    if (U[L]) { absorb2(r, L, L + 1, ps); U[L] = 0; }
+    n = L;
+  }
+  free(U);
+}
+
+static void sweep_right2(int r, int h, int n, int R, const char *U0, path_t ps[2]) {
+  char *U = xmalloc(h + 2); memcpy(U, U0, h + 2);
+  while (n > 0) {
+    if (R + 1 <= h && U[R + 1]) { absorb2(r, R + 1, R, ps); U[R + 1] = 0; }
+    else if (!(R + 1 < h)) break;
+    n--; R++;
+  }
+  free(U);
+}
+
+/* bandExtE I r: ps (a solution of I) is replaced by the extended paths */
+static void band_ext2(const inst_t *I, int r, path_t ps[2]) {
+  int h = I->C;
+  char *cross = calloc(h + 2, 1), *vert = calloc(h + 2, 1), *U0 = calloc(h + 2, 1), *U1 = calloc(h + 2, 1);
+  if (!cross || !vert || !U0 || !U1) { fprintf(stderr, "zzn: out of memory\n"); abort(); }
+  for (int j = 0; j < 2; j++)
+    for (int i = 0; i + 1 < ps[j].n; i++) {
+      zzn_cell a = ps[j].v[i], b = ps[j].v[i + 1];
+      if (a.c == b.c && ((a.r == r && b.r == r + 1) || (a.r == r + 1 && b.r == r))) cross[a.c] = 1;
+      else if (a.r == r && b.r == r && iabs(a.c - b.c) == 1) vert[imax(a.c, b.c)] = 1;
+    }
+  for (int y = 0; y < h; y++) U0[y] = !cross[y];
+  path_t out[2];
+  stretch2(r, &ps[0], &out[0]); stretch2(r, &ps[1], &out[1]);
+  pfree(&ps[0]); pfree(&ps[1]); ps[0] = out[0]; ps[1] = out[1];
+  int R = -1, A = 0;
+  for (int R0 = 0; R0 <= h; R0++) {
+    int a = (R0 == 0 || cross[R0 - 1]) && (R0 == h || cross[R0]);
+    int b = R0 >= 1 && R0 < h && !cross[R0 - 1] && !cross[R0] && vert[R0];
+    if (a || b) { R = R0; A = a; break; }
+  }
+  if (R >= 0) {
+    if (A) {
+      if (R == 0) sweep_right2(r, h, h, 0, U0, ps);
+      else if (R == h) sweep_left2(r, R - 1, U0, h, ps);
+      else {
+        sweep_left2(r, R - 1, U0, h, ps);
+        for (int y = 0; y <= h; y++) U1[y] = U0[y] && R - 1 < y;
+        sweep_right2(r, h, h - R, R, U1, ps);
+      }
+    } else {
+      memcpy(U1, U0, h + 2); U1[R - 1] = 0; U1[R] = 0;
+      flip2(r, R - 1, ps);
+      sweep_left2(r, R - 1, U1, h, ps);
+      for (int y = 0; y <= h; y++) if (!(R - 1 < y)) U1[y] = 0;
+      sweep_right2(r, h, h - R, R, U1, ps);
+    }
+  }
+  free(cross); free(vert); free(U0); free(U1);
+}
+
+static void lift_e2(const inst_t *I, int d, path_t ps[2]) {
+  inst_t J = delete_at2(I, d);
+  if (d + 3 <= I->R && free_line2(I, d + 2)) band_ext2(&J, d, ps);
+  else band_ext2(&J, d - 1, ps);
+}
+
+typedef struct { inst_t P; int d, tr; } rstep_t;
+
+/* Both sides >= 11 (see solver.py): the Lean construction solveZ3 (leafL thinSolveW2 tabAll): block
+ * deletion, two-line reductions by RedX or RedB, the leaf lookup, then the lifts back. */
+static int solve_top(solver_t *S, const inst_t *I, path_t out[2]) {
+  if (imin(I->R, I->C) <= THIN) return solve_thin(S, I, out);
+  char line[160];
+  const char *f = fires_i(I);
+  if (f) { snprintf(line, sizeof line, "  fires %dx%d: %s", I->R, I->C, f); tlog(S, line); return 0; }
+  bstep_t *st = xmalloc(sizeof(bstep_t) * (I->R + I->C + 1));
+  int ns_ = 0;
+  inst_t cur = *I;
+  while (cur.R > 10 && cur.C > 10) {
+    blk_t b;
+    if (blk_x(&cur, &b)) { st[ns_].b = b; st[ns_].J = blk_delete(&b, &cur); st[ns_].tr = 0; cur = st[ns_++].J; continue; }
+    inst_t T = transpose_i(&cur);
+    if (blk_x(&T, &b)) { st[ns_].b = b; st[ns_].J = blk_delete(&b, &T); st[ns_].tr = 1; cur = st[ns_++].J; continue; }
+    break;
+  }
+  int tr = 0;
+  inst_t fr = *I;
+  for (int i = 0; i < ns_; i++) {
+    tr ^= st[i].tr;
+    const blk_t *b = &st[i].b;
+    const char *lines = tr ? "columns" : "rows";
+    int n = tr ? fr.C : fr.R, lo, hi;
+    if (b->kind == 0) { lo = 0; hi = 2 * b->k - 1; }
+    else if (b->kind == 1) { lo = n - 2 * b->k; hi = n - 1; }
+    else { lo = b->r + 1; hi = b->r + 2 * b->k; }
+    snprintf(line, sizeof line, "  block %dx%d: delete %s %d..%d", fr.R, fr.C, lines, lo, hi);
+    tlog(S, line);
+    fr = tr ? transpose_i(&st[i].J) : st[i].J;
+  }
+  /* two-line reductions (solveRec2) on what is left */
+  rstep_t *rs = xmalloc(sizeof(rstep_t) * (cur.R + cur.C + 1));
+  int nr = 0;
+  while (cur.R > 10 && cur.C > 10) {
+    int d = find_red2(&cur);
+    if (d >= 0) { rs[nr].P = cur; rs[nr].d = d; rs[nr].tr = 0; nr++; cur = delete_at2(&cur, d); continue; }
+    inst_t T = transpose_i(&cur);
+    d = find_red2(&T);
+    if (d >= 0) { rs[nr].P = T; rs[nr].d = d; rs[nr].tr = 1; nr++; cur = delete_at2(&T, d); continue; }
+    break;
+  }
+  for (int i = 0; i < nr; i++) {
+    tr ^= rs[i].tr;
+    snprintf(line, sizeof line, "  reduce %dx%d: delete %s %d,%d", fr.R, fr.C, tr ? "columns" : "rows", rs[i].d, rs[i].d + 1);
+    tlog(S, line);
+    inst_t J = delete_at2(&rs[i].P, rs[i].d);
+    fr = tr ? transpose_i(&J) : J;
+  }
+  int r;
+  if (imin(cur.R, cur.C) <= THIN) r = solve_thin(S, &cur, out);
+  else {
+    snprintf(line, sizeof line, "  leaf %dx%d", cur.R, cur.C); tlog(S, line);
+
+    /* The certificate lookup `lookJ tabAll` (look.c), as solver.py's leaf: no answer on a leaf
+       of a passing instance, or a table that cannot be loaded, is an internal error. */
+    zzn_instance L = {cur.R, cur.C, cur.s0, cur.t0, cur.s1, cur.t1};
+    zzn_path pa, pb;
+    r = zzn_look_j(&L, &pa, &pb, NULL);
+    if (r == 1) {
+      out[0].v = pa.cells; out[0].n = out[0].cap = pa.len;
+      out[1].v = pb.cells; out[1].n = out[1].cap = pb.len;
+    }
+  }
+  if (r != 1) { free(st); free(rs); g_err = 1; return -1; }
+  for (int i = nr - 1; i >= 0; i--) {
+    lift_e2(&rs[i].P, rs[i].d, out);
+    if (rs[i].tr) { path_transpose(&out[0]); path_transpose(&out[1]); }
+  }
+  free(rs);
+  for (int i = ns_ - 1; i >= 0; i--) {
+    blk_lift(&st[i].b, &st[i].J, out);
+    if (st[i].tr) { path_transpose(&out[0]); path_transpose(&out[1]); }
+  }
+  free(st);
+  return 1;
+}
+
 int zzn_solve_trace(const zzn_instance *in, zzn_solution *out, char **trace) {
   inst_t I = from_pub(in);
   out->a.cells = out->b.cells = NULL; out->a.len = out->b.len = 0;
@@ -1680,11 +1736,10 @@ int zzn_solve_trace(const zzn_instance *in, zzn_solution *out, char **trace) {
   if (!well_formed(&I)) return ZZN_INVALID;
   g_err = 0;
   sbuf_t tb = {NULL, 0, 0};
-  solver_t S = {NULL, 0, 0, trace ? &tb : NULL, 0};
+  solver_t S = {trace ? &tb : NULL};
   if (trace) sb_add(&tb, "");
   path_t s[2];
-  int r = solve_rec(&S, &I, s);
-  free(S.tab);
+  int r = solve_top(&S, &I, s);
   if (trace) *trace = tb.buf; else free(tb.buf);
   if (g_err || r < 0) { if (r == 1) { pfree(&s[0]); pfree(&s[1]); } return ZZN_INTERNAL; }
   if (r == 0) return ZZN_UNSOLVABLE;

@@ -1,7 +1,7 @@
 # zzn (C)
 
-Decide and solve two-colour Zig-Zag Numberlink on rectangles. C11, no dependencies. Same
-algorithm and the same results as the Python and JavaScript libraries
+Decide and solve two-colour Zig-Zag Numberlink on rectangles. C11 and zlib. Same algorithm and
+the same results as the Python and JavaScript libraries
 ([`docs/ALGORITHM.md`](../../docs/ALGORITHM.md)).
 
 ## Build
@@ -9,6 +9,14 @@ algorithm and the same results as the Python and JavaScript libraries
 ```
 make            # libzzn.a, the command-line program ./zzn, and ./example
 ```
+
+Irreducible leaves with both sides 11–16 are solved by the certificate lookup `lookJ tabAll`
+(`look.c`, a port of `lib/python/zzn/look.py`). Its table is read once, on first use, from
+`lib/data/look.json.gz`: the file named by the environment variable `ZZN_LOOK_DATA`, else the
+absolute path compiled in by the Makefile (`make LOOK_DATA=/path/look.json.gz` to change it). If
+the table cannot be read, `zzn_solve` prints one line to stderr and returns `ZZN_INTERNAL` on the
+instances that need it. Loading takes about 0.05 s; a lookup about 10 µs. The loaded table is
+shared by all threads (loaded under C11 `call_once`) and kept until the process exits.
 
 ## Library
 
@@ -29,7 +37,7 @@ if (r == ZZN_SOLVED) {
 }
 ```
 
-Compile with `cc -O2 -std=c11 yourprog.c libzzn.a`. See `example.c`.
+Compile with `cc -O2 -std=c11 yourprog.c libzzn.a -lz`. See `example.c`.
 
 | Function | |
 |---|---|
@@ -55,9 +63,13 @@ The library is reentrant across threads (thread-local error state).
 ## Command line
 
 ```
-./zzn R C s0r s0c t0r t0c s1r s1c t1r t1c [--decide] [--grid] [--trace] [--json] [--optimized]
+./zzn R C s0r s0c t0r t0c s1r s1c t1r t1c [--decide] [--grid] [--trace] [--json] [--optimized] [--leaf]
 ./zzn [options] < instances.txt         # one instance per line
 ```
+
+`--leaf` runs the certificate lookup alone (a test of the leaf solver): it prints
+`leaf sym S slice I pair|sol K` (the canonical symmetry, the slice, the template pair or stored
+solution used, as in `look.py`'s trace) and the paths, or `leaf none sym S`.
 
 ```
 $ ./zzn 12 12 0 0 0 11 11 0 11 11 --json
@@ -68,7 +80,9 @@ unsolvable: catalogue entry T1 fires
 
 ## Performance
 
-20,000 random instances with sides 11–60 solve in about 8 s. Thin instances that fail the parity
+20,000 random instances with sides 11–60 solve in about 1.5 s, in one process. Both sides ≥ 11:
+time grows as R·C, with medians of 0.25 s at 1280 × 1280 and 0.85 s at 2560 × 2560
+(`lib/README.md`). Loading the lookup table takes about 0.05 s, once per process. Thin instances that fail the parity
 check are rejected at once; otherwise the plug DP at width 10 takes about 1–2 s for lengths 20–40
 and about 5 s at length 80 (random instances; the cost depends on where the endpoints are).
 Width 9 is several times faster (about 0.3 s at 9 × 40).

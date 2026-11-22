@@ -48,12 +48,17 @@ def _run(nums, opts, out):
             size = f"{I.R}x{I.C}"
             if kind == "reduce":
                 out.write(f"  reduce {size}: delete {'rows' if step[2] == 0 else 'columns'} {step[3]},{step[3] + 1}\n")
-            elif kind == "move":
-                axis, k = step[3]
-                out.write(f"  move {size}: {step[2]}, cut between {'rows' if axis == 0 else 'columns'} {k - 1} and {k}\n")
-            elif kind == "same":
-                axis, k = step[2]
-                out.write(f"  same {size}: cut between {'rows' if axis == 0 else 'columns'} {k - 1} and {k}\n")
+            elif kind == "block":
+                lines = "rows" if step[2] == 0 else "columns"
+                blk = step[3]
+                n = I.R if step[2] == 0 else I.C
+                if blk[0] == "left":
+                    where = f"{lines} 0..{2 * blk[1] - 1}"
+                elif blk[0] == "right":
+                    where = f"{lines} {n - 2 * blk[1]}..{n - 1}"
+                else:
+                    where = f"{lines} {blk[1] + 1}..{blk[1] + 2 * blk[2]}"
+                out.write(f"  block {size}: delete {where}\n")
             else:
                 out.write(f"  {kind} {size}" + (f": {step[2]}" if len(step) > 2 else "") + "\n")
     if "--grid" in opts:

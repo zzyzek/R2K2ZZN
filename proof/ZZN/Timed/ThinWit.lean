@@ -6,7 +6,9 @@ module
 
 public import ZZN.TimedStatement
 public import ZZN.Constr.ThinWit
+public import ZZN.Constr.ThinWit2
 public import ZZN.Timed.Thin
+public import ZZN.Timed.SortKeyT
 
 @[expose] public section
 
@@ -55,38 +57,6 @@ open ZZN ZZN.Thin GridHam
 
 
 /-! ### Same answer -/
-
-lemma lbeqT_ret : ∀ l m : List ℕ, (lbeqT l m).ret = decide (l = m)
-  | [], [] => rfl
-  | [], _ :: _ => rfl
-  | _ :: _, [] => rfl
-  | x :: l, y :: m => by
-    unfold lbeqT
-    by_cases h : x = y
-    · subst h; simp [lbeqT_ret l m]
-    · simp [h]
-
-lemma stEqT_ret (s t : St) : (stEqT s t).ret = decide (s = t) := by
-  simp only [stEqT, ret_bind, lbeqT_ret, ret_pure]
-  rw [Bool.eq_iff_iff]
-  simp [Prod.ext_iff]
-
-lemma dedupKeyAuxT_ret : ∀ (seen : List St) (l : List (St × Wit)),
-    (dedupKeyAuxT seen l).ret = dedupKeyAux seen l
-  | _, [] => rfl
-  | seen, x :: l => by
-    have hm : (lanyT (fun t => stEqT t x.1) seen).ret = decide (x.1 ∈ seen) := by
-      simp only [lanyT, stEqT_ret]
-      rw [Bool.eq_iff_iff]
-      simp
-    unfold dedupKeyAuxT dedupKeyAux
-    simp only [ret_bind, hm]
-    by_cases h : x.1 ∈ seen
-    · simp only [h, decide_true, ↓reduceIte]; exact dedupKeyAuxT_ret seen l
-    · simp only [h, decide_false, Bool.false_eq_true, ↓reduceIte, ret_bind, ret_pure]
-      rw [dedupKeyAuxT_ret]
-
-lemma dedupKeyT_ret (l : List (St × Wit)) : (dedupKeyT l).ret = dedupKey l := dedupKeyAuxT_ret [] l
 
 lemma lookDT_ret (l : List (ℕ × List Coord)) (z : ℕ) : (lookDT l z).ret = lookD l z := by
   simp only [lookDT, ret_bind, lfindT, ret_pure, lookD]
@@ -146,28 +116,28 @@ lemma stepCellWT_ret (J : Inst) (a b : ℕ) (e : Option ℕ) (r c : ℕ) (sw : S
     dropKeys]
 
 lemma stageWT_ret (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (S : List (St × Wit)) (i : ℕ) :
-    (stageWT J a b tm S i).ret = stageW J a b tm S i := by
-  simp only [stageWT, stageW, ret_bind, dedupKeyT_ret, lfilterT, lflatMapT, termAt_eq, stepCellWT_ret,
+    (stageWT J a b tm S i).ret = stageW2 J a b tm S i := by
+  simp only [stageWT, stageW2, ret_bind, dedupKT_ret, lfilterT, lflatMapT, termAt_eq, stepCellWT_ret,
     noExitT, lallT, ret_pure, noExit]
 
 lemma insideWT_ret (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) :
-    (insideWT J a b tm).ret = insideW J a b tm := by
-  simp only [insideWT, insideW, ret_bind, rangeT, ret_lfoldlT, stageWT_ret]
+    (insideWT J a b tm).ret = insideW2 J a b tm := by
+  simp only [insideWT, insideW2, ret_bind, rangeT, ret_lfoldlT, stageWT_ret]
 
-lemma solveDPT_ret (J : Inst) : (solveDPT J).ret = solveDP J := by
-  simp only [solveDPT, solveDP, ret_bind, insideWT_ret, lfindT, stEqT_ret, ret_pure]
+lemma solveDPT_ret (J : Inst) : (solveDPT J).ret = solveDP2 J := by
+  simp only [solveDPT, solveDP2, ret_bind, insideWT_ret, lfindT, stEqT_ret, ret_pure]
   have : (fun sw : St × Wit => decide (sw.1 = (([], 3) : St))) = fun sw => sw.1 == (([], 3) : St) := by
     funext sw; rw [Bool.eq_iff_iff]; simp
   rw [this]
-  cases (insideW J J.w J.h (tmOf J)).find? (fun sw => sw.1 == (([], 3) : St)) <;> rfl
+  cases (insideW2 J J.w J.h (tmOf J)).find? (fun sw => sw.1 == (([], 3) : St)) <;> rfl
 
 /-- **The counted solver returns the solver's answer.** -/
-theorem thinSolveWT_ret (J : Inst) : (thinSolveWT J).ret = Thin.thinSolveW J := by
-  unfold thinSolveWT thinSolveW
+theorem thinSolveWT_ret (J : Inst) : (thinSolveWT J).ret = Thin.thinSolveW2 J := by
+  unfold thinSolveWT thinSolveW2
   split
   · exact solveDPT_ret J
   · simp only [ret_bind, solveDPT_ret]
-    cases solveDP J.transpose with
+    cases solveDP2 J.transpose with
     | none => rfl
     | some pq => simp [swapPairT, lmapT]
 

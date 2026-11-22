@@ -41,9 +41,8 @@ lemma Q_mono {b b' : ℕ} (h : b ≤ b') : Q b ≤ Q b' := by unfold Q; exact Na
 
 lemma Nst_mono {b b' : ℕ} (h : b ≤ b') : Nst b ≤ Nst b' := by
   unfold Nst
-  have hq := Q_mono h
-  have : (Q b + 1) ^ Q b ≤ (Q b' + 1) ^ Q b := Nat.pow_le_pow_left (by omega) _
-  have : (Q b' + 1) ^ Q b ≤ (Q b' + 1) ^ Q b' := Nat.pow_le_pow_right (by omega) hq
+  have : (b + 5) ^ (b + 1) ≤ (b' + 5) ^ (b + 1) := Nat.pow_le_pow_left (by omega) _
+  have : (b' + 5) ^ (b + 1) ≤ (b' + 5) ^ (b' + 1) := Nat.pow_le_pow_right (by omega) (by omega)
   omega
 
 lemma Kst_mono {b b' : ℕ} (h : b ≤ b') : Kst b ≤ Kst b' := by

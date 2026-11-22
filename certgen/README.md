@@ -14,6 +14,7 @@ made, so they can be regenerated or improved.
 | `src/` | The certificate search `slicehyb` (C; with `../lib/c/zzn.c`) |
 | `tools/` | Certificates → Lean modules (Python), the Lean generators `WinGenU`, `FireGen`, `BaseGen`, and `export.py` |
 | `regen.sh` | Certificates → `gen/` (Lean modules) → `proof/` |
+| `../notes/gen_lookgen.py` | `proof/ZZN/LookGen/` (the lookup table of the construction) from the certificate modules in `proof/BoxKGen/`; not run by `regen.sh` |
 
 ## Regenerating the Lean modules
 
@@ -25,17 +26,27 @@ certgen/regen.sh
 
 Theorem A modules come from `certs/` with `tools/gen_box.py` and `tools/gen_cbox.py`. Theorem B
 modules come from `tools/wincases.txt` through `tools/WinGenU.lean` and the post-processing
-scripts. `tools/export.py` writes the modules into `proof/` and regenerates `proof/Challenge.lean`,
-`Solution.lean` and `comparator.json`. `regen.sh` lists every step; its output is byte for byte
-the committed `proof/`.
+scripts. `tools/export.py` writes the modules into `proof/`, and `tools/palomar.py` regenerates the
+Palomar files: `proof/Challenge{Decide,Construct}.lean`, `Solution{Decide,Construct}.lean` and
+`comparator_{decide,construct}.json`. A challenge holds the library declarations its statements
+depend on; `tools/Closure.lean` lists them (`tools/palomar_{decide,construct}_decls.txt`), and
+`tools/HashDump.lean` checks that each challenge and its solution agree on them. `regen.sh` lists
+every step. Its output was checked byte for byte against the committed `proof/` on 2026-11-02; the
+step-count, construction and lookup modules added since then are written by hand (except
+`proof/ZZN/LookGen/`, see the table above), and `regen.sh` has not been rerun on the current tree.
 
 ## Rerunning the certificate search
 
 ```bash
-gcc -O2 -I lib/c -o slicehyb certgen/src/slicehyb.c lib/c/zzn.c -lm
+gcc -O2 -I lib/c -o slicehyb certgen/src/slicehyb.c lib/c/zzn.c lib/c/look.c -lz -lm
 REDUCE=1 GPOOL=1 FOLD=1 SOLS=1 GSEED=pool.txt GDUMP=pool_out.txt TOUT=t11x11.txt \
   ./slicehyb 11 11 certgen/inputs/tset_E.txt certgen/inputs/reps/e11.txt 1 0 > c11x11.txt
 ```
+
+`slicehyb` calls the library's `zzn_solve` for explicit solutions. For boxes 11–16 the current
+library answers from the lookup table `lib/data/look.json.gz`, which was generated from these
+certificates, so a search with the current library depends on the existing table. The released
+certificates were found with the library's earlier solver (before commit `1c1cfa7`).
 
 For each slice (a canonical tuple of the four endpoint rows), `slicehyb` lists the column tuples
 that pass the catalogue and covers them with (template, symmetry) pairs. A template is a cut tree

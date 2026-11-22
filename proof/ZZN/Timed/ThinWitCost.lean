@@ -7,6 +7,7 @@ module
 public import ZZN.TimedStatement
 public import ZZN.Timed.ThinWit
 public import ZZN.Timed.ThinCost
+public import ZZN.Timed.SortKeyT
 
 @[expose] public section
 
@@ -26,51 +27,6 @@ namespace ZZN.T
 open ZZN ZZN.Thin GridHam
 
 /-! ### Small time lemmas -/
-
-lemma lbeqT_time : ∀ l m : List ℕ, (lbeqT l m).time ≤ l.length
-  | [], [] => by simp [lbeqT]
-  | [], _ :: _ => by simp [lbeqT]
-  | _ :: _, [] => by simp [lbeqT]
-  | x :: l, y :: m => by
-    unfold lbeqT
-    split
-    · simp only [time_bind, List.length_cons]; have := lbeqT_time l m; omega
-    · simp
-
-lemma lbeqT_nil_time (l : List ℕ) : (lbeqT l []).time = 0 := by
-  cases l <;> rfl
-
-lemma stEqT_time (s t : St) : (stEqT s t).time ≤ s.1.length := by
-  simp only [stEqT, time_bind, time_pure]; have := lbeqT_time s.1 t.1; omega
-
-lemma dedupKeyAuxT_time (B : ℕ) : ∀ (seen : List St) (l : List (St × Wit)),
-    (∀ t ∈ seen, t.1.length ≤ B) → (∀ x ∈ l, x.1.1.length ≤ B) →
-    (dedupKeyAuxT seen l).time ≤ l.length * ((seen.length + l.length) * (B + 1) + 1)
-  | _, [], _, _ => by simp [dedupKeyAuxT]
-  | seen, x :: l, hs, hl => by
-    have hx := hl x (by simp)
-    have hl' : ∀ y ∈ l, y.1.1.length ≤ B := fun y hy => hl y (by simp [hy])
-    have h1 := lanyT_time_le (fun t => stEqT t x.1) seen B
-      (fun t ht => le_trans (stEqT_time t x.1) (hs t ht))
-    unfold dedupKeyAuxT
-    simp only [time_bind, List.length_cons]
-    have key : seen.length * (B + 1) ≤ (seen.length + (l.length + 1)) * (B + 1) :=
-      Nat.mul_le_mul_right _ (by omega)
-    have e : (l.length + 1) * ((seen.length + (l.length + 1)) * (B + 1) + 1) =
-        l.length * ((seen.length + (l.length + 1)) * (B + 1) + 1) +
-          ((seen.length + (l.length + 1)) * (B + 1) + 1) := by ring
-    split
-    · have h2 := dedupKeyAuxT_time B seen l hs hl'
-      have h3 : l.length * ((seen.length + l.length) * (B + 1) + 1) ≤
-          l.length * ((seen.length + (l.length + 1)) * (B + 1) + 1) :=
-        Nat.mul_le_mul_left _ (by nlinarith)
-      omega
-    · have h2 := dedupKeyAuxT_time B (x.1 :: seen) l
-        (fun t ht => by rcases List.mem_cons.mp ht with rfl | ht; exacts [hx, hs t ht]) hl'
-      simp only [time_bind, time_pure, List.length_cons] at h2 ⊢
-      have h3 : seen.length + 1 + l.length = seen.length + (l.length + 1) := by omega
-      rw [h3] at h2
-      omega
 
 lemma lookDT_time (l : List (ℕ × List Coord)) (z : ℕ) : (lookDT l z).time ≤ l.length := by
   simp only [lookDT, time_bind, time_pure]
@@ -231,28 +187,11 @@ lemma grid_len {a b : ℕ} (l : List Coord) (hn : l.Nodup) (h : ∀ x ∈ l, x.1
 
 /-- The entry list after `n` cells. -/
 def foldW (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (n : ℕ) : List (St × Wit) :=
-  (List.range n).foldl (stageW J a b tm) [(([], 0), ([], ([], [])))]
+  (List.range n).foldl (stageW2 J a b tm) [(([], 0), ([], ([], [])))]
 
 lemma foldW_succ (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (n : ℕ) :
-    foldW J a b tm (n + 1) = stageW J a b tm (foldW J a b tm n) n := by
+    foldW J a b tm (n + 1) = stageW2 J a b tm (foldW J a b tm n) n := by
   simp [foldW, List.range_succ, List.foldl_append]
-
-theorem dedupKeyAux_nodup : ∀ (seen : List St) (l : List (St × Wit)),
-    ((dedupKeyAux seen l).map Prod.fst).Nodup ∧ ∀ x ∈ dedupKeyAux seen l, x.1 ∉ seen
-  | _, [] => by simp [dedupKeyAux]
-  | seen, x :: l => by
-    unfold dedupKeyAux
-    split_ifs with h
-    · exact dedupKeyAux_nodup seen l
-    · obtain ⟨h1, h2⟩ := dedupKeyAux_nodup (x.1 :: seen) l
-      refine ⟨?_, fun y hy => ?_⟩
-      · rw [List.map_cons, List.nodup_cons]
-        refine ⟨fun hm => ?_, h1⟩
-        obtain ⟨y, hy, e⟩ := List.mem_map.1 hm
-        exact h2 y hy (by rw [e]; exact List.mem_cons_self)
-      · rcases List.mem_cons.mp hy with rfl | hy
-        · exact h
-        · exact fun hm => h2 y hy (List.mem_cons_of_mem _ hm)
 
 section Entries
 
@@ -266,8 +205,8 @@ lemma foldW_WC (htm : ∀ y : Coord, y.1 < a → y.2 < b → termAt tm y = endCo
   | succ n ih =>
     intro hn sw hs
     rw [foldW_succ] at hs
-    unfold stageW dedupKey at hs
-    have hs := dedupKeyAux_sub _ _ _ hs
+    unfold stageW2 at hs
+    have hs := dedupK_sub Prod.fst hs
     rw [List.mem_filter, List.mem_flatMap] at hs
     obtain ⟨⟨t, ht, hst⟩, -⟩ := hs
     exact stepW_WC htm (by omega) (ih (by omega) t ht) hst
@@ -281,13 +220,13 @@ lemma foldW_noExit (n : ℕ) : ∀ sw ∈ foldW J a b tm n, noExit a b sw.1 = tr
   | succ n =>
     intro sw hs
     rw [foldW_succ] at hs
-    unfold stageW dedupKey at hs
-    exact (List.mem_filter.mp (dedupKeyAux_sub _ _ _ hs)).2
+    unfold stageW2 at hs
+    exact (List.mem_filter.mp (dedupK_sub Prod.fst hs)).2
 
 lemma foldW_nodup (n : ℕ) : ((foldW J a b tm n).map Prod.fst).Nodup := by
   cases n with
   | zero => simp [foldW]
-  | succ n => rw [foldW_succ]; exact (dedupKeyAux_nodup _ _).1
+  | succ n => rw [foldW_succ]; exact dedupK_nodup Prod.fst _
 
 /-- The facts about one entry used for the time bound. -/
 def EntryOK (a b : ℕ) (sw : St × Wit) : Prop :=
@@ -316,9 +255,11 @@ lemma foldW_entries (htm : ∀ y : Coord, y.1 < a → y.2 < b → termAt tm y = 
   have hE : ∀ sw ∈ foldW J a b tm n, EntryOK a b sw :=
     fun sw hs => entryOK_of (foldW_WC htm n hn sw hs) (foldW_noExit n sw hs)
   refine ⟨?_, hE⟩
-  have := card_good (a := a) (b := b) _ (foldW_nodup n) (fun s hs => by
+  have := card_good2 (a := a) (b := b) _ (foldW_nodup n) (fun s hs => by
     obtain ⟨sw, hsw, rfl⟩ := List.mem_map.1 hs
-    exact good_of_W (W_of_WF (foldW_WC htm n hn sw hsw).1) (foldW_noExit n sw hsw))
+    have hp := (foldW2_fst (J := J) (a := a) (b := b) (tm := tm) n sw.1).mp (List.mem_map_of_mem hsw)
+    exact good2_of_W hn (W_of_WF (foldW_WC htm n hn sw hsw).1) (foldW_noExit n sw hsw)
+      (fold_SInv a b tm n sw.1 hp))
   simpa using this
 
 end Entries
@@ -364,8 +305,8 @@ lemma stageWT_time (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (htm
   have hfq : ∀ sw ∈ (lfilterT (fun sw => noExitT a b sw.1) l).ret, sw.1.1.length ≤ Q b + 1 := by
     intro sw hs; simp only [lfilterT, List.mem_filter] at hs; exact hlq sw hs.1
   generalize (lfilterT (fun sw => noExitT a b sw.1) l).ret = f at hf hfq
-  have t4 := dedupKeyAuxT_time (Q b + 1) [] f (by simp) hfq
-  simp only [List.length_nil, Nat.zero_add] at t4
+  have hlg : 2 * Nst b < 2 ^ Lg b := Nat.lt_log2_self
+  have t4 := dedupKT_time (Q b + 1) (Lg b) f (by omega) hfq
   have m1 : S.length * (9 * Q b + 9 * (a * b) + 28 + 2 + 1) ≤
       Nst b * (9 * Q b + 31) + 9 * Nst b * (a * b) :=
     calc S.length * (9 * Q b + 9 * (a * b) + 28 + 2 + 1)
@@ -374,15 +315,14 @@ lemma stageWT_time (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (htm
   have m2 : l.length * (Q b + 1 + 1) ≤ 2 * Nst b * (Q b + 2) :=
     calc l.length * (Q b + 1 + 1) ≤ 2 * Nst b * (Q b + 1 + 1) := Nat.mul_le_mul_right _ hl
       _ = 2 * Nst b * (Q b + 2) := by ring
-  have m3 : f.length * (f.length * (Q b + 1 + 1) + 1) ≤ 2 * Nst b * (2 * Nst b * (Q b + 2) + 1) :=
-    calc f.length * (f.length * (Q b + 1 + 1) + 1)
-        ≤ 2 * Nst b * (2 * Nst b * (Q b + 1 + 1) + 1) :=
-          Nat.mul_le_mul hf (Nat.add_le_add_right (Nat.mul_le_mul_right _ hf) 1)
-      _ = 2 * Nst b * (2 * Nst b * (Q b + 2) + 1) := by ring
-  have e1 : (dedupKeyT f).time = (dedupKeyAuxT [] f).time := rfl
-  rw [e1]
+  have m3 : (Q b + 1 + 6) * f.length * (Lg b + 1) ≤ (Q b + 7) * (2 * Nst b) * (Lg b + 1) :=
+    Nat.mul_le_mul_right _ (Nat.mul_le_mul_left _ hf)
+  have m3' : f.length * (Q b + 1 + 1) ≤ 2 * Nst b * (Q b + 2) :=
+    calc f.length * (Q b + 1 + 1) ≤ 2 * Nst b * (Q b + 1 + 1) := Nat.mul_le_mul_right _ hf
+      _ = 2 * Nst b * (Q b + 2) := by ring
   have hKs : Ks b = 4 + Nst b * (9 * Q b + 31) + 2 * Nst b * (Q b + 2) +
-      2 * Nst b * (2 * Nst b * (Q b + 2) + 1) + 9 * Nst b := rfl
+      (2 * Nst b + 1 + ((Q b + 7) * (2 * Nst b) * (Lg b + 1) + 1) + 2 * Nst b * (Q b + 2)) +
+        9 * Nst b := rfl
   have e3 : (a * b + 1) * Ks b = Ks b + a * b * Ks b := by ring
   have m4 : 9 * Nst b * (a * b) ≤ a * b * Ks b :=
     calc 9 * Nst b * (a * b) ≤ Ks b * (a * b) := Nat.mul_le_mul_right _ (by omega)
@@ -437,15 +377,24 @@ lemma Q_mono {b b' : ℕ} (h : b ≤ b') : Q b ≤ Q b' := by
 
 lemma Nst_le_of_le {b b' : ℕ} (h : b ≤ b') : Nst b ≤ Nst b' := by
   unfold Nst
-  have hq := Q_mono h
-  have : (Q b + 1) ^ Q b ≤ (Q b' + 1) ^ Q b' :=
-    le_trans (Nat.pow_le_pow_left (by omega) _) (Nat.pow_le_pow_right (by omega) hq)
+  have : (b + 5) ^ (b + 1) ≤ (b' + 5) ^ (b' + 1) :=
+    le_trans (Nat.pow_le_pow_left (by omega) _) (Nat.pow_le_pow_right (by omega) (by omega))
   omega
 
 /-- **`Kw` is monotone.** -/
+lemma Lg_mono {b b' : ℕ} (h : b ≤ b') : Lg b ≤ Lg b' := by
+  have hn := Nst_le_of_le h
+  have h0 : 2 * Nst b ≠ 0 := by unfold Nst; positivity
+  unfold Lg
+  have : Nat.log2 (2 * Nst b) ≤ Nat.log2 (2 * Nst b') :=
+    (Nat.le_log2 (by unfold Nst; positivity)).mpr
+      (le_trans (Nat.log2_self_le h0) (by omega))
+  omega
+
 theorem Kw_mono {b b' : ℕ} (h : b ≤ b') : Kw b ≤ Kw b' := by
   have hq := Q_mono h
   have hn := Nst_le_of_le h
+  have hl := Lg_mono h
   unfold Kw Ks
   gcongr
 
@@ -484,7 +433,7 @@ theorem thinSolveWT_time (J : Inst) :
     cases o with
     | none => simp only [time_pure]; simp only [Inst.transpose] at hle ⊢; omega
     | some pq =>
-      obtain ⟨hp, hq, -⟩ := solveDP_sound hsol.symm
+      obtain ⟨hp, hq, -⟩ := solveDP2_sound hsol.symm
       have lp := grid_len (a := J.transpose.w) (b := J.transpose.h) pq.1 hp.2.2.1 hp.2.2.2.1
       have lq := grid_len (a := J.transpose.w) (b := J.transpose.h) pq.2 hq.2.2.1 hq.2.2.2.1
       simp only [Inst.transpose] at lp lq

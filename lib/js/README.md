@@ -1,7 +1,7 @@
 # zzn (JavaScript)
 
-Decide and solve two-colour Zig-Zag Numberlink on rectangles; one file, no dependencies, Node 14+
-or a browser. Same algorithm and the same results as the Python and C libraries
+Decide and solve two-colour Zig-Zag Numberlink on rectangles; one file plus the lookup table
+`lib/data/look.json.gz`, no dependencies, Node 14+ or a browser. Same algorithm and the same results as the Python and C libraries
 ([`docs/ALGORITHM.md`](../../docs/ALGORITHM.md)).
 
 ## Library
@@ -22,7 +22,7 @@ zzn.explain(bad);                          // 'catalogue entry T1 fires'
 
 const trace = [];
 zzn.solve(zzn.Instance(16, 13, [5, 2], [12, 10], [6, 9], [13, 3]), trace);
-// trace[0] = ["reduce", instance, axis, d], then moves and thin solves
+// trace[0] = ["block", instance, axis, ["left", 1]], then reductions and the leaf lookup
 ```
 
 | Function | |
@@ -34,8 +34,30 @@ zzn.solve(zzn.Instance(16, 13, [5, 2], [12, 10], [6, 9], [13, 3]), trace);
 | `acceptable(R, C, s, t)`, `hamiltonianPath(R, C, s, t)` | Hamiltonian paths in rectangles (IPS) |
 | `solvePaths(R, C, [[[r, c], colour], ...])` | the plug DP for one or two colours |
 | `checkSolution(inst, sol)`, `render(inst, sol)`, `wellFormed(inst)` | utilities |
+| `setLookData(textOrObject)` | supply the lookup table (needed in a browser, see below) |
 
 An instance whose endpoints are not four distinct cells of the grid throws an `Error`.
+
+### Lookup table
+
+After block deletion and two-line reductions, `solve` answers the remaining leaf (both sides
+11-16) from the certificate table `lib/data/look.json.gz`, as the Lean leaf solver `lookJ tabAll`
+does (the transcription is `lib/python/zzn/look.py`; the format is in
+`lib/tools/export_look.py`). `decide`, `explain` and thin instances never need it.
+
+- Node: the table is read once, on first use, from `../data/look.json.gz` relative to `zzn.js`
+  (about 0.15 s); the environment variable `ZZN_LOOK_DATA` names another file.
+- Browser: the page supplies the table before the first `solve` that reaches a leaf, else that
+  call throws an `Error`. Pass the gunzipped JSON **text**: the stored path codes are integers of
+  up to 1352 bits, which `JSON.parse` would round, so `setLookData` parses the text itself and keeps
+  them exact. An already parsed object is accepted only if its codes are strings or `BigInt`s; an
+  object whose codes were rounded by `JSON.parse` is rejected with an `Error`.
+
+```js
+const gz = await (await fetch("look.json.gz")).arrayBuffer();
+const text = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+zzn.setLookData(text);
+```
 
 ### Optimized version (thin instances)
 
@@ -60,20 +82,23 @@ node cli.js [options] < instances.txt        # one instance per line
 ```
 $ node cli.js 12 12 0 0 11 11 0 11 11 0
 unsolvable: catalogue entry T1 fires
-$ node cli.js 16 13 5 2 12 10 6 9 13 3 --trace | tail -6
-  reduce 16x13: delete rows 0,1
-  move 14x13: strip, cut between rows 11 and 12
-  move 12x13: strip, cut between columns 10 and 11
-  move 11x12: 2/2 cross, cut between rows 4 and 5
-  thin 5x12
-  thin 6x12
+$ node cli.js 16 13 5 2 12 10 6 9 13 3 --trace | tail -4
+  block 16x13: delete rows 0..1
+  reduce 14x13: delete rows 5,6
+  reduce 12x13: delete columns 5,6
+  leaf 11x12
 ```
 
 The output is identical to the Python and C programs (`lib/tests/compare.py`).
+The leaf lookup alone is compared with Python's `look_j` (paths, symmetry, slice and entry) by
+`python3 js/look_dump.py 60 7 /tmp/look.json --lanes && node js/look_check.js /tmp/look.json`
+(from `lib/`).
 
 ## Performance
 
-Like the Python version, fast for both sides ≥ 11. Thin instances that fail the parity check are
+Both sides ≥ 11: time grows as R·C. Median times are 1.3–1.6 s at 1280 × 1280 and 5.3–6.9 s at
+2560 × 2560 (`lib/README.md`). Node's default heap limit (about 2 GB here) is reached near
+2560 × 5120; `node --max-old-space-size=4096 cli.js ...` raises it. Thin instances that fail the parity check are
 rejected at once; otherwise the plug DP at width 10 takes about 6 s at length 20–40 and 20 s at
 length 80, about 4× the C library's time. The optimized solver (`zzn.optimized`) takes about
 6 ms at 10 × 20 and 16 ms at 10 × 80 instead of 4.5 s and 27 s (median about 700× and 1,700×).

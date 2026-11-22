@@ -1,0 +1,8 @@
+{
+  "challenge_module": "ChallengeConstruct",
+  "solution_module": "SolutionConstruct",
+  "theorem_names": ["ZZN.T.solveZ3RT_main"],
+  "definition_names": [],
+  "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "enable_nanoda": true
+}

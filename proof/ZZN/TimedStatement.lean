@@ -81,98 +81,6 @@ def stretchT (r : ℕ) : List Coord → TimeM (List Coord)
   | a :: b :: l => do
     let s ← stretchT r (b :: l)
     ⟨shiftAt r a :: (gap r a b ++ s), 3⟩
-def insBT (a b : Coord) (X : List Coord) : List Coord → TimeM (List Coord)
-  | x :: y :: l =>
-    if x = a ∧ y = b then ⟨x :: (X ++ y :: l), X.length + 1⟩ else do
-      let s ← insBT a b X (y :: l)
-      ⟨x :: s, 1⟩
-  | [x] => pure [x]
-  | [] => pure []
-def spliceET (P Q : List Coord) (a b : Coord) (X : List Coord) : TimeM (List Coord × List Coord) := do
-  let t ← infix2T a b P
-  if t then do
-    let l ← insBT a b X P
-    pure (l, Q)
-  else do
-    let l ← insBT a b X Q
-    pure (P, l)
-def absorbET (r y y' : ℕ) (P Q : List Coord) : TimeM (List Coord × List Coord) := do
-  let t1 ← infix2T (r + 1, y') (r + 2, y') P
-  let t2 ← infix2T (r + 1, y') (r + 2, y') Q
-  if t1 || t2 then spliceET P Q (r + 1, y') (r + 2, y') [(r + 1, y), (r + 2, y)]
-  else spliceET P Q (r + 2, y') (r + 1, y') [(r + 2, y), (r + 1, y)]
-def flipET (r y : ℕ) (P Q : List Coord) : TimeM (List Coord × List Coord) := do
-  let t1 ← infix2T (r, y) (r, y + 1) P
-  let t2 ← infix2T (r, y) (r, y + 1) Q
-  if t1 || t2 then
-    spliceET P Q (r, y) (r, y + 1) [(r + 1, y), (r + 2, y), (r + 2, y + 1), (r + 1, y + 1)]
-  else spliceET P Q (r, y + 1) (r, y) [(r + 1, y + 1), (r + 2, y + 1), (r + 2, y), (r + 1, y)]
-def sweepLeftET (r : ℕ) : ℕ → Finset ℕ → List Coord → List Coord → TimeM (List Coord × List Coord)
-  | 0, _, P, Q => pure (P, Q)
-  | L + 1, U, P, Q => do
-    let m ← fmemT L U
-    if m then do
-      let PQ ← absorbET r L (L + 1) P Q
-      let U' ← feraseT U L
-      sweepLeftET r L U' PQ.1 PQ.2
-    else sweepLeftET r L U P Q
-def sweepRightET (r h : ℕ) : ℕ → ℕ → Finset ℕ → List Coord → List Coord →
-    TimeM (List Coord × List Coord)
-  | 0, _, _, P, Q => pure (P, Q)
-  | n + 1, R, U, P, Q => do
-    let m ← fmemT (R + 1) U
-    if m then do
-      let PQ ← absorbET r (R + 1) R P Q
-      let U' ← feraseT U (R + 1)
-      sweepRightET r h n (R + 1) U' PQ.1 PQ.2
-    else if R + 1 < h then sweepRightET r h n (R + 1) U P Q
-    else pure (P, Q)
-def usedT (l : List Coord) (u v : Coord) : TimeM Bool := do
-  let a ← infix2T u v l
-  let b ← infix2T v u l
-  pure (a || b)
-def crossT (p q : List Coord) (r y : ℕ) : TimeM Bool := do
-  let a ← usedT p (r, y) (r + 1, y)
-  let b ← usedT q (r, y) (r + 1, y)
-  pure (a || b)
-def seedAtT (h : ℕ) (p q : List Coord) (r R : ℕ) : TimeM Bool := do
-  let c0 ← crossT p q r (R - 1)
-  let c1 ← crossT p q r R
-  let u0 ← usedT p (r, R - 1) (r, R)
-  let u1 ← usedT q (r, R - 1) (r, R)
-  pure (((decide (R = 0) || c0) && (decide (R = h) || c1)) ||
-    (decide (1 ≤ R) && decide (R < h) && !c0 && !c1 && (u0 || u1)))
-def cond1T (h : ℕ) (p q : List Coord) (r R : ℕ) : TimeM Bool := do
-  let c0 ← crossT p q r (R - 1)
-  let c1 ← crossT p q r R
-  pure ((decide (R = 0) || c0) && (decide (R = h) || c1))
-/-- The counted band extension, given the starting state. -/
-def bandFromT (I : Inst) (r : ℕ) (p q : List Coord) (U0 : Finset ℕ) (P0 Q0 : List Coord) (R : ℕ) :
-    TimeM (List Coord × List Coord) := do
-  let c1 ← cond1T I.h p q r R
-  if c1 then
-    if R = 0 then sweepRightET r I.h (I.h - 0) 0 U0 P0 Q0
-    else if R = I.h then sweepLeftET r (R - 1) U0 P0 Q0
-    else do
-      let A ← sweepLeftET r (R - 1) U0 P0 Q0
-      let U1 ← ffilterT (fun z => decide (R - 1 < z)) U0
-      sweepRightET r I.h (I.h - R) R U1 A.1 A.2
-  else do
-    let B ← flipET r (R - 1) P0 Q0
-    let U1 ← feraseT U0 (R - 1)
-    let U2 ← feraseT U1 (R - 1 + 1)
-    let C ← sweepLeftET r (R - 1) U2 B.1 B.2
-    let U3 ← ffilterT (fun z => decide (R - 1 < z)) U2
-    sweepRightET r I.h (I.h - (R - 1 + 1)) (R - 1 + 1) U3 C.1 C.2
-def bandExtET (I : Inst) (r : ℕ) (p q : List Coord) : TimeM (List Coord × List Coord) := do
-  let P0 ← stretchT r p
-  let Q0 ← stretchT r q
-  let U0 ← frangeFilterT I.h (fun y => do let c ← crossT p q r y; pure !c)
-  let rs ← rangeT (I.h + 1)
-  let o ← lfindT (seedAtT I.h p q r) rs
-  match o with
-  | none => pure (P0, Q0)
-  | some R => bandFromT I r p q U0 P0 Q0 R
 end ZZN.T
 
 -- ZZN.Timed.Catalogue
@@ -515,13 +423,156 @@ def redBT (I : Inst) (d : ℕ) : TimeM Bool := do
   pure (decide (13 ≤ I.w) &&
     ((d == 0 && s1) || (d + 2 == I.w && s2) || s3 ||
      (decide (8 ≤ d) && decide (d + 10 ≤ I.w) && f0 && f1 && ((decide (1 ≤ d) && fm) || f2) && b && a)))
-def findRedT (I : Inst) : TimeM (Option ℕ) := do
+/-- Rows `y` where a consecutive pair of `l` crosses between lines `r` and `r + 1`. -/
+def crossRowsT (r : ℕ) : List Coord → TimeM (List ℕ)
+  | [] => pure []
+  | [_] => pure []
+  | a :: b :: l => do
+    let rest ← crossRowsT r (b :: l)
+    ⟨if ((a.1 = r ∧ b.1 = r + 1) ∨ (a.1 = r + 1 ∧ b.1 = r)) ∧ a.2 = b.2 then a.2 :: rest else rest, 1⟩
+/-- Rows `y` where `l` uses the edge `(r, y) – (r, y + 1)`. -/
+def flipRowsT (r : ℕ) : List Coord → TimeM (List ℕ)
+  | [] => pure []
+  | [_] => pure []
+  | a :: b :: l => do
+    let rest ← flipRowsT r (b :: l)
+    ⟨if a.1 = r ∧ b.1 = r ∧ b.2 = a.2 + 1 then a.2 :: rest
+      else if a.1 = r ∧ b.1 = r ∧ a.2 = b.2 + 1 then b.2 :: rest else rest, 1⟩
+/-- The seed test, from the crossing rows `cr` and the rows `fr` of the edges along line `r`. -/
+def seedT (h : ℕ) (cr fr : List ℕ) (R : ℕ) : TimeM Bool := do
+  let c0 ← lcontainsT cr (R - 1)
+  let c1 ← lcontainsT cr R
+  let f ← lcontainsT fr (R - 1)
+  pure (((R == 0 || c0) && (R == h || c1)) || (decide (1 ≤ R) && decide (R < h) && !c0 && !c1 && f))
+/-- The left sweep on the counts `K` (a list read with `[z]!`). -/
+def planLeftT : ℕ → Finset ℕ → List ℕ → ℕ → TimeM (List ℕ)
+  | 0, _, K, _ => pure K
+  | L + 1, U, K, c => do
+    let b ← fmemT L U
+    if b then do
+      let U' ← feraseT U L
+      let K' ← lmodifyT K c (· + 1)
+      planLeftT L U' K' c
+    else planLeftT L U K L
+/-- The right sweep on the counts. -/
+def planRightT (h : ℕ) : ℕ → ℕ → Finset ℕ → List ℕ → ℕ → TimeM (List ℕ)
+  | 0, _, _, K, _ => pure K
+  | n + 1, R0, U, K, c => do
+    let b ← fmemT (R0 + 1) U
+    if b then do
+      let U' ← feraseT U (R0 + 1)
+      let K' ← lmodifyT K c (· + 1)
+      planRightT h n (R0 + 1) U' K' c
+    else if R0 + 1 < h then planRightT h n (R0 + 1) U K (R0 + 1)
+    else pure K
+/-- The detour of anchor `a` with `k` rows, entered from column `r + 1` (`c = 1`) or `r + 2`. -/
+def detT (r a k : ℕ) (up : Bool) (c : ℕ) : TimeM (List Coord) := do
+  let is ← rangeT (k + 1)
+  let A ← lmapT (fun i => pure (r + c, if up then a + i else a - i)) is
+  let ri ← lreverseT is
+  let B ← lmapT (fun i => pure (r + (3 - c), if up then a + i else a - i)) ri
+  lappendT A B
+/-- What the pass inserts between `x, y`. -/
+def insKT (r : ℕ) (K : List ℕ) (R : ℕ) (fl : Bool) (x y : Coord) : TimeM (List Coord) :=
+  if x.1 = r ∧ y.1 = r + 1 ∧ x.2 = y.2 then do
+    let k ← lgetT K x.2
+    detT r x.2 k (decide (R ≤ x.2)) 1
+  else if x.1 = r + 1 ∧ y.1 = r ∧ x.2 = y.2 then do
+    let k ← lgetT K x.2
+    detT r x.2 k (decide (R ≤ x.2)) 2
+  else if fl = true ∧ x = (r, R - 1) ∧ y = (r, R) then do
+    let k1 ← lgetT K (R - 1)
+    let k2 ← lgetT K R
+    let A ← detT r (R - 1) k1 false 1
+    let B ← detT r R k2 true 2
+    lappendT A B
+  else if fl = true ∧ x = (r, R) ∧ y = (r, R - 1) then do
+    let k1 ← lgetT K R
+    let k2 ← lgetT K (R - 1)
+    let A ← detT r R k1 true 1
+    let B ← detT r (R - 1) k2 false 2
+    lappendT A B
+  else pure []
+/-- The one-pass band extension of one path. -/
+def extLT (r : ℕ) (K : List ℕ) (R : ℕ) (fl : Bool) : List Coord → TimeM (List Coord)
+  | [] => pure []
+  | [a] => pure [shiftAt r a]
+  | a :: b :: l => do
+    let i ← insKT r K R fl a b
+    let rest ← extLT r K R fl (b :: l)
+    let m ← lappendT i rest
+    pure (shiftAt r a :: m)
+def extPT (r : ℕ) (K : List ℕ) (R : ℕ) (fl : Bool) (p q : List Coord) :
+    TimeM (List Coord × List Coord) := do
+  let a ← extLT r K R fl p
+  let b ← extLT r K R fl q
+  pure (a, b)
+/-- **Band extension in one pass**, on a band of height `h` inserted after line `r`. -/
+def bandExtLT (h r : ℕ) (p q : List Coord) : TimeM (List Coord × List Coord) := do
+  let cp ← crossRowsT r p
+  let cq ← crossRowsT r q
+  let cr ← lappendT cp cq
+  let fp ← flipRowsT r p
+  let fq ← flipRowsT r q
+  let fr ← lappendT fp fq
+  let rs ← rangeT (h + 1)
+  let o ← lfindT (seedT h cr fr) rs
+  match o with
+  | none => do
+    let a ← stretchT r p
+    let b ← stretchT r q
+    pure (a, b)
+  | some R => do
+    let U0 ← frangeFilterT h (fun y => do let c ← lcontainsT cr y; pure !c)
+    let hs ← rangeT (h + 1)
+    let K0 ← lmapT (fun _ => pure 0) hs
+    let c0 ← lcontainsT cr (R - 1)
+    let c1 ← lcontainsT cr R
+    if (R == 0 || c0) && (R == h || c1) then
+      if R = 0 then do
+        let K ← planRightT h (h - 0) 0 U0 K0 0
+        extPT r K R false p q
+      else if R = h then do
+        let K ← planLeftT (R - 1) U0 K0 (R - 1)
+        extPT r K R false p q
+      else do
+        let K1 ← planLeftT (R - 1) U0 K0 (R - 1)
+        let U' ← ffilterT (fun z => decide (R - 1 < z)) U0
+        let K ← planRightT h (h - R) R U' K1 R
+        extPT r K R false p q
+    else do
+      let U1a ← feraseT U0 (R - 1)
+      let U1 ← feraseT U1a (R - 1 + 1)
+      let K1 ← planLeftT (R - 1) U1 K0 (R - 1)
+      let U' ← ffilterT (fun z => decide (R - 1 < z)) U1
+      let K ← planRightT h (h - (R - 1 + 1)) (R - 1 + 1) U' K1 (R - 1 + 1)
+      extPT r K R true p q
+/-- `RedB I d`, decided. -/
+def redBBT (I : Inst) (d : ℕ) : TimeM Bool := do
+  let f0 ← freeLineBT I d
+  let f1 ← freeLineBT I (d + 1)
+  let fm ← freeLineBT I (d - 1)
+  let fp ← freeLineBT I (d + 2)
+  let b ← endBelowBT I d
+  let a ← endAboveBT I (d + 1)
+  pure (decide (13 ≤ I.w) && decide (5 ≤ d) && decide (d + 7 ≤ I.w) && f0 && f1 &&
+    ((decide (1 ≤ d) && fm) || fp) && b && a)
+/-- The first reduction of either kind (`RedX` or band compression `RedB`). -/
+def findRed2T (I : Inst) : TimeM (Option ℕ) := do
   let rs ← rangeT I.w
-  lfindT (redBT I) rs
+  lfindT (fun d => do
+    let x ← redBT I d
+    let y ← redBBT I d
+    pure (x || y)) rs
+/-- The endpoints lie in the grid and are distinct. -/
+def wfB (I : Inst) : Bool :=
+  decide (I.s0.1 < I.w ∧ I.s0.2 < I.h ∧ I.t0.1 < I.w ∧ I.t0.2 < I.h ∧ I.s1.1 < I.w ∧ I.s1.2 < I.h ∧
+    I.t1.1 < I.w ∧ I.t1.2 < I.h ∧ I.s0 ≠ I.t0 ∧ I.s0 ≠ I.s1 ∧ I.s0 ≠ I.t1 ∧ I.t0 ≠ I.s1 ∧
+    I.t0 ≠ I.t1 ∧ I.s1 ≠ I.t1)
 def liftET (I : Inst) (d : ℕ) (p q : List Coord) : TimeM (List Coord × List Coord) := do
   let f ← freeLineBT I (d + 2)
-  if d + 3 ≤ I.w ∧ f = true then bandExtET (I.deleteAt d) d p q
-  else bandExtET (I.deleteAt d) (d - 1) p q
+  if d + 3 ≤ I.w ∧ f = true then bandExtLT I.h d p q
+  else bandExtLT I.h (d - 1) p q
 def chainT : List Coord → TimeM Bool
   | [] => pure true
   | [_] => pure true
@@ -555,34 +606,34 @@ namespace ZZN.T
 open ZZN GridHam
 abbrev Sol := Option (List Coord × List Coord)
 def swapT (l : List Coord) : TimeM (List Coord) := lmapT (fun x => pure x.swap) l
-/-- Lift a solution of `I.deleteAt d` and check it. -/
+/-- Lift a solution of `I.deleteAt d`. -/
 def stepT (I : Inst) (d : ℕ) : Sol → TimeM Sol
   | some pq => do
     let l ← liftET I d pq.1 pq.2
-    checkET I (some l)
+    pure (some l)
   | none => pure none
-/-- Lift a solution of `I.transpose.deleteAt d`, transpose it back and check it. -/
+/-- Lift a solution of `I.transpose.deleteAt d` and transpose it back. -/
 def stepTT (I : Inst) (d : ℕ) : Sol → TimeM Sol
   | some pq => do
     let l ← liftET I.transpose d pq.1 pq.2
     let a ← swapT l.1
     let b ← swapT l.2
-    checkET I (some (a, b))
+    pure (some (a, b))
   | none => pure none
 def solveRecT (thinT : Inst → TimeM Sol) : ℕ → Inst → TimeM Sol
   | 0, _ => pure none
   | n + 1, I =>
     if I.w ≤ 10 ∨ I.h ≤ 10 then thinT I >>= checkET I else do
-    let f ← findRedT I
+    let f ← findRed2T I
     match f with
     | some d => solveRecT thinT n (I.deleteAt d) >>= stepT I d
     | none => do
-      let g ← findRedT I.transpose
+      let g ← findRed2T I.transpose
       match g with
       | some d => solveRecT thinT n (I.transpose.deleteAt d) >>= stepTT I d
       | none => thinT I >>= checkET I
 def solveZT (thinT : Inst → TimeM Sol) (I : Inst) : TimeM Sol :=
-  solveRecT thinT (I.w + I.h) I >>= checkET I
+  if wfB I then solveRecT thinT (I.w + I.h) I else pure none
 end ZZN.T
 
 -- ZZN.Timed.Thin
@@ -666,7 +717,7 @@ end ZZN.T
 namespace ZZN.T
 open ZZN ZZN.Thin GridHam
 def Q (b : ℕ) : ℕ := (b + 3) ^ 2
-def Nst (b : ℕ) : ℕ := 4 * (Q b + 1) ^ Q b
+def Nst (b : ℕ) : ℕ := 8 * (b + 5) ^ (b + 1)
 end ZZN.T
 
 -- ZZN.Timed.ThinCost
@@ -692,15 +743,65 @@ def lbeqT : List ℕ → List ℕ → TimeM Bool
 def stEqT (s t : St) : TimeM Bool := do
   let r ← lbeqT s.1 t.1
   pure (r && decide (s.2 = t.2))
-/-- Keep the first entry of each state not among `seen`. -/
-def dedupKeyAuxT : List St → List (St × Wit) → TimeM (List (St × Wit))
-  | _, [] => pure []
-  | seen, x :: l => do
-      let m ← lanyT (fun t => stEqT t x.1) seen
-      if m then dedupKeyAuxT seen l else do
-        let r ← dedupKeyAuxT (x.1 :: seen) l
-        pure (x :: r)
-def dedupKeyT (l : List (St × Wit)) : TimeM (List (St × Wit)) := dedupKeyAuxT [] l
+/-- The lexicographic order on piece lists (`ltL`). -/
+def ltLT : List ℕ → List ℕ → TimeM Bool
+  | [], [] => pure false
+  | [], _ :: _ => pure true
+  | _ :: _, [] => pure false
+  | x :: l, y :: m =>
+    if x < y then pure true
+    else if x = y then do
+      let r ← ltLT l m
+      ⟨r, 1⟩
+    else pure false
+/-- The order on states (`ltS`). -/
+def ltST (s t : St) : TimeM Bool := do
+  let r ← ltLT s.1 t.1
+  pure (decide (s.2 < t.2) || (s.2 == t.2 && r))
+/-- Merge two lists sorted by state. -/
+def mergeKT : List (St × Wit) → List (St × Wit) → TimeM (List (St × Wit))
+  | [], ys => pure ys
+  | xs, [] => pure xs
+  | x :: xs, y :: ys => do
+    let c ← ltST y.1 x.1
+    if !c then do
+      let r ← mergeKT xs (y :: ys)
+      pure (x :: r)
+    else do
+      let r ← mergeKT (x :: xs) ys
+      pure (y :: r)
+termination_by xs ys => xs.length + ys.length
+/-- Split into the entries at even and at odd positions. -/
+def splitKT : List (St × Wit) → TimeM (List (St × Wit) × List (St × Wit))
+  | [] => pure ([], [])
+  | [x] => pure ([x], [])
+  | x :: y :: l => do
+    let p ← splitKT l
+    ⟨(x :: p.1, y :: p.2), 1⟩
+/-- Merge sort by state, with fuel. -/
+def msortKT : ℕ → List (St × Wit) → TimeM (List (St × Wit))
+  | 0, l => pure l
+  | f + 1, l => do
+    let n ← lengthT l
+    if n ≤ 1 then pure l else do
+      let p ← splitKT l
+      let a ← msortKT f p.1
+      let b ← msortKT f p.2
+      mergeKT a b
+/-- Keep the first entry of each run of equal states. -/
+def dedupAdjKT : List (St × Wit) → TimeM (List (St × Wit))
+  | x :: y :: l => do
+    let e ← stEqT x.1 y.1
+    if e then dedupAdjKT (x :: l) else do
+      let r ← dedupAdjKT (y :: l)
+      pure (x :: r)
+  | l => pure l
+termination_by l => l.length
+/-- Remove duplicate states: sort by state, keep one entry per state. -/
+def dedupKT (l : List (St × Wit)) : TimeM (List (St × Wit)) := do
+  let n ← lengthT l
+  let s ← msortKT n l
+  dedupAdjKT s
 /-- The stored segment of piece `z` (`[]` if none). -/
 def lookDT (l : List (ℕ × List Coord)) (z : ℕ) : TimeM (List Coord) := do
   let o ← lfindT (fun q => pure (q.1 == z)) l
@@ -771,7 +872,7 @@ def stageWT (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) (S : List (
   let e := optSnd o
   let l ← lflatMapT (stepCellWT J a b e (cell b i).1 (cell b i).2) S
   let f ← lfilterT (fun sw => noExitT a b sw.1) l
-  dedupKeyT f
+  dedupKT f
 def insideWT (J : Inst) (a b : ℕ) (tm : List ((ℕ × ℕ) × ℕ)) : TimeM (List (St × Wit)) := do
   let is ← rangeT (a * b)
   lfoldlT (stageWT J a b tm) [(([], 0), ([], ([], [])))] is
@@ -797,9 +898,12 @@ end ZZN.T
 -- ZZN.Timed.ThinWitCost
 namespace ZZN.T
 open ZZN ZZN.Thin GridHam
+/-- Enough merge-sort levels for `2 Nst b` entries: `2 Nst b < 2 ^ Lg b`. -/
+def Lg (b : ℕ) : ℕ := Nat.log2 (2 * Nst b) + 1
 /-- The per-cell constant: a stage costs at most `(a b + 1) Ks b` steps. -/
 def Ks (b : ℕ) : ℕ :=
-  4 + Nst b * (9 * Q b + 31) + 2 * Nst b * (Q b + 2) + 2 * Nst b * (2 * Nst b * (Q b + 2) + 1) + 9 * Nst b
+  4 + Nst b * (9 * Q b + 31) + 2 * Nst b * (Q b + 2) +
+    (2 * Nst b + 1 + ((Q b + 7) * (2 * Nst b) * (Lg b + 1) + 1) + 2 * Nst b * (Q b + 2)) + 9 * Nst b
 /-- The constant of the time bound, a function of the short side only. -/
 def Kw (b : ℕ) : ℕ := Ks b + Nst b + 4
 end ZZN.T

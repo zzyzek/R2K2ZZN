@@ -6,12 +6,13 @@
 instances and require identical output (same verdicts, same paths), and check every reported
 solution.
 
-    python3 tests/compare.py N SEED [RMIN RMAX] [--trace] [--optimized] [--irreducible]  (from lib/)
+    python3 tests/compare.py N SEED [RMIN RMAX] [--trace] [--optimized] [--irreducible] [--layouts]
+    (from lib/)
 
---irreducible draws only passing instances with sides 11-22 that no reduction applies to, so every
-instance reaches the same-colour split or the move search. --programs=c,js limits the programs run.
-With ZZN_SKIP_MOVES=1 in the environment the programs skip the move search and solve such instances
-with the exact plug DP algorithm (slow in Python: minutes per instance at width 11-12).
+--irreducible draws only passing leaves with sides 11-16 (no block and no RedX or RedB reduction
+on either axis), so every instance is answered by the certificate lookup. --layouts draws passing
+instances with the three endpoint layouts of bench.py in turn (random, corner, spread), so that
+block deletion deletes left, right and inner blocks. --programs=c,js limits the programs run.
 """
 import os
 import random
@@ -21,9 +22,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(LIB, "python"))
+sys.path.insert(0, HERE)
 from zzn import Instance, check_solution  # noqa: E402
 from zzn.catalogue import fires  # noqa: E402
-from zzn.solver import find_reduction  # noqa: E402
 
 PROGRAMS = {
     "python": ["python3", os.path.join(LIB, "python", "zzn_cli.py")],
@@ -48,28 +49,23 @@ def rand_inst(rng, rmin, rmax):
     return Instance(R, C, *p)
 
 
-def axis_coords(rng, n):
-    """Four coordinates on an axis of length n, biased towards tuples no reduction applies to:
-    one near each end (edge gaps <= 3), two anywhere."""
-    if n < 13:
-        return [rng.randrange(n) for _ in range(4)]
-    return [rng.randint(0, 3), rng.randint(n - 4, n - 1), rng.randrange(n), rng.randrange(n)]
-
-
 def rand_irreducible(rng, rmin, rmax):
-    """A passing instance with sides in [max(rmin, 11), min(rmax, 22)] and no reduction."""
-    lo, hi = max(rmin, 11), min(rmax, 22)
-    while True:
-        R, C = rng.randint(lo, hi), rng.randint(lo, hi)
-        rs, cs = axis_coords(rng, R), axis_coords(rng, C)
-        rng.shuffle(cs)
-        pts = list(zip(rs, cs))
-        if len(set(pts)) < 4:
-            continue
-        rng.shuffle(pts)
-        I = Instance(R, C, *pts)
-        if find_reduction(I) is None and fires(R, C, *pts) is None:
-            return I
+    """A passing instance with sides in [max(rmin, 11), min(rmax, 16)] that admits no block and no
+    RedX or RedB reduction on either axis, so it is a leaf answered by the lookup (look_test.draw)."""
+    from look_test import draw as draw_leaf
+    lo, hi = max(rmin, 11), min(rmax, 16)
+    return draw_leaf(rng, rng.randint(lo, hi), rng.randint(lo, hi))
+
+
+def layouts_gen():
+    from bench import draw
+    count = [0]
+
+    def gen(rng, rmin, rmax):
+        layout = ("random", "corner", "spread")[count[0] % 3]
+        count[0] += 1
+        return draw(rng, layout, rng.randint(rmin, rmax), rng.randint(rmin, rmax))
+    return gen
 
 
 def parse(out):
@@ -90,6 +86,8 @@ def main():
     rmin, rmax = (int(sys.argv[3]), int(sys.argv[4])) if len(sys.argv) > 4 else (3, 24)
     extra = [a for a in ("--trace", "--optimized") if a in sys.argv]
     gen = rand_irreducible if "--irreducible" in sys.argv else rand_inst
+    if "--layouts" in sys.argv:
+        gen = layouts_gen()
     insts = [gen(rng, rmin, rmax) for _ in range(n)]
     text = "\n".join(" ".join(map(str, [I.R, I.C, *I.s0, *I.t0, *I.s1, *I.t1])) for I in insts) + "\n"
     want = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--programs=")),

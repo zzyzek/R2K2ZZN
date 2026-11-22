@@ -2,12 +2,12 @@
 # To the extent possible under law, the author has waived all copyright and related or
 # neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
 
-"""Extending solutions: band extension (insert two empty lines) and strip splicing.
+"""Extending solutions: band extension (insert two empty lines), used by the Hamiltonian-path
+construction in ips.py, and the block cycles used by the optimized thin solver.
 
 Paths are lists of cells. `extend(R, C, paths, axis, k)` inserts two empty lines so that they
 become lines k, k+1 of the new grid (axis 0: rows, axis 1: columns); a line next to the insertion
-must hold no path endpoint. `add_block(R, C, paths, w)` appends an empty w x C block below the
-grid (w*C even, C >= 2), spliced into a path through an edge along the last row.
+must hold no path endpoint.
 """
 
 
@@ -124,23 +124,3 @@ def extend(R, C, paths, axis, k):
 
 def insert_two_lines(R, C, paths, axis, after):
     return extend(R, C, paths, axis, after + 1)
-
-
-def add_block(R, C, paths, w):
-    """Append an empty w x C block below row R-1 (w >= 2, w*C even, C >= 2), spliced through a
-    used edge along row R-1."""
-    paths = [list(p) for p in paths]
-    a = None
-    for p in paths:
-        for i in range(len(p) - 1):
-            x, y = p[i], p[i + 1]
-            if x[0] == y[0] == R - 1 and abs(x[1] - y[1]) == 1:
-                a = min(x[1], y[1])
-                break
-        if a is not None:
-            break
-    if a is None:
-        raise ValueError("no edge along the last row")
-    cyc = [(R + i, y) for i, y in block_cycle(w, C)]
-    _splice(paths, (R - 1, a), (R - 1, a + 1), _flip_path(cyc, a))
-    return paths

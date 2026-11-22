@@ -4,16 +4,19 @@
 
 /*
  * Command line: decide or solve instances.
- *   zzn R C s0r s0c t0r t0c s1r s1c t1r t1c [--decide] [--grid] [--trace] [--json] [--optimized]
+ *   zzn R C s0r s0c t0r t0c s1r s1c t1r t1c [--decide] [--grid] [--trace] [--json] [--optimized] [--leaf]
  *   zzn [options] < instances.txt        (one instance per line)
+ * --leaf runs the certificate lookup alone (look.h, a test of the leaf solver) and prints
+ * "leaf sym S slice I pair|sol K" and the paths A, B, or "leaf none sym S".
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "zzn.h"
+#include "look.h"
 
-static int opt_decide, opt_grid, opt_trace, opt_json, opt_optimized;
+static int opt_decide, opt_grid, opt_trace, opt_json, opt_optimized, opt_leaf;
 
 static void print_path(const char *name, const zzn_path *p) {
   printf("%s:", name);
@@ -30,6 +33,18 @@ static void print_json_path(const zzn_path *p) {
 static int run(const int *v) {
   zzn_instance in = {v[0], v[1], {v[2], v[3]}, {v[4], v[5]}, {v[6], v[7]}, {v[8], v[9]}};
   if (!zzn_well_formed(&in)) { printf("error: endpoints must be four distinct cells inside the grid\n"); return 2; }
+  if (opt_leaf) {
+    zzn_path a, b;
+    zzn_look_info info;
+    int r = zzn_look_j(&in, &a, &b, &info);
+    if (r == ZZN_INTERNAL) { printf("error: internal\n"); return 3; }
+    if (r == 1) {
+      printf("leaf sym %d slice %d %s %d\n", info.sym, info.slice, info.kind ? "sol" : "pair", info.index);
+      print_path("A", &a); print_path("B", &b);
+      free(a.cells); free(b.cells);
+    } else printf("leaf none sym %d\n", info.sym);
+    return 0;
+  }
   if (opt_decide) {
     int d = opt_optimized ? zzn_decide_optimized(&in) : zzn_decide(&in);
     if (opt_json) printf("{\"solvable\": %s}\n", d ? "true" : "false");
@@ -69,8 +84,9 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[i], "--trace")) opt_trace = 1;
     else if (!strcmp(argv[i], "--json")) opt_json = 1;
     else if (!strcmp(argv[i], "--optimized")) opt_optimized = 1;
+    else if (!strcmp(argv[i], "--leaf")) opt_leaf = 1;
     else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
-      printf("usage: zzn R C s0r s0c t0r t0c s1r s1c t1r t1c [--decide] [--grid] [--trace] [--json] [--optimized]\n"
+      printf("usage: zzn R C s0r s0c t0r t0c s1r s1c t1r t1c [--decide] [--grid] [--trace] [--json] [--optimized] [--leaf]\n"
              "   or: zzn [options] < instances.txt\n");
       return 0;
     } else if (nv < 10) v[nv++] = atoi(argv[i]);

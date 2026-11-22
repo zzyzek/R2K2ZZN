@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="160" height="314" viewBox="0 0 160 314" font-family="Helvetica, Arial, sans-serif">
 <rect width="100%" height="100%" fill="white"/>
-<text x="14" y="26" font-size="13" font-weight="700" fill="#222">(I) interior compression</text>
+<text x="14" y="26" font-size="13" font-weight="700" fill="#222">RedX interior: rows 8-9</text>
 <rect x="14" y="84" width="12" height="12" fill="#7F77DD" fill-opacity="0.12"/>
 <rect x="26" y="84" width="12" height="12" fill="#7F77DD" fill-opacity="0.12"/>
 <rect x="38" y="84" width="12" height="12" fill="#7F77DD" fill-opacity="0.12"/>

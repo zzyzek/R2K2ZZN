@@ -1,0 +1,1035 @@
+% SPDX-License-Identifier: CC0-1.0
+% To the extent possible under law, the author has waived all copyright and related or
+% neighboring rights to this file. See the LICENSE file (CC0 1.0 Universal).
+
+% Supplement to zzn.tex. Every technical statement carries a comment
+% "% lean: <file>:<line> <name>" on the line before it, with paths relative to proof/.
+% Section numbers "Section 3.x" refer to the sections of the paper zzn.tex as built.
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+
+\newtheorem{lemma}{Lemma}
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\lf}[1]{\nolinkurl{#1}}
+\setlength{\emergencystretch}{3em}
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+\title{Supplement to: Two-Colour Zig-Zag Numberlink on Rectangles:\\
+A Forbidden-Pattern Characterization and a Polynomial-Time\\
+Construction, Verified in Lean}
+\author{Z. Zzyzek\thanks{To the extent possible under law, the author has waived all copyright and
+related or neighboring rights to this supplement, under CC0 1.0 Universal
+(\url{https://creativecommons.org/publicdomain/zero/1.0/}).}}
+\date{Draft, November 2026}
+
+\begin{document}
+\maketitle
+
+This supplement holds reference material for the paper. Each section supports one part of the
+paper, named in its first sentence, and uses the paper's definitions and entry names (P, T1, T2,
+L1 to L6, E1, B, C, D, R). Every statement is checked against the Lean development in
+\lean{proof/}. The numerical values of $N(b)$ and $K(b)$ for $b=10$ and $b=16$ are computed outside
+Lean, by \lean{paper/tools/kwr.py}.
+
+\section{The plug DP encoding}\label{sec:plugdp}
+
+This section gives the encoding of the plug DP of Section~3.1, which the window certificates of
+Section~3.2 also run.
+
+% lean: ZZN/Statement.lean:661 dpAcceptF
+% lean: ZZN/Statement.lean:663 thinBF
+% lean: ZZN/Statement.lean:622 cell
+The instance is transposed when $h>w$, so that the grid has $a$ rows of $b\le a$ cells, where a
+row is a line $x=k$. A window of side $k$ has $a=b=k$. The cells are processed in row-major order,
+cell $i$ being $(\lfloor i/b\rfloor, i \bmod b)$.
+% lean: ZZN/Thin/Inside.lean:432 Piece (a run that is not the whole path)
+A \emph{piece} is a maximal run of a solution path inside the processed cells that is not the
+whole path. Its two ends are coded as natural numbers.
+
+% lean: ZZN/Statement.lean:558 termE
+% lean: ZZN/Statement.lean:561 exitE
+% lean: ZZN/WinCheck.lean:18 (module docstring: end codes)
+% lean: ZZN/WinCheck.lean:130 exitCell
+\begin{itemize}
+\item $c<b$ is a plug down from column $c$ into the next row.
+\item $b$ is a plug right, into the next cell of the row.
+\item $b+1+s$ is exit slot $s$. Slot $s<a$ leaves row $s$ to the right, and slot $a+j$ leaves column
+  $b-1-j$ downward. The slots are numbered down the right side and then leftward along the
+  bottom.
+\item $a+2b+1+\gamma$ is an endpoint of colour $\gamma$.
+\end{itemize}
+A \emph{state} is the sorted list of the pieces, each given by its unordered pair of end codes,
+together with a two-bit mask of the colours whose path is complete. The start state has no piece
+and mask $0$. In the step for cell $(r,c)$, \emph{down} is the code $c$ if $r+1<a$ and exit slot
+$a+b-1-c$ otherwise, and \emph{right} is the code $b$ if $c+1<b$ and exit slot $r$ otherwise.
+
+% lean: ZZN/Statement.lean:573 stepCell
+% lean: ZZN/Statement.lean:566 closeP
+\begin{algorithm}[H]
+\caption{Step of cell $(r,c)$ for one state $S$}
+\begin{algorithmic}[1]
+\State $u \gets$ the piece of $S$ with end code $c$, if $r>0$
+\State $\ell \gets$ the piece of $S$ with end code $b$, if $c>0$
+\State $\mathit{deg} \gets 1$ if $(r,c)$ is an endpoint, else $2$
+\State $\mathit{in} \gets$ the number of $u,\ell$ present
+\If{$\mathit{deg}<\mathit{in}$ \textbf{or} $u$ and $\ell$ are the same piece}
+  \State \Return no successor
+\EndIf
+\State $E \gets$ the other end of $u$, the other end of $\ell$, and the endpoint code of $(r,c)$,
+  those present
+\For{each list $O$ of new ends: $[\,]$ if $\mathit{deg}=\mathit{in}$, $[\textit{down}]$ and
+  $[\textit{right}]$ if $\mathit{deg}=\mathit{in}+1$, $[\textit{down},\textit{right}]$ otherwise}
+  \If{$E$ followed by $O$ is exactly two ends $e_1,e_2$}
+    \If{$e_1$ and $e_2$ are both endpoints}
+      \If{they have the same colour and that colour is not complete}
+        \State emit $S$ without $u,\ell$, with that colour marked complete
+      \EndIf
+    \Else
+      \State emit $S$ without $u,\ell$, with the piece $\{e_1,e_2\}$ added
+    \EndIf
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+% lean: ZZN/Statement.lean:619 normS
+% lean: ZZN/Statement.lean:624 stage
+% lean: ZZN/Statement.lean:657 stageF
+% lean: ZZN/Statement.lean:661 dpAcceptF
+% lean: ZZN/WinCheck.lean:122 inside
+A \emph{stage} processes one cell for every state, sorts the successors by mask and pieces with a
+merge sort, and removes duplicates. On a whole grid no piece can end in an exit slot, so the stage
+also drops every state with an exit end. The instance is accepted when, after the last cell, the
+state with no piece and mask $3$ is present. On a window the exit ends are kept, and the states
+after the last cell are the boundary states of Section~3.2.
+
+% lean: ZZN/Constr/ThinWit2.lean:26 stageW2
+% lean: ZZN/Constr/ThinWit2.lean:38 thinSolveW2
+% lean: ZZN/Timed/ThinRope.lean:149 thinSolveWRT
+The version with paths carries, for every state, the cells of each open piece and the completed
+paths, keeps one entry per state when it removes duplicates, and returns the two paths of the
+accepting entry, transposed back if the instance was transposed. The counted version stores the
+cells of a piece as a tree with constant-time append and reversal.
+
+% lean: ZZN/Timed/ThinWord.lean:379 wcnt
+% lean: ZZN/Timed/ThinRopeCost.lean:31 Nw
+% lean: ZZN/Timed/ThinWordCount.lean:248 card_fold
+% lean: paper/tools/KwrEval.lean (#eval at b = 2, 3); paper/tools/kwr.py (b = 10, 16)
+\paragraph{The state bound $N(b)$.} Let $N(b)$ be the number of words of $b+1$ letters, one letter
+per plug code $0,\ldots,b$, over the letters empty, open bracket, close bracket, end of colour $0$
+and end of colour $1$, in which the brackets are balanced and each colour has at most two end
+letters, each word counted twice for every colour with no end letter. Lean proves that a list of
+distinct states reached after any number of cells has at most $N(b)$ entries, by mapping each
+reached state injectively to such a word and its mask. Lean evaluates $N(2)=64$ and $N(3)=202$.
+The transcription \lean{paper/tools/kwr.py} gives $N(10)=966\,244$ and
+$N(16)=1\,381\,920\,144$.
+
+\section{Proof of the separation fact}\label{sec:sep}
+
+This section proves the separation fact used by the proofs of T1 and T2 in Section~3.2.
+
+% lean: ZZN/Planar.lean:25 AdjZ
+% lean: ZZN/Planar.lean:29 steps
+% lean: ZZN/Planar.lean:31 Closed
+% lean: ZZN/Planar.lean:42 ray
+% lean: ZZN/Planar.lean:48 par
+% lean: ZZN/Planar.lean:137 parP
+Points are pairs $(i,j)$ of integers, $i$ the row and $j$ the column, and a unit step joins points
+at distance $1$. A closed walk $\Gamma$ is a list of points in which consecutive points, and the
+last and the first, are at unit distance. The unit square $F(i,j)$ has the corners $(i,j)$ and
+$(i+1,j+1)$. Its \emph{crossing parity} $\pi(i,j)$ is the parity of the number of steps of $\Gamma$
+between $(i',j)$ and $(i',j+1)$ with $i'\le i$, the steps that the upward ray from the centre of
+$F(i,j)$ crosses. The crossing parity of a point $p=(i,j)$ is $\pi(i,j)$.
+
+% lean: ZZN/Planar.lean:184 parP_chain
+\begin{lemma}[separation]\label{lem:sep}
+All points of a chain of points at unit distance, none of them on a closed walk $\Gamma$, have the
+same crossing parity.
+\end{lemma}
+\begin{proof}
+% lean: ZZN/Planar.lean:61 par_down
+Write $e(\cdot)$ for the number of steps of $\Gamma$ on an edge, modulo $2$. The ray from $F(i+1,j)$
+crosses the steps that the ray from $F(i,j)$ crosses and the steps on their common edge, so
+$\pi(i+1,j)=\pi(i,j)+e(\text{common edge})$.
+
+% lean: ZZN/Planar.lean:71 step_identity
+% lean: ZZN/Planar.lean:96 par_right
+For $F(i,j)$ and $F(i,j+1)$, with common edge from $(i,j+1)$ to $(i+1,j+1)$, let $V$ be the set
+of points $(i',j+1)$ with $i'\le i$. A case check over the unit steps $(u,v)$ shows that the number
+of the following that hold is even. The step crosses the ray of $F(i,j)$. It crosses the ray of
+$F(i,j+1)$. It lies on the common edge. $u\in V$. $v\in V$. Summed over the steps of $\Gamma$, the
+count of steps with $u\in V$ equals the count with $v\in V$, since every point of $\Gamma$ is the
+first point of one step and the second point of another. So
+$\pi(i,j+1)=\pi(i,j)+e(\text{common edge})$.
+
+% lean: ZZN/Planar.lean:140 faces_around
+% lean: ZZN/Planar.lean:162 parP_adj
+If a point is not on $\Gamma$, no step of $\Gamma$ lies on the four edges that meet at it, so the
+four squares around it have the same crossing parity. Two points at unit distance share two of
+their four squares, so two such points that are not on $\Gamma$ have the same crossing parity.
+Induction along the chain completes the proof.
+\end{proof}
+
+\section{Why one window certificate covers every frame, colouring and grid size}\label{sec:transfer}
+
+This section proves the reduction behind the window certificates of Section~3.2, from a match of
+B, C or D in any frame, colouring and wide grid to a fixed list of certificates.
+
+% lean: ZZN/WinBCD.lean:40 CertFacts
+% lean: ZZN/WinBCD.lean:22 winC
+% lean: ZZN/WinBCD.lean:26 tmC
+% lean: ZZN/WinBCD.lean:30 tmB
+% lean: ZZN/WinBCD.lean:34 fsB
+The certificates are stated in the identity frame. For C and D there is one certificate per
+configuration of window side $6$, for the colours as listed and the parity $wh \bmod 2$ of its list.
+For B there is one certificate per triple $(p,q,b)$, with colour $0$ at $p,q$ and colour $1$ at $b$,
+the parity of its list, and each of three classes of the fourth endpoint $F$. The classes are
+$F=(0,6)$, $F=(6,0)$ and every other cell. Each B certificate fixes the sign of $F$ to
+\[
+\sigma_F \;=\; 2\cdot(wh \bmod 2) - \sigma(p) - \sigma(q) - \sigma(b),
+\]
+and it is required only when this value is $\pm 1$, and for the classes $(0,6)$ and $(6,0)$ only
+when it is $+1$. The six C configurations with a cell at coordinate $6$ or $7$ have no certificate.
+Section~3.2 covers them by R.
+
+% lean: ZZN/TheoremB.lean:39 frames_sound
+% lean: ZZN/TheoremB.lean:34 frameMap_dims
+% lean: ZZN/WinBCD.lean:50 solvable_swap
+% lean: ZZN/WinBCD.lean:98 cd_sound
+% lean: ZZN/WinBCD.lean:227 b_core
+% lean: ZZN/WinBCD.lean:359 b_cert
+% lean: ZZN/WinBCD.lean:388 bSound_of
+% lean: ZZN/C8R.lean:363 cSound_of
+\begin{lemma}[certificate transfer]\label{lem:transfer}
+If B, C or D fires on a solvable wide instance, then some window certificate of the list above
+applies to a solvable wide instance and gives a contradiction, except for the six C configurations
+with a cell at coordinate $6$ or $7$.
+\end{lemma}
+\begin{proof}
+\emph{Frames.} If the entry fires in frame $f$, it fires in the identity frame of the instance $J$
+obtained by applying the reflections and the transposition of $f$. The instance $J$ is well-formed
+and solvable, both its sides are at least $11$, and its area is that of the given instance.
+
+\emph{Colours.} C and D match a configuration with either assignment of the two colours to its two
+pairs, and B either colour at the pair $p,q$. Exchanging the colours keeps an instance well-formed
+and solvable, so the colours can be taken as in the certificate.
+
+\emph{The outside endpoint.} For B the completion test reads $F$ only through its colour, its sign
+and the exit slot whose outside cell it is, if any. On a grid with both sides at least $11$, the
+only outside cells of the $6\times 6$ window that lie on the border are $(0,6)$, outside slot $0$,
+and $(6,0)$, outside slot $11$. Lemma~P on the solvable instance gives
+$\sigma(F)=\sigma_F$ as above. Every cell has sign $\pm 1$, and $(0,6)$ and $(6,0)$ have sign $+1$.
+
+% lean: ZZN/WinOut.lean:21 WinSetup
+% lean: ZZN/WinSound.lean:24 window_sound
+\emph{The window.} For C and D all four endpoints lie in the window, and for B three do and $F$
+lies on the border outside it. The window side is below both sides of the grid. These are the
+hypotheses of the window lemma of Section~3.2, which turns the certificate into a contradiction
+with solvability.
+\end{proof}
+
+\section{Certificate formats and the programs that found them}\label{sec:certs}
+
+This section gives the data and the checks of the window certificates of Section~3.2 and the grid
+certificates of Section~3.4, and the programs that produced them.
+
+\subsection{Window certificates}
+
+% lean: ZZN/WinCheck.lean:178 FSpec
+% lean: ZZN/WinCheck.lean:220 certify (defined for any sides a, b)
+% lean: ZZN/WinBCD.lean:40 CertFacts (c_even only for winC AB = 6, b_even and b_odd with sides 6 6)
+% lean: ZZN/PassX.lean:303 corner4_odd_small (every D configuration lies in the window of side 6)
+A window certificate names the endpoints inside the window with their colours, the parity
+$wh\bmod 2$, and for B the colour, sign and exit slot (or none) of the outside endpoint $F$. It
+states that every boundary state of the window DP of Section~\ref{sec:plugdp} fails the completion
+test of Section~3.2. The check is defined for a window of any side, and every certificate of the
+list of Section~\ref{sec:transfer} has side $6$. The completion test is computed as follows.
+
+% lean: ZZN/WinCheck.lean:181 usedOf
+% lean: ZZN/WinCheck.lean:187 linkOf
+% lean: ZZN/WinCheck.lean:200 fxOf
+% lean: ZZN/WinCheck.lean:206 parOf
+% lean: ZZN/WinCheck.lean:133 ncm
+% lean: ZZN/WinCheck.lean:151 walk
+% lean: ZZN/WinCheck.lean:162 visC
+% lean: ZZN/WinCheck.lean:170 structOK
+% lean: ZZN/WinCheck.lean:210 outsideOK
+\begin{itemize}
+\item The outside ends are numbered $0,\ldots,m-1$, first the used exit slots in increasing slot
+  order and then $F$. Each outside end has an inside link. For a used slot it is the outside end
+  at the other end of its piece, or the colour of the endpoint there. For $F$ it is its colour.
+  The test fails if some piece at a used slot ends at a plug.
+\item The test requires $m$ even and nonzero, and $\sigma$ summed over the cells just outside the
+  used slots, plus $\sigma(F)$, equal to $2\cdot(wh\bmod 2)$.
+\item The non-crossing perfect matchings of $0,\ldots,m-1$ are enumerated recursively. End $0$ is
+  matched with an end $j$ such that an even number of ends lies between them, and the ends between
+  and the ends after $j$ are matched separately.
+\item A matching is accepted when the following hold. If $F$ is the outside cell of a used slot,
+  that slot is matched with $F$. A colour completed inside the window has no outside end linked to
+  its colour. Every other colour has exactly two such ends, and the walk from the first, alternately
+  along the matching and along the inside links, ends at the second. Every outside end lies on one
+  of these walks.
+\item A boundary state satisfies the test when some matching is accepted.
+\end{itemize}
+
+% lean: ZZN/WinK/Engine.lean:1 (module docstring: checkpointed window certificates)
+% lean: ZZN/WinK/Shared.lean:1 (module docstring: shared late stages)
+% lean: WinKU/Facts.lean:167 certFactsK
+The kernel checks each certificate through checkpoints. The set of states after every cell is
+given as data, and the kernel checks that every successor of a state in one checkpoint lies in the
+next and that every state of the last checkpoint fails the completion test. A stage sees the
+endpoints only through the endpoint at its own cell. So for the cells after the last cell that
+holds an endpoint in any certificate, all certificates share one checkpoint per cell, the union of
+their state sets. The program \lean{certgen/tools/WinGenU.lean} computes the checkpoints for the
+cases of the list \lean{certgen/tools/wincases.txt} that have side $6$ and the colours of the
+certificates. The certificates involve no search.
+
+\subsection{Grid certificates}
+
+% lean: ZZN/Moves.lean:173 Sym
+% lean: ZZN/BoxK/Box.lean:25 rowsOf
+% lean: ZZN/BoxK/Box.lean:26 colsOf
+% lean: ZZN/BoxK/Slice.lean:191 keyR
+% lean: ZZN/BoxK/Rows.lean:25 G16
+% lean: ZZN/BoxK/Box.lean:54 Gbox
+The \emph{symmetries} are generated by reflecting the $x$-axis, reflecting the $y$-axis,
+transposing, exchanging $s_0$ with $t_0$, exchanging $s_1$ with $t_1$, and exchanging the colours.
+The \emph{row tuple} of an instance lists the $x$-coordinates of $s_0,t_0,s_1,t_1$, and the
+\emph{column tuple} their $y$-coordinates. The \emph{rank} of a tuple $(a,b,c,d)$ with entries
+below $32$ is $((32a+b)32+c)32+d$, which orders tuples lexicographically.
+
+% lean: ZZN/BoxK/Box.lean:142 BoxCert
+% lean: ZZN/BoxK/Rows.lean:60 rowsOK
+% lean: ZZN/FiniteB.lean:36 axBB
+% lean: ZZN/BoxK/Box.lean:130 SliceGood
+% lean: ZZN/BoxK/Slice.lean:224 stabL
+% lean: ZZN/BoxK/Slice.lean:247 trV
+% lean: ZZN/BoxK/Slice.lean:70 distinctV
+% lean: ZZN/BoxK/Slice.lean:98 parityV
+% lean: ZZN/BoxK/Slice.lean:355 sliceOK
+% lean: ZZN/BoxK/SliceC.lean:138 sliceCOK
+% lean: ZZN/BoxK/SliceC.lean:144 CData
+% lean: ZZN/BoxK/FireW.lean:27 fireW
+% lean: ZZN/BoxK/FireW.lean:57 failW
+% lean: ZZN/Finite.lean:411 passImgB
+% lean: ZZN/BoxK/Slice.lean:335 solsM
+% (sliceCOK also accepts a chain from a smaller slice and a mask M of lanes solved there; in all
+%   16 477 slices of proof/BoxKGen w0 = w and M = 0, so the text does not describe them.)
+A grid certificate for the size $w\times h$, $11\le w\le h\le 16$, consists of a list of
+\emph{row classes} and data for each row class. The list contains every row tuple with entries
+below $w$ on which no pair deletion applies on the $x$-axis and whose rank is least among its
+images under the $16$ symmetries generated by reflecting the $x$-axis and the three exchanges. The
+\emph{covered column tuples} of a row class are those with entries below $h$ on which no pair
+deletion applies on the $y$-axis, whose four cells are distinct, that satisfy P, whose rank is
+least among their images under the symmetries without transposition that fix the row tuple, and,
+when $w=h$, whose rank is at least that of the row tuple. The data of a row class are the
+following.
+\begin{itemize}
+% lean: ZZN/Cut/FastW.lean:231 coverFWD (pairs count only without transposition or y-reflection,
+%   and with small offsets, tsmall)
+\item Pairs of a template and a symmetry. The check counts a pair for a covered instance only
+  when the symmetry is one of the $16$ symmetries above and the template checks on the image of
+  the instance under it.
+\item Failing records, each a column tuple with a witness. The witness names, for the instance and
+  for its images under reflecting the $x$-axis, the $y$-axis and both, one entry that fires there.
+\item Explicit pairs of paths, each for one column tuple. They are checked to be a solution.
+\end{itemize}
+The check states that every covered column tuple is solved by a pair, recorded as failing, or
+solved by explicit paths. It is evaluated for all $h^4$ column tuples of a row class at once, on
+bit lanes of large natural numbers. A checked row class gives that every covered instance is
+solvable or fails the catalogue together with its three reflections.
+
+% lean: ZZN/PassSym.lean:853 passes_rev0, :858 passes_rev1, :863 passes_swapColors
+% lean: ZZN/PassSym.lean:671 frameFires_perm, :680 frameFires_relab, :709 t2_swap01, :738 t2_pairs
+% lean: ZZN/Orbit.lean:249 passes_lab
+% lean: ZZN/Orbit.lean:274 passes_transpose_iff
+% lean: ZZN/Orbit.lean:282 passes_refl_of_image
+On a wide instance, exchanging $s_0$ with $t_0$, exchanging $s_1$ with $t_1$ and exchanging the
+colours each keep the answer of every entry, which Lean proves entry by entry. Transposition
+keeps passing by Section~\ref{sec:rtrans}. So if some image of a wide instance under a symmetry passes, then the
+instance or one of its three reflections passes.
+
+\subsection{The search programs}
+
+% source: certgen/src/chain3.c:1-5, 127-135 (near), 204-240 (solve), 292-297 (iterative deepening)
+% source: certgen/src/tmpl.c:1-10, 27-41 (enc: nearest anchor), 141-145 (anchors)
+% source: certgen/src/tx.c:1-5; certgen/src/exh2.c:1-6; certgen/src/peel.c:1-6
+% source: certgen/src/slicehyb.c:1-9, 348-351 (SOLS); certgen/regen.sh:6-8, 22-31;
+%   certgen/tools/gen_cbox.py; certgen/tools/WinGenU.lean:16 (side A, names ending in c0 or A0)
+The programs in \lean{certgen/src} found the templates and the grid certificates. They are outside
+Lean, and the kernel checks their output.
+\begin{itemize}
+\item \lean{chain3.c} searches by iterative deepening for a cut tree of least depth. A rectangle
+  holds at most three terminal pairs, every rectangle passes the parity test, and cut and crossing
+  positions lie within one line of a terminal of the rectangle or of its boundary. Leaves use a
+  transcription of the IPS criterion.
+\item \lean{tmpl.c} turns a found tree into a template by writing each position as an offset from
+  the nearest of its six anchors (the four endpoint coordinates on that axis, $0$, and the side
+  length), and tries the known templates before searching. \lean{tx.c} folds the reflections of a
+  symmetry into a template. \lean{exh2.c} and \lean{peel.c} test how far a template set covers the
+  instances of a grid size.
+\item \lean{slicehyb.c} builds the certificate of one row class. It collects the
+  (template, symmetry) pairs that solve covered instances, orders them by a greedy cover, records
+  the column tuples whose instance and three reflections all fail the catalogue, and solves each
+  remaining instance by the tree search, whose tree becomes a new template, or, in a separate
+  mode, by explicit paths from the C reference solver.
+\item \lean{certgen/regen.sh} writes the Lean modules of \lean{proof/BoxKGen} from the committed
+  certificates in \lean{certgen/certs}, without searching again, and those of \lean{proof/WinKU}
+  from the case list through \lean{WinGenU.lean}.
+\end{itemize}
+
+\section{Pair deletions keep each entry passing}\label{sec:keep}
+
+This section gives the cases behind the lemma of Section~3.3 that a pair deletion turns a passing
+wide instance into a passing wide instance.
+
+% lean: ZZN/Skeleton.lean:50 RedX (clauses 1, 2: edge strip. Clause 3: wide-gap compression.
+%   Clause 4: the distant-endpoint compressions with 8 <= d and d + 10 <= w)
+% lean: ZZN/PassB.lean:29 RedB (distant-endpoint compression), ZZN/PassX.lean:689 CompCore
+% lean: ZZN/PassB.lean:181 passX_all
+% lean: ZZN/PassB.lean:118 passB
+% lean: ZZN/PassXAssemble.lean:20 comp_canonical
+% lean: ZZN/PassXR.lean:25 deleteAt_window
+The proof shows that an entry firing on the smaller instance $I'$ makes an entry fire on the
+larger instance $I$, for each of the three kinds of pair deletion, the edge strip, the wide-gap
+compression and the distant-endpoint compression. A wide-gap compression of a run
+$x=\ell,\ldots,x=\ell+9$ of free lines gives the same $I'$ as deleting its two middle lines
+$x=\ell+4$ and $x=\ell+5$, for which $5\le\ell+4$ and $\ell+4+7\le w$. The proof takes it at these
+lines. So every compression below has $5\le d$ and $d+7\le w$. Distances between lines are
+differences of coordinates, and the frame coordinates of a cell are its distances to the two
+border lines at the frame's corner.
+
+% lean: ZZN/PassX.lean:40 parityOk_deleteAt
+\paragraph{P.} Deleting two lines changes neither $wh\bmod 2$ nor the sign of any endpoint, since
+moved endpoints move by $2$.
+
+% lean: ZZN/PassX.lean:1305 t1_comp
+% lean: ZZN/PassX.lean:895 t2_comp
+% lean: ZZN/PassX.lean:1117 l1_comp
+% lean: ZZN/PassX.lean:980 l6_comp
+% lean: ZZN/PassStrip.lean:29 NearP
+\paragraph{T1, T2, L1, L6.} These depend on the clockwise order of the endpoints on the border, on
+which endpoints are adjacent, and on which cells next to a corner hold endpoints. An edge strip
+moves every endpoint by the same amount, $0$ or $2$, and leaves at least $2$ free lines at the
+stripped edge. A compression deletes lines between endpoint lines, leaves a free line between the
+endpoint lines on its two sides, and, with $5\le d$ and $d+7\le w$, keeps every distance below $5$
+between an endpoint and a border line. In both cases these features agree on $I$ and $I'$.
+
+% lean: ZZN/PassStrip.lean:82 boundary_lists_local
+% lean: ZZN/PassStrip.lean:89 corner4_lists_local
+% lean: ZZN/PassStrip.lean:204 edgeClosure_flip
+% lean: ZZN/PassStrip.lean:1280 effAlt3_lstrip
+% lean: ZZN/PassStrip.lean:608 effAlt3_rstrip
+\paragraph{Edge strip, frame entries and R.} In $I'$ every endpoint is at least $2$ lines from the
+stripped edge. In the four frames whose corner lies on that edge, the first two frame rows are
+then empty, or the first two frame columns for a transposed frame. L2 to L5 and every listed
+configuration of B, C and D need an endpoint in the first two rows and one in the first two
+columns, and E1 needs endpoints in the first two rows. So in these four frames only E1 in a
+transposed frame can fire, and its reflection along the stripped edge is E1 with the colours
+exchanged in a frame whose corner is not on that edge. In the other four frames the endpoints keep
+their frame coordinates in $I'$. R gives the same answer on $I$ and $I'$, since in $I$ every
+endpoint is at least $4$ lines from the stripped edge.
+
+% lean: ZZN/PassX.lean:155 FarK
+% lean: ZZN/PassX.lean:68 GoodInK, :379 WinRelK (border in I' implies border in I)
+% lean: ZZN/PassX.lean:774 winRel_comp
+% lean: ZZN/PassX.lean:620 frames_any_of
+% lean: ZZN/PassX.lean:848 e1_comp
+% lean: ZZN/PassXAssemble.lean:40 passX_comp
+\paragraph{Wide-gap compression, frame entries.} Every endpoint keeps its distance to each border
+line or has distance at least $8$ to it in both $I$ and $I'$. So the frame cells with both
+coordinates below $8$ hold the same endpoints in both instances, and an endpoint that lies on the
+border, or outside the $6\times 6$ window of a frame, in $I'$ does so in $I$. L2 to L5, B, C and D
+read only these facts and $wh\bmod 2$. E1 along the deleted axis would need four endpoints on four
+consecutive lines. Four such lines on one side of the deleted pair are consecutive in $I$ too, and
+four lines on both sides are impossible in $I'$, where a free line separates the two sides. The
+same argument applies to a distant-endpoint compression with $8\le d$ and $d+10\le w$.
+
+% lean: ZZN/PassX5.lean:180 frames_any_of5
+% lean: ZZN/PassB.lean:77 bigHit_R
+% lean: ZZN/PassB.lean:105 b5Hit_R
+% lean: ZZN/C8R.lean:286 c8_firesF
+% lean: ZZN/B5Fire.lean:78 b5_all
+% lean: ZZN/PassX5.lean:99 WinRel5, :217 winRel5_core
+% lean: ZZN/PassX5.lean:27 small6_le4; ZZN/PassX.lean:307 BigHit; ZZN/PassX5.lean:93 B5Hit
+\paragraph{Distant-endpoint compression, frame entries.} The frame cells with both coordinates
+below $5$ hold the same endpoints in $I$ and $I'$, and an endpoint on the border of $I'$ is on the
+border of $I$. The frame coordinate of an endpoint along the deleted axis is, in $I$, its
+coordinate in $I'$ or that plus $2$, so the test of B that $F$ lies on the border outside the
+window carries over from $I'$ to $I$. Every listed configuration has all its cells below coordinate
+$5$ except the six C configurations marked $*$, with a cell at coordinate $6$ or $7$, and the two
+B triples marked $\dagger$, (01 05 11) and (05 11 10). These belong to the lists for even $wh$, and
+a match of one of them on the wide instance $I'$ makes R fire on $I'$, by the paper's lemma on
+configurations marked $*$ and $\dagger$. The last paragraph of this section outlines its proof.
+Since R gives the same answer on $I$ and $I'$, R fires on $I$. E1 is excluded as for the wide-gap
+compression.
+
+% lean: ZZN/PassXR.lean:137 Av
+% lean: ZZN/PassXR.lean:874 effAlt3_comp
+\paragraph{R, compressions.} R gives the same answer on $I$ and $I'$ whenever the lines $x=d$ and
+$x=d+1$ hold no endpoint, $5\le d$, $d+7\le w$ and $h\ge 4$. This covers both kinds of compression.
+With $5\le d$ and $d+7\le w$ the deleted lines lie outside the four rows and columns at each
+corner that the rules read and change, and the bypass walks of $I$ and $I'$ visit the effective
+endpoints in the same order.
+
+% lean: ZZN/B5R.lean:29 b5q
+% lean: ZZN/B5R.lean:32 perimOut
+% lean: ZZN/B5R.lean:68 perimOut_step
+% lean: ZZN/B5R.lean:81 b5_stepR
+% lean: ZZN/B5Fire.lean:71 b5_transpose
+% lean: ZZN/B5Fire.lean:78 b5_all
+% lean: ZZN/B5Base.lean:511 b5_base
+% lean: ZZN/PassB.lean:105 b5Hit_R
+% lean: ZZN/PassSym.lean:186 effAlt3_relab
+% lean: ZZN/C8R.lean:160 effAlt3_redF, :267 c8_baseF, :286 c8_firesF
+% lean: ZZN/PassStrip.lean:608 effAlt3_rstrip, :1280 effAlt3_lstrip
+\paragraph{The configurations marked $*$ and $\dagger$.} Let one of the triples (01 05 11) and (05 11 10) match
+in a frame of a wide instance with $wh$ even, with the fourth endpoint $F$ on the border outside
+the $6\times 6$ window of the frame. Then R fires. Exchanging the colours keeps the answer of R,
+so the two cells of the triple with the same colour are taken of colour $0$. The proof is an
+induction on $w+h$. If the side
+along the $x$-axis is at least $15$, let $c$ be the frame coordinate of $F$ on that axis, and
+delete the two lines at frame coordinates $8$ and $9$ if $c$ is $6$ or $7$, and at frame
+coordinates $6$ and $7$ otherwise. These two lines hold no endpoint, since the cells of the triple
+have frame coordinates at most $5$ and $F$ is on neither by the choice of the pair, and they are lines $x=d$, $x=d+1$ with $5\le d$ and $d+7\le w$.
+So R gives the same answer on the smaller instance, by the paragraph above. There the triple
+matches in the same frame and $F$ is on the border outside the window. If only the side along the
+$y$-axis is at least $15$, the same step is made on the transpose, on which R gives the same answer
+(Section~\ref{sec:rtrans}). When both sides are at most $14$, the kernel checks that R fires, for
+both triples, the $8$ frames, every size with sides $11$ to $14$ and even area, and every cell $F$
+on the border outside the window. The proof for the six C configurations marked $*$ has the same
+form. All four endpoints have frame coordinates below $8$. While a side is at least $13$, its two
+lines with the greatest frame coordinates are deleted, which keeps the answer of R as for an edge
+strip, every endpoint being at least $4$ lines from that edge. This brings each side to $11$ or
+$12$, and the kernel checks the sizes $11\times 12$, $12\times 11$ and $12\times 12$ in the $8$
+frames, the size $11\times 11$ having odd area.
+
+\section{The forced-route test under transposition}\label{sec:rtrans}
+
+This section proves the transposition part of the lemma of Section~3.3, that a wide instance
+passes if and only if its transpose passes.
+
+% lean: ZZN/PassTR.lean:1802 passT
+% lean: ZZN/PassT.lean:306 fires3_transpose
+% lean: ZZN/PassTR.lean:1755 effAlt3_transpose
+\begin{lemma}[transposition]\label{lem:trans}
+On a wide instance every entry gives the same answer on the instance and on its transpose.
+\end{lemma}
+\begin{proof}
+% lean: ZZN/PassT.lean:306 fires3_transpose
+Transposition keeps signs and the area, maps the corner frames to the corner frames, keeps
+adjacency, and reverses the clockwise order on the border, which keeps alternation of four
+endpoints. So every entry other than R gives the same answer.
+
+% lean: ZZN/PassTR.lean:1057 frames_tp_eq
+% lean: ZZN/PassTR.lean:1060 rewrite_order
+For R, the transpose visits the frames in a different order. At each corner the transposed frame
+comes first, and the corners at $(0,h-1)$ and $(w-1,0)$ exchange places. Steps at different
+corners commute, since a rule reads and changes only the $4\times 4$ square at its corner and
+these squares are disjoint when both sides are at least $8$.
+
+% lean: ZZN/PassTR.lean:337 rewritesAt_both
+% lean: ZZN/Statement.lean:260 rewritesAt
+At one corner, if the rules of both frames match, they are the same rule, R2 or R3, since R1 in one
+frame needs an endpoint at a cell that every rule of the other frame needs empty. R3 makes the same
+two moves and settles the same cells in both frames. R2 settles the same four cells in both frames
+and moves the two endpoints of the colour at $(0,0)$ and $(1,1)$ to the same two cells, with the
+targets of the two endpoints exchanged. Every rule settles the corner cell, so the frame visited
+second at a corner applies no rule once the first has applied one. So the settled cells and the
+set of effective endpoints with their colours do not depend on the order.
+
+% lean: ZZN/PassTR.lean:1281 walk3_swap
+% lean: ZZN/PassTR.lean:1578 remShape_rewriteAll
+On a wide instance the settled cells at each corner form one of a fixed list of shapes. For these
+shapes the bypass walk of the transpose is the transposed bypass walk $T\,Y$ written as
+$T^{\mathrm r}\,Y^{\mathrm r}$, each of two consecutive parts read in reverse, which is the reverse
+of the walk $Y\,T$ started at another cell. With two endpoints of each colour, whether the colours
+alternate along a closed walk depends neither on the starting cell nor on the direction, and the
+number of times each effective endpoint occurs on the walk is unchanged. So R gives the same
+answer.
+\end{proof}
+
+\section{Block selection, block lifts and table lookup}\label{sec:blocks}
+
+This section gives the procedures that Section~3.5 names, SelectBlock, EdgeSplice, MiddleSplice
+and TableLookup. The blocks and lifts are stated on the $x$-axis. On the $y$-axis they are applied
+to the transpose.
+
+% lean: ZZN/Constr/Round.lean:271 xmin
+% lean: ZZN/Constr/Round.lean:275 leftK
+% lean: ZZN/Constr/Round.lean:277 rightK
+% lean: ZZN/Constr/Round.lean:279 innerK
+% lean: ZZN/Constr/Round.lean:282 gapOK
+% lean: ZZN/Constr/Round.lean:286 innerPair
+% lean: ZZN/Constr/Round.lean:290 blkX
+% lean: ZZN/Constr/Round.lean:50 Inst.dropIn
+% lean: ZZN/Finite.lean:131 xsOf
+\begin{algorithm}[H]
+\caption{SelectBlock$(I)$}\label{alg:select}
+\begin{algorithmic}[1]
+\Require a wide instance $I$ with $x$-axis length $n$
+\Ensure a block of $2k$ free lines to delete, or none
+\Statex \hspace{\algorithmicindent}(a subtraction with a negative result is taken as $0$)
+\State $x_{\min}, x_{\max} \gets$ the least and greatest endpoint $x$-coordinate
+\State $m \gets \lfloor (n-11)/2\rfloor$
+\State $k \gets \min(\lfloor (x_{\min}-2)/2\rfloor, m)$
+\If{$k\ge 1$} \Return the top block, lines $0$ to $2k-1$ \EndIf
+\State $k \gets \min(\lfloor (n-3-x_{\max})/2\rfloor, m)$
+\If{$k\ge 1$} \Return the bottom block, the last $2k$ lines \EndIf
+\For{$a$ in the $x$-coordinates of $s_0,t_0,s_1,t_1$, in this order}
+  \For{$b$ in the $x$-coordinates of $s_0,t_0,s_1,t_1$, in this order}
+    \State $k \gets \min(\lfloor (b-a-9)/2\rfloor, m)$
+    \If{$a<b$ \textbf{and} no endpoint has $a<x<b$ \textbf{and} $k\ge 1$}
+      \State \Return the middle block, lines $a+2$ to $a+2k+1$
+    \EndIf
+  \EndFor
+\EndFor
+\State \Return none
+\end{algorithmic}
+\end{algorithm}
+
+% lean: ZZN/Constr/Round.lean:322 leftK_spec
+% lean: ZZN/Constr/Round.lean:329 rightK_spec
+% lean: ZZN/Constr/Round.lean:336 innerK_spec
+% lean: ZZN/Constr/Round.lean:344 blkX_ok
+A top or bottom block leaves at least $2$ free lines between it and the nearest endpoint line, a
+middle block leaves at least $8$ free lines between $a$ and $b$, and every block leaves the side at
+least $11$. So deleting a block is a sequence of pair deletions, edge strips or wide-gap
+compressions.
+
+% lean: ZZN/Constr/EdgeBlock.lean:33 colSnake
+A \emph{snake} over a list $A$ of columns on the new lines $x_0,\ldots,x_0+2k-1$ runs along $A$ on
+line $x_0$, steps to line $x_0+1$, runs back along $A$, and so on through all $2k$ lines. It
+starts at $(x_0,A_1)$ and ends at $(x_0+2k-1,A_1)$, where $A_1$ is the first column of $A$.
+
+% lean: ZZN/Constr/EdgeBlock.lean:181 edgeBlock
+% lean: ZZN/Constr/EdgeBlock.lean:300 findV
+% lean: ZZN/Constr/EdgeBlock.lean:339 blkE
+% lean: ZZN/Constr/EdgeBlock.lean:374 edgeLift
+% lean: ZZN/Constr/EdgeBlock.lean:383 exists_vert
+% lean: ZZN/Constr/EdgeBlock.lean:413 edgeLift_sol
+\begin{algorithm}[H]
+\caption{EdgeSplice$(p,q,k)$, a bottom block of $2k$ lines}\label{alg:edge}
+\begin{algorithmic}[1]
+\Require a solution $p,q$ of a $w\times h$ instance with $h\ge 5$
+\Ensure a solution of the instance with $2k$ lines added after the line $x=w-1$
+\State find the first step of $p$, else of $q$, between cells $(w-1,y)$ and $(w-1,y+1)$, in
+  either direction
+\State $S \gets$ a snake over the columns $y, y-1, \ldots, 0$ on the new lines, followed by a snake
+  over the columns $y+1,\ldots,h-1$ walked backward, from $(w,y)$ to $(w,y+1)$
+\State insert $S$ into that step, reversed if the step runs from $(w-1,y+1)$ to $(w-1,y)$
+\State \Return the two paths
+\end{algorithmic}
+\end{algorithm}
+
+% lean: ZZN/Constr/EdgeBlock.lean:383 exists_vert
+The step exists because the last line has at least $5$ cells, so one of them, say $(w-1,y_0)$, is
+not an endpoint. That cell has two path neighbours, at most one of them on the line $x=w-2$, so its
+path steps along the last line. A top block is put back by reflecting the $x$-axis, applying
+EdgeSplice, and reflecting back.
+% lean: ZZN/Constr/EdgeBlock.lean:572 edgeLiftL
+% lean: ZZN/Constr/EdgeBlock.lean:577 edgeLiftL_sol
+
+% lean: ZZN/Statement.lean:114 Cross
+% lean: ZZN/Statement.lean:425 SeedAt
+% lean: ZZN/Constr/Round.lean:202 seedW
+% lean: ZZN/Constr/Round.lean:208 cvW
+% lean: ZZN/Constr/WideBand.lean:278 attW
+% lean: ZZN/Constr/WideBand.lean:281 grpW
+% lean: ZZN/Constr/WideBand.lean:285 snW
+% lean: ZZN/Constr/WideBand.lean:288 flipW
+% lean: ZZN/Constr/WideBand.lean:292 GW
+% lean: ZZN/Constr/WideBand.lean:300 wideExt
+% lean: ZZN/Constr/Round.lean:212 innerLift
+MiddleSplice uses the crossings and seeds of the band-extension lemma of Section~3.3. Column $y$ is
+a \emph{crossing} when a path steps between $(r,y)$ and $(r+1,y)$. Position $R$, $0\le R\le h$, lies
+between columns $R-1$ and $R$. It is a \emph{gap seed} when column $R-1$ is a crossing or $R=0$,
+and column $R$ is a crossing or $R=h$. It is a \emph{step seed} when $1\le R<h$, neither column
+$R-1$ nor column $R$ is a crossing, and a path steps between $(r,R-1)$ and $(r,R)$.
+
+\begin{algorithm}[H]
+\caption{MiddleSplice$(p,q,r,k)$, a middle block of $2k$ lines after the free line $x=r$}\label{alg:mid}
+\begin{algorithmic}[1]
+\Require a solution $p,q$ of an instance in which the line $x=r$ is free, $r<w$
+\Ensure a solution of the instance with $2k$ lines inserted after $x=r$
+\State $R \gets$ the least position that is a gap seed or a step seed
+\State $\mathit{flip} \gets$ true if $R$ is not a gap seed
+\State the \emph{source} columns are the crossings, and $R-1$ and $R$ if $\mathit{flip}$
+\State the \emph{group} of a source column $a$ is $a$ followed by the columns $a-1,a-2,\ldots$ if
+  $a<R$, or $a+1,a+2,\ldots$ if $a\ge R$, stopping before the next source column or the edge of
+  the grid
+\State move the cells with $x>r$ down by $2k$
+\For{each step of $p$ and $q$ between $(r,a)$ and $(r+2k+1,a)$}
+  \State insert a snake over the group of $a$ on the new lines $r+1,\ldots,r+2k$, reversed when
+    the step runs from $(r+2k+1,a)$ to $(r,a)$
+\EndFor
+\If{$\mathit{flip}$}
+  \State insert into the step between $(r,R-1)$ and $(r,R)$ a snake over the group of $R-1$,
+    followed by a snake over the group of $R$ walked backward, all reversed when the step runs from
+    $(r,R)$ to $(r,R-1)$
+\EndIf
+\State \Return the two paths
+\end{algorithmic}
+\end{algorithm}
+
+% lean: ZZN/Constr/WideBand.lean:856 wideExt_sol
+% lean: ZZN/Constr/Round.lean:246 innerLift_sol
+% lean: ZZN/BandExtension.lean:225 seed_or_flip
+Every group extends away from the seed. Every column that is not a source column has a source
+column on its seed side, and it belongs to the group of the nearest one only. So the snakes fill
+every new cell once, and the result is a solution. A seed exists by the counting argument of the
+band-extension lemma.
+
+% lean: ZZN/Look/Leaf.lean:46 entryP
+% lean: ZZN/Look/Leaf.lean:96 lookK
+% lean: ZZN/Look/Leaf.lean:102 argminS
+% lean: ZZN/Look/Leaf.lean:136 lookLe
+% lean: ZZN/Look/Leaf.lean:141 lookJ
+% lean: ZZN/BoxK/Box.lean:54 Gbox
+% lean: ZZN/BoxK/Box.lean:94 key2
+% lean: ZZN/Look/Sym.lean:137 unSym
+% lean: ZZN/Look/Build.lean:428 tsol
+% lean: ZZN/Look/Table.lean:64 tabAll
+The table holds, for each grid size $11\le w\le h\le 16$, the row classes of its grid certificate
+(Section~\ref{sec:certs}) with their pairs and explicit paths.
+
+\begin{algorithm}[H]
+\caption{TableLookup$(J)$}\label{alg:lookup}
+\begin{algorithmic}[1]
+\Require an instance $J$ with both sides between $11$ and $16$
+\Ensure a solution of $J$, or none
+\If{$w>h$} \State \Return the transpose of TableLookup$(J^{\mathsf T})$ \EndIf
+\State $G\gets$ all symmetries if $w=h$, else the symmetries without transposition
+\State $\rho\gets$ the first $\rho\in G$ that minimizes the rank of the row tuple of $\rho(J)$ and
+  then the rank of its column tuple
+\State $\hat J\gets\rho(J)$
+\State find the first table entry of size $w\times h$ whose row class is the row tuple of $\hat J$,
+  and \Return none if there is none
+\For{each pair $(T,\tau)$ of the entry, in order}
+  \If{$T$ checks on $\tau(\hat J)$}
+    \State build the paths of $T$ on $\tau(\hat J)$ \Comment{Section~\ref{sec:ips} at the leaves}
+    \State \Return them mapped back by $\tau^{-1}$ and then $\rho^{-1}$
+  \EndIf
+\EndFor
+\If{the entry holds explicit paths for the column tuple of $\hat J$ that solve $\hat J$}
+  \State \Return them mapped back by $\rho^{-1}$
+\EndIf
+\State \Return none
+\end{algorithmic}
+\end{algorithm}
+
+% lean: ZZN/Constr/Solve2.lean:214 solveRec2
+% lean: ZZN/Statement.lean:519 checkE
+% lean: ZZN/Constr/Round.lean:420 solveR
+% lean: ZZN/Constr/Round.lean:528 solveZ3_sound
+% lean: ZZN/Constr/Round.lean:246 innerLift_sol
+% lean: ZZN/Constr/EdgeBlock.lean:413 edgeLift_sol
+% lean: ZZN/Skeleton.lean:207 lift_redX
+% lean: ZZN/PassB.lean:50 lift_redB
+In Construct the final solver's answer is checked, and every lift, of a block or of a pair
+deletion, is proved to map a solution of the smaller instance to a solution of the larger one. The
+lifted solutions are not checked again.
+
+\section{Building a Hamiltonian path in a rectangle}\label{sec:ips}
+
+This section gives the recursion that builds the Hamiltonian paths at the leaves of the templates
+used by TableLookup in Section~3.5.
+
+% lean: ZZN/Look/IPS.lean:402 ipsP
+% lean: ZZN/Look/IPS.lean:395 stepP
+% lean: ZZN/Look/IPS.lean:386 normP
+% lean: GridHam/Reduction.lean:267 NotPrime
+% lean: GridHam/Reduction.lean:400 rChoice
+% lean: GridHam/PrimeTable.lean:652 primeShapes
+% lean: GridHam/PrimeTable.lean:659 primeLookup
+% lean: ZZN/Look/IPS.lean:246 stripRightP
+% lean: ZZN/Look/IPS.lean:330 stripLeftP
+% lean: ZZN/Look/IPS.lean:202 colEdge
+% lean: GridHam/StripSplit.lean:770 rightDetour
+The recursion is on $w+h$, for an IPS-admissible pair $s,t$ of a $w\times h$ rectangle~\cite{ips82}.
+The rectangle is transposed if needed so that $h\le w$, and with $s=(s_x,s_y)$, $t=(t_x,t_y)$ the
+cells $s$ and $t$ are exchanged when $s_x>t_x$, the result then being reversed. The shapes with both
+sides at most $3$ and the shapes $4\times 4$, $4\times 5$ and $5\times 4$ are answered from a stored
+% lean: GridHam/PrimeTable.lean:668 prime_check
+table of paths, which the kernel checks. Otherwise the first of three steps that applies is taken.
+\begin{itemize}
+\item If $s_x\ge 2$, build a path on the rectangle without the lines $x=0,1$, then cover those two
+  lines by a detour from the first step of the path along the line $x=2$.
+\item Else, if $t_x+2<w$, build a path on the rectangle without the last two lines, then cover
+  them by a detour from the first step of the path along the line $x=w-3$.
+\item Else, split after the line $x=1$. Build a path from $s$ to $(1,r)$ on the first two lines and
+  a path from $(2,r)$ to $t$ on the rest, and join them. Here $r=0$ if $s_x+s_y$ is even, $r=3$ if
+  $s=(0,1)$ and $h>2$, and $r=1$ otherwise.
+\end{itemize}
+A detour replaces a step between $(x,y)$ and $(x,y+1)$ on the line next to the two stripped lines
+by a run through all cells of the stripped lines.
+
+% lean: ZZN/Look/IPS.lean:474 ipsP_valid
+% lean: GridHam/Main.lean:171 ips_characterization
+Lean proves that the result is a Hamiltonian path from $s$ to $t$ whenever the pair is
+IPS-admissible and the recursion depth is at least $w+h$. The proof follows the formalized proof
+of the IPS characterization, which gives the step along the line next to the stripped lines and the
+admissibility of the smaller pairs.
+
+\section{The counted model and the step accounting}\label{sec:steps}
+
+This section gives the step model, the exact per-cell cost $K(b)$ of the counted plug DP, and the
+origin of each term of the step bounds of Section~3.5.
+
+\subsection{The counted model}
+
+% lean: ZZN/TimedStatement.lean:23 TimeM
+% lean: ZZN/TimedStatement.lean:34 lmapT
+% lean: ZZN/TimedStatement.lean:36 lfilterT
+% lean: ZZN/TimedStatement.lean:44 lfilterMapT
+% lean: ZZN/TimedStatement.lean:46 lflatMapT
+% lean: ZZN/TimedStatement.lean:48 lfoldlT
+% lean: ZZN/TimedStatement.lean:62 rangeT
+% lean: ZZN/TimedStatement.lean:63 ldedupT
+% lean: ZZN/TimedStatement.lean:64 lnodupT
+% lean: ZZN/TimedStatement.lean:68 fmemT
+A counted procedure returns a value with a number of steps. Returning a value costs $0$ steps, and
+running two counted procedures in sequence adds their steps. The charged operations are the
+following.
+\begin{itemize}
+\item Map, filter, filter-map, all, any, find and left fold over a list cost, for every element,
+  the callee's steps plus $1$. Find charges every element of the list. A flat map also pays the
+  length of each result. A filter over $\{0,\ldots,n-1\}$ as a finite set is charged the same way.
+\item Length, membership, erase, append, reverse, sum, indexing, zip, zip with indices, find index,
+  modify, last element and the test for a two-element infix cost the length of the list plus $1$.
+  Append and zip charge the first list.
+\item The range $0,\ldots,n-1$ costs $n+1$. Membership, erase and filter on a finite set cost its
+  size plus $1$.
+\item Removing duplicates and testing for repeated elements cost the square of the length plus
+  $1$.
+\end{itemize}
+Arithmetic and comparisons on natural numbers of any size, and operations on Booleans, cells,
+endpoint records, frames and options, are not charged, except where a definition charges a fixed
+amount. The bounds count the charged steps.
+
+% lean: ZZN/Timed/DecideR.lean:37 solvableBRT_iff
+% lean: ZZN/Timed/RoundT.lean:597 solveZ3T_ret
+% lean: ZZN/Look/RoundTimeL.lean:30 leafLT_ret
+% lean: ZZN/Timed/ThinRope.lean:149 thinSolveWRT
+The counted decision procedure returns true exactly when the instance is solvable, and the counted
+construction returns the answer of Construct, with the table lookup or with the plug DP as final
+solver.
+
+\subsection{The per-cell cost of the plug DP}
+
+% lean: ZZN/Timed/ThinRopeCost.lean:34 LgW
+% lean: ZZN/Timed/ThinRopeCost.lean:37 KsR
+% lean: ZZN/Timed/ThinRopeCost.lean:41 KwR
+% lean: ZZN/Timed/ThinRopeCost.lean:393 thinSolveWRT_time
+% lean: ZZN/Timed/ThinRopeCost.lean:352 solveDPRT_time
+% lean: ZZN/Timed/ThinRopeCost.lean:381 solveDPRT_le
+With $N=N(b)$ from Section~\ref{sec:plugdp} and $\lambda(b)=\lfloor\log_2(2N)\rfloor+1$ merge-sort
+levels, the cost of one stage is
+\[
+K_s(b) = 4 + N\,(9(b+1)+31) + 4N\,(b+3) + 2N + 2 + 2(b+8)\,N\,(\lambda(b)+1),
+\]
+and the per-cell cost is $K(b)=K_s(b)+2N+30$. The counted plug DP takes at most
+$(wh+1)\,K(\min(w,h))$ steps. Beyond the stages, the term $2N+30$ per cell, taken $wh+1$ times,
+pays for the loop over the cells, the search of the final states for the accepting one, reading
+out and orienting the two paths, and transposing them back.
+
+% values: paper/tools/kwr.py (a transcription of wcnt, Nw, LgW, KsR, KwR); Lean #eval at b = 2, 3
+%   in paper/tools/KwrEval.lean
+The values of $K(10)$ and $K(16)$ are computed outside Lean, by \lean{paper/tools/kwr.py}, a
+transcription of the definitions. It gives $K(10)=944\,986\,668$ and
+$K(16)=2\,553\,788\,426\,148$. It agrees with Lean's evaluation $K(2)=16\,804$ and
+$K(3)=63\,666$.
+
+\subsection{Decision}
+
+% lean: ZZN/Timed/CatalogueCost.lean:628 fires3T_time
+% lean: ZZN/Timed/DecideR.lean:35 CdecR
+% lean: ZZN/Timed/DecideR.lean:52 solvableBRT_time
+The counted catalogue takes at most $300\,000\,(w+h+1)$ steps, and the counted plug DP at most
+$(wh+1)\,K(\min(w,h))\le(wh+1)\,K(10)$ when a side is at most $10$. Both are at most
+$(K(10)+300\,000)(wh+w+h+1)$, the bound of Section~3.5. Since a side at most $10$ gives $wh\le 10M$
+and $K(10)>600\,000$, the count is also at most $(10M+1)\,K(10)$. This last step is arithmetic on
+the two Lean bounds and is not itself a Lean theorem.
+
+\subsection{Construction}
+
+% lean: ZZN/Constr/Round.lean:420 solveR
+% lean: ZZN/Constr/Solve2.lean:214 solveRec2
+% lean: ZZN/Constr/RoundCount.lean:135 phi
+% lean: ZZN/Constr/RoundCount.lean:143 phi_le
+% lean: ZZN/Constr/RoundCount.lean:350 phi_del
+% lean: ZZN/Constr/RoundCount.lean:357 phi_delT
+% lean: ZZN/Constr/RoundCount.lean:90 w_le_of_none
+% lean: ZZN/Timed/RoundTime.lean:695 solveRT_time
+BlockLayer and PairLayer each carry a recursion counter, started at $w+h$, and each recursive call
+deletes at least two lines. The number of \emph{open gaps} of an instance is the sum over both axes
+of $1$ if a top block exists, $1$ if a bottom block exists, and the number of ordered pairs $(a,b)$
+of endpoint coordinates that admit a middle block. It is at most $2\cdot(1+1+16)=36$, and every
+block deletion lowers it, so BlockLayer deletes at most $36$ blocks. Without a block on an axis of
+length $n\ge 13$, the least endpoint coordinate is at most $3$, the greatest at least $n-4$, and
+neighbouring endpoint lines at most $10$ apart, so $n\le 3+3\cdot 10+4=37$. A round, one call of
+BlockLayer, costs at most $80(M+1)^2+400$ steps outside its recursive call, and there are at most
+$37$ rounds.
+
+% lean: ZZN/Look/RoundTimeL.lean:48 leafLT_time
+% lean: ZZN/Look/LeafT.lean:476 lookJT_time
+% lean: ZZN/Look/RoundTimeL.lean:57 solveZT_thinL_time
+% lean: ZZN/Look/RoundTimeL.lean:75 solveZT_boxL_time
+% lean: ZZN/Timed/Solve.lean:221 solveZT_time
+% lean: ZZN/Constr/Solve2.lean:272 leaf16
+% lean: ZZN/Look/RoundTimeL.lean:97 solveZ3LT_main
+The final round ends in one of two cases, and the bound adds the costs of both.
+\begin{itemize}
+\item An instance with a side at most $10$ from the start has area at most $10M$. Its final
+  instance costs $(10M+1)\,K(10)$ for the plug DP and $3(10M+1)^2+10$ for checking the answer.
+\item Otherwise both sides are at most $37$ after the blocks, and PairLayer runs. It makes at most
+  $w+h\le 74$ recursive calls at $700\,(37+1)^2$ steps each, then the final solver, then the check
+  of its answer on an area of at most $16\cdot 37$, at $3(16\cdot 37+1)^2+10$ steps. The counted
+  final solver takes at most $(wh+1)\,K(\min(w,h))+28\,000\,000$ steps, of which the table lookup
+  takes at most $28\,000\,000$. The bound covers every final instance with sides at most $37$ and
+  a side at most $16$, so the final-solver term is $(10\cdot 37+1)\,K(10)+28\,000\,000$.
+\end{itemize}
+With the table lookup this gives the bound
+\[
+37\,(80(M+1)^2+400) + (10M+1)\,K(10) + 3(10M+1)^2 + 10 + B_L,
+\]
+\[
+B_L = 74\cdot 700\cdot 38^2 + (10\cdot 37+1)\,K(10) + 28\,000\,000 + 3\,(16\cdot 37+1)^2 + 10 .
+\]
+% lean: ZZN/Timed/RoundTimeR.lean:44 solveZT_boxR_time
+% lean: ZZN/Timed/RoundTimeR.lean:61 solveZ3RT_main
+With the plug DP as final solver on every final instance, a side at most $16$ and the other at most
+$37$, the final-solver term is $(16\cdot 37+1)\,K(16)$ and $B_L$ becomes
+\[
+B_R = 74\cdot 700\cdot 38^2 + (16\cdot 37+1)\,K(16) + 3\,(16\cdot 37+1)^2 + 10 .
+\]
+% values: paper/tools/kwr.py
+With the values of $K(10)$ and $K(16)$ from \lean{paper/tools/kwr.py}, $B_L=350\,693\,907\,985$ and
+$B_R=1\,514\,396\,612\,559\,921$. Expanded in $M$, the table-lookup bound has the coefficient
+$3\,260$ of $M^2$, the coefficient $10\,K(10)+5\,980=9\,449\,872\,660$ of $M$, and the constant
+term $351\,638\,912\,426$.
+
+\section{Lean name map}\label{sec:names}
+
+This section supports Section~4 by mapping the terms and statements of the paper to the Lean
+declarations, with paths relative to \lean{proof/}. A statement is listed by what it says.
+
+{\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.32\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}>{\raggedright\arraybackslash}p{0.28\textwidth}@{}}
+\toprule
+Paper & Lean & File \\
+\midrule
+\endfirsthead
+\toprule
+Paper & Lean & File \\
+\midrule
+\endhead
+\multicolumn{3}{@{}l}{\emph{Definitions (Section 1.1)}} \\
+adjacent, path & \lean{Adjacent}, \lean{IsPath} & \lf{ZZN/Statement.lean} \\
+instance, well-formed & \lean{Inst}, \lean{Inst.WellFormed} & \lf{ZZN/Statement.lean} \\
+solution, solvable & \lean{IsSolution}, \lean{Solvable} & \lf{ZZN/Statement.lean} \\
+sign $\sigma$ & \lean{sgn} & \lf{ZZN/Statement.lean} \\
+delete two lines, transpose & \lean{Inst.deleteAt}, \lean{Inst.transpose} & \lf{ZZN/Statement.lean} \\
+insert two lines & \lean{Inst.insertAt} & \lf{ZZN/BandExtension.lean} \\
+free line & \lean{Inst.FreeLine} & \lf{ZZN/Reductions.lean} \\
+wide & \lean{InDom} & \lf{ZZN/Skeleton.lean} \\
+IPS-admissible & \lean{HasHamPath} & \lf{GridHam/Basic.lean} \\
+IPS characterization & \lean{ips\_characterization}, \lean{IsForbidden} & \lf{GridHam/Main.lean}, \lf{GridHam/Forbidden.lean} \\
+\multicolumn{3}{@{}l}{\emph{Thin rectangles (Section 3.1)}} \\
+plug DP & \lean{thinBF}, \lean{stepCell}, \lean{stageF} & \lf{ZZN/Statement.lean} \\
+the plug DP accepts exactly the solvable well-formed instances & \lean{thinBF\_iff} & \lf{ZZN/Thin/Fast.lean} \\
+plug DP with paths, which returns only solutions, and one for every well-formed solvable instance & \lean{thinSolveW2}, \lean{thinSolveW2\_sound}, \lean{thinSolveW2\_complete} & \lf{ZZN/Constr/ThinWit2.lean} \\
+state bound $N(b)$ & \lean{Nw}, \lean{wcnt}, \lean{card\_fold} & \lf{ZZN/Timed/ThinRopeCost.lean}, \lf{ThinWord.lean}, \lf{ThinWordCount.lean} \\
+\multicolumn{3}{@{}l}{\emph{Catalogue and necessity (Section 3.2)}} \\
+fires, passes & \lean{fires3}, \lean{Passes} & \lf{ZZN/Statement.lean} \\
+corner frames, frame entries & \lean{Frame}, \lean{frames}, \lean{frameFires} & \lf{ZZN/Statement.lean} \\
+clockwise order & \lean{perimIndex} & \lf{ZZN/Statement.lean} \\
+P, T1, T2 & \lean{parityOk}, \lean{t1Fires}, \lean{t2Fires} & \lf{ZZN/Statement.lean} \\
+L1, L6 & \lean{l1Fires}, \lean{l6Fires} & \lf{ZZN/Statement.lean} \\
+L2, L3, L4, L5 & \lean{testL2}, \lean{testL3}, \lean{testL4}, \lean{testL5} & \lf{ZZN/Statement.lean} \\
+E1 & \lean{edgeClosure} & \lf{ZZN/Statement.lean} \\
+B & \lean{boundaryOnly}, \lean{BOUNDARY3\_EVEN}, \lean{BOUNDARY3\_ODD} & \lf{ZZN/Statement.lean} \\
+C, D & \lean{corner4}, \lean{CORNER4}, \lean{CORNER4\_ODD} & \lf{ZZN/Statement.lean} \\
+R & \lean{effAlt3} & \lf{ZZN/Statement.lean} \\
+R1, R2, R3 & the three cases of \lean{rewritesAt} & \lf{ZZN/Statement.lean} \\
+settled cells, effective endpoints & \lean{RWState}, \lean{rwStep}, \lean{rewriteAll} & \lf{ZZN/Statement.lean} \\
+bypass walk & \lean{walk3}, \lean{staircase} & \lf{ZZN/Statement.lean} \\
+every solvable wide instance passes the catalogue & \lean{theoremB\_K} & \lf{WinKU/Facts.lean} \\
+P does not fire on a solvable instance & \lean{parity\_of\_solvable} & \lf{ZZN/Parity.lean} \\
+separation fact & \lean{parP\_chain} & \lf{ZZN/Planar.lean} \\
+two disjoint chains in the grid do not have alternating ends on the border, T1 does not fire on a solvable well-formed instance with sides at least 2 & \lean{t1\_core}, \lean{t1\_sound} & \lf{ZZN/SoundT1.lean} \\
+T2 does not fire on a solvable well-formed instance & \lean{t2\_sound} & \lf{ZZN/SoundT2.lean} \\
+Lean statements behind the lemma on the local entries, for a solvable well-formed instance of any size: L1 and L6 do not fire (L6 for sides at least 2), and L2 to L5 and E1 do not fire in the identity frame & \lean{l1\_sound}, \lean{l6\_sound}, \lean{testL2\_sound} to \lean{testL5\_sound}, \lean{edgeClosure\_sound} & \lf{ZZN/SoundLocal.lean} \\
+no frame entry fires in any of the 8 frames of a solvable wide instance, given the certificates & \lean{frames\_sound} & \lf{ZZN/TheoremB.lean} \\
+forced parts of a path at its endpoints, the run between the effective endpoints & \lean{path\_trim}, \lean{endpoint\_info} & \lf{ZZN/SoundR.lean} \\
+R does not fire on a solvable wide instance & \lean{r\_sound} & \lf{ZZN/SoundRMain.lean} \\
+settled-cell shapes & \lean{remShape\_rewriteAll} & \lf{ZZN/PassTR.lean} \\
+window certificate, completion test & \lean{certify}, \lean{outsideOK} & \lf{ZZN/WinCheck.lean} \\
+an instance whose window configuration has a certificate has no solution & \lean{window\_sound} & \lf{ZZN/WinSound.lean} \\
+list of window certificates & \lean{CertFacts}, \lean{certFactsK} & \lf{ZZN/WinBCD.lean}, \lf{WinKU/Facts.lean} \\
+certificate transfer (Section~\ref{sec:transfer}) & \lean{bSound\_of}, \lean{cSound\_of} & \lf{ZZN/WinBCD.lean}, \lf{ZZN/C8R.lean} \\
+a match of a C configuration marked $*$ makes R fire & \lean{c8\_firesF}, \lean{c8\_baseF}, \lean{c8\_sound} & \lf{ZZN/C8R.lean} \\
+a match of a B triple marked $\dagger$ makes R fire & \lean{b5\_all}, \lean{b5\_stepR}, \lean{b5\_base} & \lf{ZZN/B5Fire.lean}, \lf{ZZN/B5R.lean}, \lf{ZZN/B5Base.lean} \\
+\multicolumn{3}{@{}l}{\emph{Deleting and inserting free lines (Section 3.3)}} \\
+edge strip, wide-gap compression & the first three cases of \lean{RedX} & \lf{ZZN/Skeleton.lean} \\
+distant-endpoint compression & \lean{RedB}, \lean{CompCore}, and for $8\le d$, $d+10\le w$ also the fourth case of \lean{RedX} & \lf{ZZN/PassB.lean}, \lf{ZZN/PassX.lean}, \lf{ZZN/Skeleton.lean} \\
+a pair deletion keeps an instance wide & \lean{inDom\_deleteAt}, \lean{inDom\_deleteB} & \lf{ZZN/Skeleton.lean}, \lf{ZZN/PassB.lean} \\
+a pair deletion keeps a passing wide instance passing & \lean{passX\_all}, \lean{passB} & \lf{ZZN/PassB.lean} \\
+transposition keeps a wide instance passing (Section~\ref{sec:rtrans}) & \lean{passT}, \lean{effAlt3\_transpose} & \lf{ZZN/PassTR.lean} \\
+band extension & \lean{band\_extension}, \lean{bandExtE}, \lean{seed\_or\_flip} & \lf{ZZN/BandExtension.lean}, \lf{ZZN/Statement.lean} \\
+a solution of the smaller instance of a pair deletion gives one of the larger & \lean{lift\_redX}, \lean{lift\_redB} & \lf{ZZN/Skeleton.lean}, \lf{ZZN/PassB.lean} \\
+\multicolumn{3}{@{}l}{\emph{Sufficiency (Section 3.4)}} \\
+a wide instance is solvable if and only if it passes the catalogue & \lean{passes\_iff\_solvable\_K} & \lf{FinalN.lean} \\
+induction on the area & \lean{theoremA\_B}, \lean{theoremA\_boxes} & \lf{ZZN/PassB.lean}, \lf{ZZN/BoxK/Box.lean} \\
+an axis of length at least 23 admits a pair deletion & \lean{redX\_of\_wide} & \lf{ZZN/Skeleton.lean} \\
+an axis of length 17 to 22 admits a pair deletion & \lean{none\_all} & \lf{ZZN/BoxK/None.lean} \\
+cut tree, checks & \lean{CTree}, \lean{check}, \lean{check\_sound} & \lf{ZZN/Cut/Tree.lean} \\
+template, checks on an instance & \lean{TPos}, \lean{tcheck}, \lean{solvable\_of\_tcheck} & \lf{ZZN/Cut/Template.lean} \\
+symmetries & \lean{Sym}, \lean{allSym} & \lf{ZZN/Moves.lean}, \lf{ZZN/Orbit.lean} \\
+row tuple, column tuple & \lean{rowsOf}, \lean{colsOf} & \lf{ZZN/BoxK/Box.lean} \\
+order of the tuples, canonical image & \lean{keyR}, \lean{key2}, \lean{Gbox} & \lf{ZZN/BoxK/Slice.lean}, \lf{ZZN/BoxK/Box.lean} \\
+grid certificate, row class & \lean{BoxCert}, \lean{rowsOK}, \lean{SliceGood}, \lean{sliceCOK} & \lf{ZZN/BoxK/} \\
+the 21 grid certificates check & \lean{boxes\_allK} & \lf{FinalN.lean} \\
+a passing wide instance with $w\le h\le 22$ and no pair deletion is solvable (Lean also assumes that no same-colour split applies) & \lean{finite\_le} & \lf{ZZN/BoxK/Box.lean} \\
+symmetries keep passing & \lean{passes\_lab}, \lean{passes\_transpose\_iff}, \lean{passes\_refl\_of\_image} & \lf{ZZN/Orbit.lean} \\
+some reflection passes & \lean{passImgB} & \lf{ZZN/Finite.lean} \\
+\multicolumn{3}{@{}l}{\emph{Algorithm (Section 3.5)}} \\
+Decide, which returns true exactly on the solvable well-formed instances & \lean{solvableB}, \lean{solvableB\_iff} & \lf{ZZN/Statement.lean}, \lf{ZZN/Thin/Decide.lean} \\
+SelectBlock & \lean{blkX}, \lean{leftK}, \lean{rightK}, \lean{innerK}, \lean{innerPair} & \lf{ZZN/Constr/Round.lean} \\
+EdgeSplice, snake & \lean{edgeLift}, \lean{edgeLiftL}, \lean{colSnake} & \lf{ZZN/Constr/EdgeBlock.lean} \\
+MiddleSplice & \lean{innerLift}, \lean{wideExt} & \lf{ZZN/Constr/Round.lean}, \lf{ZZN/Constr/WideBand.lean} \\
+deleting a block is a sequence of pair deletions, and its lift maps solutions to solutions & \lean{blkX\_ok}, \lean{innerLift\_sol}, \lean{edgeLift\_sol}, \lean{edgeLiftL\_sol} & \lf{ZZN/Constr/Round.lean}, \lf{EdgeBlock.lean} \\
+Construct, BlockLayer & \lean{solveZ3}, \lean{solveR} & \lf{ZZN/Constr/Round.lean} \\
+PairLayer & \lean{solveZ2}, \lean{solveRec2} & \lf{ZZN/Constr/Solve2.lean} \\
+final solver, table variant & \lean{leafL} & \lf{ZZN/Look/Complete.lean} \\
+TableLookup, table & \lean{lookJ}, \lean{lookLe}, \lean{tabAll} & \lf{ZZN/Look/Leaf.lean}, \lf{ZZN/Look/Table.lean} \\
+IPS recursion & \lean{ipsP}, \lean{ipsP\_valid} & \lf{ZZN/Look/IPS.lean} \\
+Construct returns only solutions, and one for every well-formed solvable instance, table variant & \lean{solveZ3L\_main}, \lean{solveZ3\_completeL} & \lf{ZZN/Look/Main.lean}, \lf{ZZN/Look/Complete.lean} \\
+the same, plug-DP variant & \lean{solveZ3\_sound}, \lean{solveZ3\_complete}, \lean{thinOK16} & \lf{ZZN/Constr/Round.lean}, \lf{ZZN/Timed/Construct.lean} \\
+an axis of length at least 11 without a pair deletion has length at most 16 & \lean{leaf16} & \lf{ZZN/Constr/Solve2.lean} \\
+step model & \lean{TimeM}, \lean{lmapT}, \lean{ldedupT} & \lf{ZZN/TimedStatement.lean} \\
+counted Decide & \lean{solvableBRT}, \lean{solvableBRT\_iff} & \lf{ZZN/Timed/DecideR.lean} \\
+counted Construct & \lean{solveZ3T}, \lean{solveZ3T\_ret} & \lf{ZZN/Timed/RoundT.lean} \\
+$K_s(b)$, $K(b)$ & \lean{KsR}, \lean{KwR} & \lf{ZZN/Timed/ThinRopeCost.lean} \\
+open gaps & \lean{phi}, \lean{phi\_le}, \lean{phi\_del}, \lean{w\_le\_of\_none} & \lf{ZZN/Constr/RoundCount.lean} \\
+step bounds of the counted Decide, of the counted Construct with the table variant and with the plug-DP variant & \lean{solvableBRT\_main}, \lean{solveZ3LT\_main}, \lean{solveZ3RT\_main} & \lf{ZZN/Timed/DecideR.lean}, \lf{ZZN/Look/RoundTimeL.lean}, \lf{ZZN/Timed/RoundTimeR.lean} \\
+\multicolumn{3}{@{}l}{\emph{Statements of the challenge files (Section 4)}} \\
+counted Decide, counted catalogue on wide instances & \lean{solvableBRT\_main}, \lean{fires3T\_iff\_solvable} & \lf{ChallengeDecide.lean}, proved in \lf{ZZN/Timed/DecideR.lean}, \lf{ZZN/Timed/Main.lean} \\
+counted Construct, plug-DP variant & \lean{solveZ3RT\_main} & \lf{ChallengeConstruct.lean}, proved in \lf{ZZN/Timed/RoundTimeR.lean} \\
+\bottomrule
+\end{longtable}
+}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

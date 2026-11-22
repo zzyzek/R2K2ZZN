@@ -99,8 +99,7 @@ rot = lambda x: (J.C - 1 - x[1], x[0])
 rends = [(rot(x), lab, col) for x, lab, col in inst_ends(J)]
 rpaths = [(col, [rot(x) for x in p_]) for col, p_ in sol_paths(SJ)]
 rvirt = [(rot(u), "", col) for col, u, v in xs] + [(rot(v), "", col) for col, u, v in xs]
-out("def_cut", grid_svg(J.C, J.R, rends, rpaths, cuts=[("v", cut)], virtual=rvirt,
-                        title="A cut", cs=22))
+out("def_cut", grid_svg(J.C, J.R, rends, rpaths, cuts=[("v", cut)], virtual=rvirt, cs=22))
 left_ends = [(x, lab, col) for x, lab, col in rends if x[1] < cut]
 right_ends = [((x[0], x[1] - cut), lab, col) for x, lab, col in rends if x[1] >= cut]
 left_paths = [(col, [x for x in p_ if x[1] < cut]) for col, p_ in rpaths]

@@ -10,10 +10,11 @@ CUT = "#7F77DD"
 
 
 def grid_svg(R, C, ends=(), paths=(), cuts=(), shade=(), checker=False, marks=(), virtual=(),
-             cs=26, title=None, note=None, coords=False):
+             cs=26, title=None, note=None, coords=False, segs=()):
     """ends: [((r, c), label, 'A'|'B')]; paths: [('A'|'B', [cells])]; cuts: [('h', k)] = line
     between rows k-1 and k, [('v', k)] between columns; shade: [(cells, fill, opacity)];
-    marks: [((r, c), text)]; virtual: [((r, c), label, 'A'|'B')] dashed endpoints."""
+    marks: [((r, c), text)]; virtual: [((r, c), label, 'A'|'B')] dashed endpoints; segs: [(r0, c0,
+    r1, c1)] dashed cut segments along grid lines (corners in grid-line coordinates)."""
     m = 14
     top = m + (22 if title else 0)
     W = 2 * m + C * cs + (12 if coords else 0)
@@ -53,6 +54,8 @@ def grid_svg(R, C, ends=(), paths=(), cuts=(), shade=(), checker=False, marks=()
             o.append(f'<line x1="{X(0) - 6}" y1="{Y(k)}" x2="{X(C) + 6}" y2="{Y(k)}" stroke="{CUT}" stroke-width="2.4" stroke-dasharray="7 4"/>')
         else:
             o.append(f'<line x1="{X(k)}" y1="{Y(0) - 6}" x2="{X(k)}" y2="{Y(R) + 6}" stroke="{CUT}" stroke-width="2.4" stroke-dasharray="7 4"/>')
+    for r0, c0, r1, c1 in segs:
+        o.append(f'<line x1="{X(c0)}" y1="{Y(r0)}" x2="{X(c1)}" y2="{Y(r1)}" stroke="{CUT}" stroke-width="2.4" stroke-dasharray="7 4"/>')
     rad = cs * 0.36
     for (r, c), lab, col in virtual:
         o.append(f'<circle cx="{X(c) + cs / 2}" cy="{Y(r) + cs / 2}" r="{rad}" fill="white" stroke="{COL[col]}" '

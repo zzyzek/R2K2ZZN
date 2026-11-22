@@ -31,8 +31,8 @@ sources:
     author_endorsement: endorsed
     note: >-
       The paper accompanying this formalization (written alongside it). It describes the
-      catalogue, the proof structure (Theorem A over finite boxes, Theorem B over windows, the
-      reductions and band extension) and the algorithms.
+      catalogue, the proof structure (each entry rules out solutions, pair deletions with band
+      extension, kernel-checked certificates for sides 11 to 16) and the algorithms.
 
 related_formalizations:
   - id: "https://github.com/zzyzek/GridHam2D-Lean"
@@ -43,36 +43,38 @@ related_formalizations:
 
 status:
   scope: >-
-    Formalized, and submitted for registration, the decision procedure, the catalogue and the
-    construction with a step counter (solvableBT, fires3T, solveZZNT, which return what the plain
-    solvableB, the catalogue test and solveZZN do): for well-formed instances on any rectangle,
-    solvableBT decides solvability within Cdec (RC + R + C + 1) steps (ZZN.T.solvableBT_main); for both
-    sides at least 11, the catalogue finds no pattern exactly when the instance is solvable
-    (ZZN.T.fires3T_iff_solvable); every answer of solveZZNT is a solution, it returns one for
-    every well-formed solvable instance, within polynomially many steps (ZZN.T.solveZZNT_main).
-    The plain statements (solvableB_iff, passes_iff_solvable, solveZZN_sound, solveZZN_complete)
-    are proved in the same project but not submitted for registration: with them the challenge file
-    would exceed 1 000 lines. The constants in the step bounds come from a crude count of plug DP
-    algorithm states: Cdec is about 10^756, the construction's constant about 10^3500.
+    Formalized, and submitted for registration in two parts, the decision procedure, the catalogue
+    and a construction with a step counter. Decide (ChallengeDecide.lean): for well-formed
+    instances on any rectangle, solvableBRT (the catalogue when both sides are at least 11,
+    otherwise the plug DP algorithm) decides solvability within CdecR (wh + w + h + 1) steps,
+    CdecR about 9.45e8 (ZZN.T.solvableBRT_main); for both sides at least 11, the catalogue finds
+    no pattern exactly when the instance is solvable (ZZN.T.fires3T_iff_solvable). Construct
+    (ChallengeConstruct.lean): every answer of the block construction solveZ3T thinSolveWRT is a
+    solution, it returns one for every well-formed solvable instance, within about
+    3.3e3 M^2 + 9.5e9 M + 1.5e15 steps, M = max(w, h) (ZZN.T.solveZ3RT_main). Proved in the same
+    project but not submitted: the plain statements (solvableB_iff, passes_iff_solvable,
+    solveZZN_sound, solveZZN_complete) and the construction with lookup leaves
+    (ZZN.T.solveZ3LT_main, about 3.3e3 M^2 + 9.45e9 M + 3.5e11 steps), whose statement holds the
+    2.5 MB lookup tables.
   sorry_count: 0
   sorry_in_definitions: 0
   axioms: []
   main_results:
-    - declaration: "ZZN.T.solvableBT_main"
-      file: "ZZN/Timed/Main.lean"
+    - declaration: "ZZN.T.solvableBRT_main"
+      file: "ZZN/Timed/DecideR.lean"
       sorry_count: 0
       axioms: ["propext", "Classical.choice", "Quot.sound"]
-      comparator_config: "comparator.json"
+      comparator_config: "comparator_decide.json"
     - declaration: "ZZN.T.fires3T_iff_solvable"
       file: "ZZN/Timed/Main.lean"
       sorry_count: 0
       axioms: ["propext", "Classical.choice", "Quot.sound"]
-      comparator_config: "comparator.json"
-    - declaration: "ZZN.T.solveZZNT_main"
-      file: "ZZN/Timed/Construct.lean"
+      comparator_config: "comparator_decide.json"
+    - declaration: "ZZN.T.solveZ3RT_main"
+      file: "ZZN/Timed/RoundTimeR.lean"
       sorry_count: 0
       axioms: ["propext", "Classical.choice", "Quot.sound"]
-      comparator_config: "comparator.json"
+      comparator_config: "comparator_construct.json"
 
 automation:
   methods:
@@ -101,9 +103,11 @@ fidelity:
     at s, ends at t, no repeats, in bounds, consecutive cells adjacent). Inst.WellFormed asks
     the four endpoints to be distinct cells of the grid. The submitted theorems are about the
     counted procedures (TimeM, a value with a step count); the step count is defined by the
-    procedures themselves, one step per basic list or arithmetic operation. solvableBT_main and
-    solveZZNT_main do not depend on the forbidden-pattern catalogue being right: they relate the
-    procedures to Solvable directly. fires3T_iff_solvable states equivalence with the catalogue as
+    procedures themselves, one step per basic list or arithmetic operation; the construction does
+    not charge the block-size arithmetic on the four endpoint coordinates, the side-length tests,
+    or the instance bookkeeping that deletes a block or transposes an instance. solvableBRT_main and solveZ3RT_main do
+    not depend on the forbidden-pattern catalogue being right: they relate the procedures to
+    Solvable directly. fires3T_iff_solvable states equivalence with the catalogue as
     defined (fires3T counts the steps of fires3, a transcription of the development's JavaScript
     catalogue, compared with it on 3.66 M instances); a transcription error would make it
     unprovable, not wrong.
@@ -121,16 +125,16 @@ alignment:
   namespace: "ZZN"
   statements:
     - source: "Main theorem (decision procedure, every rectangle) with its running time"
-      lean: "ZZN.T.solvableBT_main"
-      module: "ZZN.Timed.Main"
+      lean: "ZZN.T.solvableBRT_main"
+      module: "ZZN.Timed.DecideR"
       status: "proved"
     - source: "Characterization (both sides at least 11)"
       lean: "ZZN.T.fires3T_iff_solvable"
       module: "ZZN.Timed.Main"
       status: "proved"
     - source: "Construction with its running time"
-      lean: "ZZN.T.solveZZNT_main"
-      module: "ZZN.Timed.Construct"
+      lean: "ZZN.T.solveZ3RT_main"
+      module: "ZZN.Timed.RoundTimeR"
       status: "proved"
 
 acknowledgements: "Lean 4 and Mathlib."

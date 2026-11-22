@@ -10,8 +10,9 @@ Aaron~B. Adcock, Erik~D. Demaine, Martin~L. Demaine, Michael~P. O'Brien, Felix
 \bibitem{chen08}
 Danqi Chen.
 \newblock Dynamic programming problems based on connectivity state compression.
-\newblock Paper of the Chinese National Olympiad in Informatics (NOI) national
-  training team, 2008.
+\newblock Paper of the Chinese national training team for IOI 2008,
+  \url{https://www.cs.princeton.edu/~danqic/papers/dynamic-programming.pdf},
+  2008.
 \newblock In Chinese.
 
 \bibitem{lean4}
@@ -43,21 +44,20 @@ James~F. Lynch.
 \newblock The equivalence of theorem proving and the interconnection problem.
 \newblock {\em ACM SIGDA Newsletter}, 5(3):31--36, 1975.
 
+\bibitem{makino06}
+Kozo Makino.
+\newblock 2-disjoint path covers in mesh-torus.
+\newblock {\em RIMS K{\^o}ky{\^u}roku}, 1489:181--187, 2006.
+
 \bibitem{oiwiki}
 {OI Wiki contributors}.
 \newblock Plug {DP}.
 \newblock \url{https://oi-wiki.org/dp/plug/}, 2026.
 \newblock In Chinese; accessed October 2026.
 
-\bibitem{parkihm15}
-Jung-Heum Park and Insung Ihm.
-\newblock Many-to-many two-disjoint path covers in cylindrical and toroidal
-  grids.
-\newblock {\em Discrete Applied Mathematics}, 185:168--191, 2015.
-
 \bibitem{rs95}
 Neil Robertson and Paul~D. Seymour.
-\newblock Graph minors. {XIII}. the disjoint paths problem.
+\newblock Graph minors. {XIII}. {T}he disjoint paths problem.
 \newblock {\em Journal of Combinatorial Theory, Series B}, 63(1):65--110, 1995.
 
 \bibitem{mathlib20}
