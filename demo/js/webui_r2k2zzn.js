@@ -773,9 +773,13 @@ function ui_input(btn_id) {
     // Leaves with both sides 11-16 are answered from the certificate table, which loads
     // asynchronously (_load_look); until it has loaded, such instances cannot be solved.
     //
+    // The optimized solver is `zzn.solve` when both sides are above 10. With a side at
+    // most 10 it cuts the grid into short pieces before running the plug DP, which takes
+    // milliseconds where `zzn.solve` takes seconds (short side 8 to 10).
+    //
     let s = null;
     try {
-      s = zzn.solve(I);
+      s = zzn.optimized.solve(I);
     }
     catch (err) {
       _display_message(-1, (g_look_state == "loading") ? "lookup table still loading" : "lookup table not loaded");
